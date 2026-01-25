@@ -1,0 +1,66 @@
+[
+  {
+    "id": "ENG",
+    "name": "England",
+    "short_name": "ENG",
+    "continent": "Europe",
+    "reputation": 95,
+    "youth_rating": 85
+  },
+  {
+    "id": "ESP",
+    "name": "Spain",
+    "short_name": "ESP",
+    "continent": "Europe",
+    "reputation": 94,
+    "youth_rating": 90
+  },
+  {
+    "id": "GER",
+    "name": "Germany",
+    "short_name": "GER",
+    "continent": "Europe",
+    "reputation": 92,
+    "youth_rating": 88
+  },
+  {
+    "id": "ITA",
+    "name": "Italy",
+    "short_name": "ITA",
+    "continent": "Europe",
+    "reputation": 91,
+    "youth_rating": 82
+  },
+  {
+    "id": "FRA",
+    "name": "France",
+    "short_name": "FRA",
+    "continent": "Europe",
+    "reputation": 90,
+    "youth_rating": 92
+  },
+  {
+    "id": "POR",
+    "name": "Portugal",
+    "short_name": "POR",
+    "continent": "Europe",
+    "reputation": 85,
+    "youth_rating": 88
+  },
+  {
+    "id": "BRA",
+    "name": "Brazil",
+    "short_name": "BRA",
+    "continent": "South America",
+    "reputation": 93,
+    "youth_rating": 95
+  },
+  {
+    "id": "ARG",
+    "name": "Argentina",
+    "short_name": "ARG",
+    "continent": "South America",
+    "reputation": 88,
+    "youth_rating": 90
+  }
+]

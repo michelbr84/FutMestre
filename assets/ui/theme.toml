@@ -1,0 +1,31 @@
+[colors]
+background = "#1a1a2e"
+foreground = "#eaeaea"
+accent = "#e94560"
+success = "#16a085"
+warning = "#f39c12"
+error = "#e74c3c"
+muted = "#7f8c8d"
+
+[colors.match]
+home = "#3498db"
+away = "#e74c3c"
+draw = "#95a5a6"
+goal = "#f1c40f"
+
+[colors.positions]
+goalkeeper = "#9b59b6"
+defender = "#2ecc71"
+midfielder = "#3498db"
+forward = "#e74c3c"
+
+[styles]
+header = { bold = true, fg = "accent" }
+selected = { bg = "accent", fg = "background" }
+inactive = { fg = "muted" }
+highlight = { bold = true, fg = "warning" }
+
+[layout]
+border_style = "rounded"
+show_footer = true
+compact_mode = false

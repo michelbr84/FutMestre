@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  cm_server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    ports:
+      - "3000:3000"
+    volumes:
+      - saves:/app/saves
+      - ./assets:/app/assets:ro
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  saves:
+    driver: local

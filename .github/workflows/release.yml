@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: cm
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: cm.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: cm
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }} -p cm_cli
+
+      - name: Package (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../cmrust-${{ github.ref_name }}-${{ matrix.target }}.tar.gz ${{ matrix.artifact }}
+          cd ../../..
+          sha256sum cmrust-${{ github.ref_name }}-${{ matrix.target }}.tar.gz > cmrust-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a ../../../cmrust-${{ github.ref_name }}-${{ matrix.target }}.zip ${{ matrix.artifact }}
+          cd ../../..
+          Get-FileHash cmrust-${{ github.ref_name }}-${{ matrix.target }}.zip -Algorithm SHA256 | Format-List > cmrust-${{ github.ref_name }}-${{ matrix.target }}.zip.sha256
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmrust-${{ matrix.target }}
+          path: |
+            cmrust-*.tar.gz
+            cmrust-*.tar.gz.sha256
+            cmrust-*.zip
+            cmrust-*.zip.sha256
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

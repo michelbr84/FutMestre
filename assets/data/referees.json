@@ -1,0 +1,16 @@
+[
+    {
+        "id": "REF001",
+        "name": "Mike Dean",
+        "nationality": "ENG",
+        "experience": 85,
+        "strictness": 70
+    },
+    {
+        "id": "REF002",
+        "name": "Graham Poll",
+        "nationality": "ENG",
+        "experience": 90,
+        "strictness": 65
+    }
+]
