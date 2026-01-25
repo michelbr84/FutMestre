@@ -12,6 +12,10 @@ mod output;
 #[derive(Parser, Debug)]
 #[command(name = "cm", version, about = "CM01/02-style manager sim (Rust)")]
 struct Cli {
+    /// Enable verbose output
+    #[arg(short, long, global = true)]
+    verbose: bool,
+
     #[command(subcommand)]
     cmd: Command,
 }
@@ -24,15 +28,28 @@ enum Command {
     AdvanceDay(commands::advance_day::AdvanceDayArgs),
     /// Simulate a single match
     SimulateMatch(commands::simulate_match::SimulateMatchArgs),
+    /// Import world data from JSON files
+    ImportData(commands::import_data::ImportDataArgs),
+    /// Export save data to various formats
+    ExportSave(commands::export_save::ExportSaveArgs),
 }
 
 fn main() -> anyhow::Result<()> {
-    init_tracing(EnvFilter::from_default_env().add_directive("info".parse()?));
     let cli = Cli::parse();
+    
+    // Set up tracing based on verbosity
+    let filter = if cli.verbose {
+        EnvFilter::from_default_env().add_directive("debug".parse()?)
+    } else {
+        EnvFilter::from_default_env().add_directive("info".parse()?)
+    };
+    init_tracing(filter);
 
     match cli.cmd {
         Command::NewGame(args) => commands::new_game::run(args),
         Command::AdvanceDay(args) => commands::advance_day::run(args),
         Command::SimulateMatch(args) => commands::simulate_match::run(args),
+        Command::ImportData(args) => commands::import_data::run(args),
+        Command::ExportSave(args) => commands::export_save::run(args),
     }
 }

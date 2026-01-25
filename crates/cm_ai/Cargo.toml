@@ -7,5 +7,6 @@ license.workspace = true
 [dependencies]
 serde.workspace = true
 rand.workspace = true
+chrono.workspace = true
 
 cm_core = { path = "../cm_core" }

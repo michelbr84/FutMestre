@@ -109,3 +109,162 @@ impl From<NaiveDate> for GameDate {
         Self(date)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_game_date_creation() {
+        let date = GameDate::new(2024, 1, 15);
+        assert_eq!(date.year(), 2024);
+        assert_eq!(date.month(), 1);
+        assert_eq!(date.day(), 15);
+    }
+
+    #[test]
+    fn test_game_date_invalid_fallback() {
+        let date = GameDate::new(2024, 13, 40); // invalid
+        assert_eq!(date.year(), 2001);
+        assert_eq!(date.month(), 7);
+        assert_eq!(date.day(), 1);
+    }
+
+    #[test]
+    fn test_advance_day() {
+        let mut date = GameDate::new(2024, 1, 15);
+        date.advance_day();
+        assert_eq!(date.day(), 16);
+    }
+
+    #[test]
+    fn test_advance_day_month_boundary() {
+        let mut date = GameDate::new(2024, 1, 31);
+        date.advance_day();
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 1);
+    }
+
+    #[test]
+    fn test_advance_days() {
+        let mut date = GameDate::new(2024, 1, 1);
+        date.advance_days(10);
+        assert_eq!(date.day(), 11);
+    }
+
+    #[test]
+    fn test_season_year_after_july() {
+        let date = GameDate::new(2024, 8, 1);
+        assert_eq!(date.season_year(), 2024);
+    }
+
+    #[test]
+    fn test_season_year_before_july() {
+        let date = GameDate::new(2025, 3, 15);
+        assert_eq!(date.season_year(), 2024);
+    }
+
+    #[test]
+    fn test_season_string() {
+        let date = GameDate::new(2024, 8, 1);
+        assert_eq!(date.season_string(), "2024-25");
+    }
+
+    #[test]
+    fn test_is_weekend() {
+        // 2024-01-06 is Saturday
+        let saturday = GameDate::new(2024, 1, 6);
+        assert!(saturday.is_weekend());
+        
+        // 2024-01-07 is Sunday
+        let sunday = GameDate::new(2024, 1, 7);
+        assert!(sunday.is_weekend());
+        
+        // 2024-01-08 is Monday
+        let monday = GameDate::new(2024, 1, 8);
+        assert!(!monday.is_weekend());
+    }
+
+    #[test]
+    fn test_is_saturday() {
+        let saturday = GameDate::new(2024, 1, 6);
+        assert!(saturday.is_saturday());
+        
+        let sunday = GameDate::new(2024, 1, 7);
+        assert!(!sunday.is_saturday());
+    }
+
+    #[test]
+    fn test_is_first_of_month() {
+        let first = GameDate::new(2024, 1, 1);
+        assert!(first.is_first_of_month());
+        
+        let second = GameDate::new(2024, 1, 2);
+        assert!(!second.is_first_of_month());
+    }
+
+    #[test]
+    fn test_weekday() {
+        let monday = GameDate::new(2024, 1, 8);
+        assert_eq!(monday.weekday(), Weekday::Mon);
+    }
+
+    #[test]
+    fn test_parse_valid() {
+        let date = GameDate::parse("2024-01-15");
+        assert!(date.is_some());
+        let date = date.unwrap();
+        assert_eq!(date.year(), 2024);
+        assert_eq!(date.month(), 1);
+        assert_eq!(date.day(), 15);
+    }
+
+    #[test]
+    fn test_parse_invalid() {
+        assert!(GameDate::parse("invalid").is_none());
+        assert!(GameDate::parse("2024/01/15").is_none());
+    }
+
+    #[test]
+    fn test_display() {
+        let date = GameDate::new(2024, 1, 15);
+        let display = format!("{}", date);
+        assert!(display.contains("15"));
+        assert!(display.contains("Jan"));
+        assert!(display.contains("2024"));
+    }
+
+    #[test]
+    fn test_default() {
+        let date = GameDate::default();
+        assert_eq!(date.year(), 2001);
+        assert_eq!(date.month(), 7);
+        assert_eq!(date.day(), 1);
+    }
+
+    #[test]
+    fn test_from_naive_date() {
+        let naive = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        let game_date = GameDate::from(naive);
+        assert_eq!(game_date.date(), naive);
+    }
+
+    #[test]
+    fn test_ordering() {
+        let date1 = GameDate::new(2024, 1, 1);
+        let date2 = GameDate::new(2024, 1, 15);
+        let date3 = GameDate::new(2024, 2, 1);
+        
+        assert!(date1 < date2);
+        assert!(date2 < date3);
+        assert!(date1 < date3);
+    }
+
+    #[test]
+    fn test_serialization() {
+        let date = GameDate::new(2024, 6, 15);
+        let json = serde_json::to_string(&date).unwrap();
+        let parsed: GameDate = serde_json::from_str(&json).unwrap();
+        assert_eq!(date, parsed);
+    }
+}

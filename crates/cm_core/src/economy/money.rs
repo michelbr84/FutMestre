@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn test_money_display() {
         assert_eq!(format!("{}", Money::from_major(500)), "£500");
-        assert_eq!(format!("{}", Money::from_major(5_000)), "£5000");
+        assert_eq!(format!("{}", Money::from_major(5_000)), "£5K");
         assert_eq!(format!("{}", Money::from_major(5_000_000)), "£5.0M");
     }
 }

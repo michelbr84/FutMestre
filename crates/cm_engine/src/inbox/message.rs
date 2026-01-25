@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use chrono::NaiveDate;
 
 /// Message category.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MessageCategory {
     Match,
     Transfer,
