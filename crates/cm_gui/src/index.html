@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Futebol Simulador 2026</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div id="app">
+    <!-- Screen 1: Language Selection -->
+    <div id="screen-language" class="screen active">
+      <div class="flags-container" id="flags-grid">
+        <!-- Flags will be injected here by JS -->
+      </div>
+    </div>
+
+    <!-- Screen 2: Start Menu -->
+    <div id="screen-start" class="screen">
+      <h1 class="game-title" id="game-title">Futebol Simulador</h1>
+      <div class="menu-container" id="menu-buttons">
+        <!-- Buttons will be injected here -->
+      </div>
+    </div>
+
+    <!-- Screen 3: New Game -->
+    <div id="screen-newgame" class="screen">
+      <h2 class="game-subtitle" style="font-size: 2rem; margin-bottom: 2rem;">New Manager Profile</h2>
+      <div class="form-container">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="manager-name" placeholder="Name" />
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="manager-surname" placeholder="Surname" />
+        </div>
+        <div class="form-group">
+          <label>Nationality</label>
+          <select id="manager-nationality">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Team</label>
+          <select id="manager-team">
+            <option value="LIV">Liverpool</option>
+            <option value="ARS">Arsenal</option>
+            <option value="MUN">Manchester United</option>
+            <option value="CHE">Chelsea</option>
+          </select>
+        </div>
+        <div class="button-row">
+          <button class="menu-btn secondary" onclick="app.showScreen('start')">Back</button>
+          <button class="menu-btn primary" onclick="app.startGame()">Start Career</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 4: Options -->
+    <div id="screen-options" class="screen">
+      <h2 class="game-subtitle" style="font-size: 2rem; margin-bottom: 2rem;">Options</h2>
+      <div class="form-container">
+        <div class="form-group">
+          <label>Language</label>
+          <select id="opt-language" onchange="app.changeLanguage(this.value)">
+            <option value="en">English (US)</option>
+            <option value="en-GB">English (UK)</option>
+            <option value="pt-BR">Português (BR)</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Simulation Speed</label>
+          <input type="range" min="1" max="5" value="3" />
+        </div>
+        <div class="button-row">
+          <button class="menu-btn primary" onclick="app.showScreen('start')">Back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="main.js" type="module"></script>
+</body>
+
+</html>

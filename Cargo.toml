@@ -15,6 +15,7 @@ members = [
   "crates/cm_tui",
   "crates/cm_api",
   "crates/cm_server",
+  "crates/cm_gui/src-tauri",
 ]
 
 [workspace.package]

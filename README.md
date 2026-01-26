@@ -49,6 +49,7 @@ crates/
 ## 📊 Features
 
 ### ✅ Implemented
+- **Modern 4K GUI**: Tauri-based interface with Glassmorphism design and 4K support.
 - **Match Engine**: Tick-by-tick probabilistic simulation with highlights, goals, cards, injuries
 - **World Model**: Nations, Clubs, Players (with 40+ attributes), Staff, Competitions, Stadiums, Referees
 - **AI Systems**: Matchday lineup selection, transfer decision-making, squad analysis, press conferences
