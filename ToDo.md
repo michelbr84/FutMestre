@@ -47,40 +47,40 @@ Roadmap completa para transformar o jogo em um executável Windows com interface
   - [x] **Sair**: Fechar a aplicação.
 
 ## 5. Tela 3: Novo Jogo (New Game Form)
-- [ ] **Carregamento de Times**
-  - [ ] Ler `times.json` do idioma selecionado.
-  - [ ] Sortear 6 times aleatórios (sem repetição).
-  - [ ] Congelar seleção (não mudar ao re-renderizar).
-- [ ] **Interface**
-  - [ ] Formulário: Nome, Sobrenome, Nacionalidade (Dropdown), Língua.
-  - [ ] **Grid de Seleção de Time (3x2)**: 6 Botões grandes com Nome + Cores do time.
-- [ ] **Lógica de Seleção**
-  - [ ] Highlight no time clicado.
-  - [ ] Validar se todos os campos estão preenchidos antes de habilitar "Confirmar".
-- [ ] **Ação**
-  - [ ] Botão "Confirmar": Disparar geração de mundo (Passo 6).
+- [x] **Carregamento de Times**
+  - [x] Ler `times.json` do idioma selecionado.
+  - [x] Sortear 6 times aleatórios (sem repetição).
+  - [x] Congelar seleção (não mudar ao re-renderizar).
+- [x] **Interface**
+  - [x] Formulário: Nome, Sobrenome, Nacionalidade (Dropdown), Língua.
+  - [x] **Grid de Seleção de Time (3x2)**: 6 Botões grandes com Nome + Cores do time.
+- [x] **Lógica de Seleção**
+  - [x] Highlight no time clicado.
+  - [x] Validar se todos os campos estão preenchidos antes de habilitar "Confirmar".
+- [x] **Ação**
+  - [x] Botão "Confirmar": Disparar geração de mundo (Passo 6).
 
 ## 6. Geração de Mundo (Engine)
-- [ ] **Times**
-  - [ ] Carregar os 30 times do `times.json`.
-- [ ] **Jogadores**
-  - [ ] Gerar ~510 jogadores (17 por time).
-  - [ ] Usar `nomes.json` (nomes + sobrenomes) para gerar nomes aleatórios.
-- [ ] **Técnicos**
-  - [ ] Carregar `tecnicos.json`.
-  - [ ] Assignar User Manager ao time selecionado.
-  - [ ] Assignar bots aos outros 29 times.
+- [x] **Times**
+  - [x] Carregar os 30 times do `times.json`.
+- [x] **Jogadores**
+  - [x] Gerar ~510 jogadores (17 por time).
+  - [x] Usar `nomes.json` (nomes + sobrenomes) para gerar nomes aleatórios.
+- [x] **Técnicos**
+  - [x] Carregar `tecnicos.json`.
+  - [x] Assignar User Manager ao time selecionado.
+  - [x] Assignar bots aos outros 29 times.
 
 ## 7. Tela 4: Notícias (News Screen)
-- [ ] **Template**
-  - [ ] Carregar `atual.json` como template de estrutura.
-- [ ] **Adaptação**
-  - [ ] Substituir dados estáticos pelos dados da carreira gerada (Nome do time, Data atual).
-  - [ ] Inserir mensagem de boas vindas personalizada ("Bem-vindo ao [Time Selecionado]").
-- [ ] **Renderização**
-  - [ ] Exibir Header com Data/Hora.
-  - [ ] Exibir Lista de Mensagens (Inbox).
-  - [ ] Exibir Detalhe da Mensagem selecionada.
+- [x] **Template**
+  - [x] Carregar `atual.json` como template de estrutura.
+- [x] **Adaptação**
+  - [x] Substituir dados estáticos pelos dados da carreira gerada (Nome do time, Data atual).
+  - [x] Inserir mensagem de boas vindas personalizada ("Bem-vindo ao [Time Selecionado]").
+- [x] **Renderização**
+  - [x] Exibir Header com Data/Hora.
+  - [x] Exibir Lista de Mensagens (Inbox).
+  - [x] Exibir Detalhe da Mensagem selecionada.
 
 ## 8. Funcionalidade: Continuar Jogo
 - [x] **Opção A (Simples)**
@@ -89,7 +89,7 @@ Roadmap completa para transformar o jogo em um executável Windows com interface
   - [x] Se não: Exibir Toast/Modal "Nenhum save encontrado".
 
 ## 9. Integração & Build
-- [ ] Padronizar pasta `resources/JSON` para distribuição.
-- [ ] Ajustar `tauri.conf.json` para incluir assets no build.
-- [ ] Verificar build final (`npm run tauri build`).
+- [x] Padronizar pasta `resources/JSON` para distribuição.
+- [x] Ajustar `tauri.conf.json` para incluir assets no build.
+- [x] Verificar build final (`npm run tauri build`).
 

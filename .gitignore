@@ -1,58 +1,18 @@
-# CM Rust - .gitignore
 
-# Build artifacts
+# Rust
 /target/
+/release/
 **/*.rs.bk
+Cargo.lock
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS files
+# Node / Web
+node_modules/
+dist/
 .DS_Store
-Thumbs.db
 
-# Environment
-.env
-.env.local
-.env.*.local
+# Tauri
+crates/cm_gui/src-tauri/target/
+crates/cm_gui/src-tauri/gen/
 
-# Save files (keep directory but ignore saves)
-/saves/*.cmsave
-!/saves/.gitkeep
-
-# Logs
-*.log
-logs/
-
-# Coverage
-/coverage/
-*.gcov
-*.gcda
-*.gcno
-
-# Profiling
-*.profraw
-*.profdata
-
-# Documentation build
-/docs/book/
-
-# SQLite databases (generated)
-*.sqlite
-*.sqlite3
-*.db
-
-# Backup files
-*.bak
-*.backup
-
-# Temporary files
-*.tmp
-*.temp
-
-# Debug files
-*.pdb
+# VS Code
+.vscode/

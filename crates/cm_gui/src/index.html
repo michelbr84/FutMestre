@@ -12,22 +12,18 @@
   <div id="app">
     <!-- Screen 1: Language Selection -->
     <div id="screen-language" class="screen active">
-      <div class="flags-container" id="flags-grid">
-        <!-- Flags will be injected here by JS -->
-      </div>
+      <div class="flags-container" id="flags-grid"></div>
     </div>
 
     <!-- Screen 2: Start Menu -->
     <div id="screen-start" class="screen">
       <h1 class="game-title" id="game-title">Futebol Simulador</h1>
-      <div class="menu-container" id="menu-buttons">
-        <!-- Buttons will be injected here -->
-      </div>
+      <div class="menu-container" id="menu-buttons"></div>
     </div>
 
     <!-- Screen 3: New Game -->
     <div id="screen-newgame" class="screen">
-      <h2 class="game-subtitle" style="font-size: 2rem; margin-bottom: 2rem;">New Manager Profile</h2>
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">New Manager Profile</h2>
       <div class="form-container">
         <div class="form-group">
           <label>First Name</label>
@@ -39,31 +35,29 @@
         </div>
         <div class="form-group">
           <label>Nationality</label>
-          <select id="manager-nationality">
-            <!-- Populated by JS -->
-          </select>
+          <select id="manager-nationality"></select>
         </div>
 
         <div class="form-group">
-          <label>Select Team (Choose one)</label>
+          <label>Select Team</label>
           <div id="team-selection-grid" class="team-grid">
-            <!-- Populated by JS -->
             <div class="team-card">Loading teams...</div>
           </div>
           <input type="hidden" id="selected-team-id" />
         </div>
 
-        <div class="button-row">
-          <button class="menu-btn secondary" onclick="app.showScreen('start')">Back</button>
-          <button id="btn-start-career" class="menu-btn primary" onclick="app.createCareer()">Start Career</button>
+        <div style="display:flex; justify-content: space-between; margin-top: 1rem;">
+          <button class="action-btn secondary" onclick="app.showScreen('start')">Back</button>
+          <button id="btn-start-career" class="action-btn primary" onclick="app.createCareer()" disabled>Start
+            Career</button>
         </div>
       </div>
     </div>
 
     <!-- Screen 4: Options -->
     <div id="screen-options" class="screen">
-      <h2 class="game-subtitle" style="font-size: 2rem; margin-bottom: 2rem;">Options</h2>
-      <div class="form-container">
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Options</h2>
+      <div class="form-container" style="width: 500px;">
         <div class="form-group">
           <label>Language</label>
           <select id="opt-language" onchange="app.changeLanguage(this.value)">
@@ -77,59 +71,69 @@
           <label>Simulation Speed</label>
           <input type="range" min="1" max="5" value="3" />
         </div>
-        <div class="button-row">
-          <button class="menu-btn primary" onclick="app.showScreen('start')">Back</button>
+        <div style="margin-top: 2rem;">
+          <button class="action-btn primary" onclick="app.showScreen('start')">Back</button>
         </div>
       </div>
     </div>
 
-    <!-- Screen 5: News (Game Hub) -->
+    <!-- Screen 5: Main Hub (CM Layout) -->
     <div id="screen-news" class="screen">
-      <div class="news-container">
-        <div class="news-header">
-          <div class="header-brand">
-            <span class="header-title" id="news-club-name">Club Name</span>
+      <div class="cm-layout">
+
+        <!-- 1. Top Bar -->
+        <div class="top-bar">
+          <div class="brand-section">
+            <div class="club-name" id="hud-club-name">Club Name</div>
+            <div class="club-meta">
+              <span class="meta-item">4th Division</span>
+              <span class="meta-item">• Board: Promote</span>
+              <span class="meta-item">• Rank: 1st</span>
+            </div>
           </div>
-          <div class="header-date" id="game-date">
-            01 Jan 2026
+          <div class="date-section">
+            <div class="game-date" id="hud-game-date">01 Jan 2026</div>
+            <div class="game-time">09:00</div>
           </div>
         </div>
-        <div class="news-body">
-          <div class="news-sidebar" id="news-inbox-list">
-            <!-- Messages List -->
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+          <div class="nav-tab active">Inbox</div>
+          <div class="nav-tab">Squad</div>
+          <div class="nav-tab">Tactics</div>
+          <div class="nav-tab">Transfers</div>
+          <div class="nav-tab">Finance</div>
+          <div class="nav-tab">Competitions</div>
+        </div>
+
+        <!-- 2. Main Content (Split) -->
+        <div class="main-content">
+          <!-- Left: Inbox List -->
+          <div class="inbox-sidebar" id="inbox-list">
+            <!-- Items injected by JS -->
           </div>
-          <div class="news-content" id="news-article-view">
-            <div style="display:flex; height:100%; align-items:center; justify-content:center; color:#666;">
-              Select a message to read
+
+          <!-- Right: Reading Pane -->
+          <div class="reading-pane" id="reading-pane">
+            <!-- Article injected by JS -->
+            <div style="height:100%; display:flex; align-items:center; justify-content:center; color:#555;">
+              Select a message
             </div>
           </div>
         </div>
-        <div class="news-footer"
-          style="padding:1rem; border-top:1px solid rgba(255,255,255,0.1); display:flex; gap:1rem; justify-content: flex-end;">
-          <button class="menu-btn secondary" style="width:auto; font-size:1rem; padding:0.5rem 1.5rem;"
-            onclick="app.showScreen('start')">Save & Exit</button>
-          <button class="menu-btn primary" style="width:auto; font-size:1rem; padding:0.5rem 1.5rem;"
-            onclick="app.advanceGame()">Continue</button>
+
+        <!-- 3. Bottom Bar -->
+        <div class="bottom-bar">
+          <button class="action-btn secondary" onclick="app.showScreen('start')">Save & Exit</button>
+          <button class="action-btn primary" onclick="app.advanceGame()">Continue</button>
         </div>
+
       </div>
     </div>
 
   </div>
   <script src="main.js" type="module"></script>
-  <script>
-    window.addEventListener('error', (event) => {
-      const errDiv = document.createElement('div');
-      errDiv.style.position = 'fixed';
-      errDiv.style.bottom = '0';
-      errDiv.style.left = '0';
-      errDiv.style.background = 'red';
-      errDiv.style.color = 'white';
-      errDiv.style.padding = '10px';
-      errDiv.style.zIndex = '9999';
-      errDiv.textContent = `JS Error: ${event.message} at ${event.filename}:${event.lineno}`;
-      document.body.appendChild(errDiv);
-    });
-  </script>
 </body>
 
 </html>
