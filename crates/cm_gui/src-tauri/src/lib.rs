@@ -190,6 +190,34 @@ fn offer_transfer(player_id: String, amount: u64) -> String {
     }
 }
 
+#[tauri::command]
+fn get_saved_games() -> Vec<models::DisplaySaveSlot> {
+    // Mock save list
+    vec![
+        models::DisplaySaveSlot {
+            slot_id: 1,
+            manager_name: "Michel Araujo".to_string(),
+            club: "Liverpool".to_string(),
+            date: "2026-01-01".to_string(),
+            timestamp: 1709999999
+        },
+        models::DisplaySaveSlot {
+            slot_id: 2,
+            manager_name: "Test User".to_string(),
+            club: "Vasco".to_string(),
+            date: "2026-02-15".to_string(),
+            timestamp: 1708888888
+        }
+    ]
+}
+
+#[tauri::command]
+fn load_game(slot_id: u32) -> bool {
+    // Mock load
+    println!("Loading save slot {}", slot_id);
+    true
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -204,7 +232,9 @@ pub fn run() {
             start_match,
             get_league_table,
             search_players,
-            offer_transfer
+            offer_transfer,
+            get_saved_games,
+            load_game
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

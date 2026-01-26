@@ -21,6 +21,19 @@
       <div class="menu-container" id="menu-buttons"></div>
     </div>
 
+    <!-- Screen 3a: Load Game -->
+    <div id="screen-load" class="screen">
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Load Game</h2>
+      <div class="glass-container" style="width: 600px; padding: 2rem;">
+        <div id="save-list" class="save-list">
+          <div style="text-align:center; color:#888;">Fetching saved games...</div>
+        </div>
+        <div style="margin-top: 2rem; display:flex; justify-content:center;">
+          <button class="action-btn secondary" onclick="app.showScreen('start')">Back</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Screen 3: New Game -->
     <div id="screen-newgame" class="screen">
       <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">New Manager Profile</h2>
@@ -223,6 +236,50 @@
               </div>
             </div>
           </div>
+
+          <!-- Finance View -->
+          <div id="finance-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
+            <h2 style="color:var(--accent-color);">Club Finances</h2>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
+              <div class="glass-container" style="padding:1.5rem;">
+                <div class="panel-header">Balance</div>
+                <div style="font-size:2rem; font-weight:bold; color: #4ade80; margin:1rem 0;">£45,200,000</div>
+                <div style="font-size:0.9rem; color:#888;">Projected: £42M</div>
+              </div>
+              <div class="glass-container" style="padding:1.5rem;">
+                <div class="panel-header">Transfer Budget</div>
+                <div style="font-size:2rem; font-weight:bold; color: #60a5fa; margin:1rem 0;">£32,000,000</div>
+                <div style="font-size:0.9rem; color:#888;">Remaining Wage Budget: £150k/pw</div>
+              </div>
+            </div>
+
+            <div class="glass-container" style="margin-top: 2rem; padding: 1.5rem;">
+              <div class="panel-header" style="margin-bottom:1rem;">Income & Expenditure (This Season)</div>
+              <table style="width:100%; text-align:left; border-collapse:collapse; color:#ccc;">
+                <tr style="border-bottom:1px solid #333;">
+                  <th style="padding:0.5rem;">Category</th>
+                  <th style="padding:0.5rem; text-align:right;">Amount</th>
+                </tr>
+                <tr>
+                  <td style="padding:0.5rem;">TV Revenue</td>
+                  <td style="padding:0.5rem; text-align:right; color:#4ade80;">+£85,000,000</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.5rem;">Gate Receipts</td>
+                  <td style="padding:0.5rem; text-align:right; color:#4ade80;">+£12,500,000</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.5rem;">Player Wages</td>
+                  <td style="padding:0.5rem; text-align:right; color:#f87171;">-£55,000,000</td>
+                </tr>
+                <tr>
+                  <td style="padding:0.5rem;">Transfer Expenditure</td>
+                  <td style="padding:0.5rem; text-align:right; color:#f87171;">-£22,000,000</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
         </div>
 
         <!-- 3. Bottom Bar -->

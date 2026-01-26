@@ -142,3 +142,12 @@ impl From<cm_core::competitions::LeagueTable> for DisplayLeagueTable {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplaySaveSlot {
+    pub slot_id: u32,
+    pub manager_name: String,
+    pub club: String,
+    pub date: String,
+    pub timestamp: u64,
+}

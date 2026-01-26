@@ -12,15 +12,27 @@ const app = {
   },
 
   init: async () => {
+    app.log("App initializing...");
     await app.loadFlags();
+    app.log("Flags loaded.");
+  },
+
+  log: (msg, level = 'info') => {
+    const ts = new Date().toISOString();
+    if (level === 'error') console.error(`[${ts}] ERROR: ${msg}`);
+    else console.log(`[${ts}] INFO: ${msg}`);
   },
 
   loadJSON: async (path) => {
     try {
       const res = await fetch(path);
-      if (!res.ok) return null;
+      if (!res.ok) {
+        app.log(`Failed to load ${path}: ${res.statusText}`, 'error');
+        return null;
+      }
       return await res.json();
     } catch (e) {
+      app.log(`Exception loading ${path}: ${e}`, 'error');
       return null;
     }
   },
@@ -87,9 +99,77 @@ const app = {
   handleMenuAction: (actionId) => {
     switch (actionId) {
       case 'start_game': app.prepNewGame(); break;
-      case 'continue_game': alert("Saved games system coming soon."); break;
+      case 'continue_game': app.showLoadScreen(); break;
       case 'options': app.showScreen('options'); break;
       case 'exit': window.close(); break;
+    }
+  },
+
+  showLoadScreen: async () => {
+    app.showScreen('load');
+    const list = document.getElementById('save-list');
+    list.innerHTML = '<div style="text-align:center; color:#888;">Loading...</div>';
+
+    try {
+      const saves = await invoke('get_saved_games');
+      list.innerHTML = '';
+      if (saves.length === 0) {
+        list.innerHTML = '<div style="text-align:center;">No saved games found.</div>';
+        return;
+      }
+
+      saves.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'save-item';
+        div.style.padding = '1rem';
+        div.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+        div.style.cursor = 'pointer';
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+        div.onmouseover = () => div.style.background = 'rgba(255,255,255,0.05)';
+        div.onmouseout = () => div.style.background = 'transparent';
+
+        div.innerHTML = `
+                <div>
+                    <div style="font-weight:bold; color:white;">${s.manager_name}</div>
+                    <div style="font-size:0.9rem; color:#aaa;">${s.club}</div>
+                </div>
+                <div style="text-align:right;">
+                     <div style="color:var(--accent-color);">${s.date}</div>
+                     <div style="font-size:0.8rem; color:#666;">Slot ${s.slot_id}</div>
+                </div>
+              `;
+        div.onclick = () => app.loadGame(s.slot_id);
+        list.appendChild(div);
+      });
+    } catch (e) {
+      app.log('Error fetching saves: ' + e, 'error');
+      list.innerHTML = '<div style="color:red; text-align:center;">Failed to load save list.</div>';
+    }
+  },
+
+  loadGame: async (slotId) => {
+    if (confirm(`Load save slot ${slotId}? Unsaved progress will be lost.`)) {
+      try {
+        const success = await invoke('load_game', { slotId });
+        if (success) {
+          // In real app, we'd get the full state back. For now, just jump to Game Hub.
+          // We mock state for demo purposes if backend doesn't return it yet
+          if (!app.state.gameState) {
+            app.state.gameState = {
+              meta: { clubName: "Loaded FC", managerName: "Loaded Manager", clubId: "1" },
+              messages: [],
+              game: { dayLabel: "Loaded Date" }
+            };
+          }
+          app.renderGameHub();
+          app.showScreen('news');
+        } else {
+          alert("Failed to load game.");
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
   },
 
@@ -304,9 +384,23 @@ const app = {
     }
 
     const selectedTeam = app.state.newGameData.randomTeams.find(t => t.id == teamId);
+
+    // Call backend to create the game world
+    try {
+      const res = await invoke("start_new_game", {
+        name,
+        surname,
+        nationId: 1, // Defaulting for now, could lookup ID from flag
+        teamId: teamId.toString()
+      });
+      console.log(res);
+    } catch (e) {
+      console.error("Failed to start backend game", e);
+    }
+
     const template = await app.loadJSON(`assets/JSON/pt-BR/atual.json`);
 
-    // Mock Game State
+    // Mock Game State (Client Side)
     app.state.gameState = {
       ...template,
       meta: {
@@ -423,6 +517,8 @@ const app = {
       app.loadCompetitions();
     } else if (tabName === 'Transfers') {
       document.getElementById('transfers-view').style.display = 'block';
+    } else if (tabName === 'Finance') {
+      document.getElementById('finance-view').style.display = 'block';
     }
   },
 
@@ -523,14 +619,45 @@ const app = {
       { top: '15%', left: '50%', name: 'ST' },
     ];
 
-    positions.forEach(pos => {
+    positions.forEach((pos, idx) => {
       const p = document.createElement('div');
       p.className = 'pitch-player';
       p.style.top = pos.top;
       p.style.left = pos.left;
+      p.draggable = true;
+      p.dataset.idx = idx;
+
+      p.ondragstart = (e) => {
+        e.dataTransfer.setData("text/plain", idx);
+        e.target.style.opacity = '0.5';
+      };
+
+      p.ondragend = (e) => {
+        e.target.style.opacity = '1';
+      };
+
       p.innerHTML = `<span>${pos.name}</span><span class="p-name">Player</span>`;
       pitch.appendChild(p);
     });
+
+    // Pitch Drop Zone
+    pitch.ondragover = (e) => e.preventDefault();
+    pitch.ondrop = (e) => {
+      e.preventDefault();
+      const idx = e.dataTransfer.getData("text/plain");
+      const playerEl = document.querySelector(`.pitch-player[data-idx='${idx}']`);
+
+      // Calculate new percentages based on pitch dimensions
+      const rect = pitch.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const leftPct = (x / rect.width * 100).toFixed(0) + '%';
+      const topPct = (y / rect.height * 100).toFixed(0) + '%';
+
+      playerEl.style.left = leftPct;
+      playerEl.style.top = topPct;
+    };
 
     const bench = document.getElementById('bench-list');
     bench.innerHTML = '';
