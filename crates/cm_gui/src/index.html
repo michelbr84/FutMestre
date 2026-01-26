@@ -99,12 +99,12 @@
 
         <!-- Navigation Tabs -->
         <div class="nav-tabs">
-          <div class="nav-tab active">Inbox</div>
-          <div class="nav-tab">Squad</div>
-          <div class="nav-tab">Tactics</div>
-          <div class="nav-tab">Transfers</div>
-          <div class="nav-tab">Finance</div>
-          <div class="nav-tab">Competitions</div>
+          <div class="nav-tab active" onclick="app.toggleTab('Inbox')">Inbox</div>
+          <div class="nav-tab" onclick="app.toggleTab('Squad')">Squad</div>
+          <div class="nav-tab" onclick="app.toggleTab('Tactics')">Tactics</div>
+          <div class="nav-tab" onclick="app.toggleTab('Transfers')">Transfers</div>
+          <div class="nav-tab" onclick="app.toggleTab('Finance')">Finance</div>
+          <div class="nav-tab" onclick="app.toggleTab('Competitions')">Competitions</div>
         </div>
 
         <!-- 2. Main Content (Split) -->
@@ -122,7 +122,7 @@
             </div>
           </div>
 
-          <!-- Squad View (Hidden by default, toggled via tabs) -->
+          <!-- Squad View -->
           <div id="squad-view" style="display:none; flex:1; overflow-y:auto; padding:0; flex-direction:column;">
             <div class="squad-controls">
               <button class="filter-btn active" onclick="app.filterSquad('ALL')">All</button>
@@ -175,99 +175,95 @@
               </div>
             </div>
           </div>
-        </div>
 
+          <!-- Competitions View -->
+          <div id="comps-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
+            <h2 id="comp-name" style="color:var(--accent-color); margin-bottom:1rem;">Premier League</h2>
+            <table class="datagrid" id="league-table">
+              <thead>
+                <tr>
+                  <th width="10%">Pos</th>
+                  <th width="40%">Club</th>
+                  <th width="10%">P</th>
+                  <th width="10%">W</th>
+                  <th width="10%">D</th>
+                  <th width="10%">L</th>
+                  <th width="10%">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Rows -->
+              </tbody>
+            </table>
+          </div>
 
-        <!-- Competitions View -->
-        <div id="comps-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
-          <h2 id="comp-name" style="color:var(--accent-color); margin-bottom:1rem;">Premier League</h2>
-          <table class="datagrid" id="league-table">
-            <thead>
-              <tr>
-                <th width="10%">Pos</th>
-                <th width="40%">Club</th>
-                <th width="10%">P</th>
-                <th width="10%">W</th>
-                <th width="10%">D</th>
-                <th width="10%">L</th>
-                <th width="10%">Pts</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Rows -->
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <!-- Transfers View -->
+          <div id="transfers-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
+            <div class="search-bar" style="display:flex; gap:1rem; margin-bottom:2rem;">
+              <input type="text" id="search-input" placeholder="Search player by name (e.g. 'Silva')..."
+                style="flex:1; padding:0.5rem; background:#333; border:1px solid #555; color:white;">
+              <button class="action-btn primary" onclick="app.searchPlayers()">Search</button>
+            </div>
 
-
-      <!-- Transfers View -->
-      <div id="transfers-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
-        <div class="search-bar" style="display:flex; gap:1rem; margin-bottom:2rem;">
-          <input type="text" id="search-input" placeholder="Search player by name (e.g. 'Silva')..."
-            style="flex:1; padding:0.5rem; background:#333; border:1px solid #555; color:white;">
-          <button class="action-btn primary" onclick="app.searchPlayers()">Search</button>
-        </div>
-
-        <div id="search-results">
-          <table class="datagrid" id="transfer-table" style="display:none;">
-            <thead>
-              <tr>
-                <th width="30%">Name</th>
-                <th width="10%">Age</th>
-                <th width="20%">Position</th>
-                <th width="20%">Club</th>
-                <th width="20%">Value</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-          <div id="search-empty" style="text-align:center; color:#666; margin-top:4rem;">
-            Enter a name to search the global database.
+            <div id="search-results">
+              <table class="datagrid" id="transfer-table" style="display:none;">
+                <thead>
+                  <tr>
+                    <th width="30%">Name</th>
+                    <th width="10%">Age</th>
+                    <th width="20%">Position</th>
+                    <th width="20%">Club</th>
+                    <th width="20%">Value</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+              <div id="search-empty" style="text-align:center; color:#666; margin-top:4rem;">
+                Enter a name to search the global database.
+              </div>
+            </div>
           </div>
         </div>
+
+        <!-- 3. Bottom Bar -->
+        <div class="bottom-bar">
+          <button class="action-btn secondary" onclick="app.showScreen('start')">Save & Exit</button>
+          <button class="action-btn primary" onclick="app.advanceGame()">Continue</button>
+        </div>
+
       </div>
     </div>
 
-    <!-- 3. Bottom Bar -->
-    <div class="bottom-bar">
-      <button class="action-btn secondary" onclick="app.showScreen('start')">Save & Exit</button>
-      <button class="action-btn primary" onclick="app.advanceGame()">Continue</button>
-    </div>
-
-  </div>
-  </div>
-
-  <!-- Screen X: Match Engine (Overlay) -->
-  <div id="screen-match" class="screen" style="background:black; z-index:20;">
-    <div class="match-layout">
-      <div class="match-header">
-        <div class="team-score">
-          <div class="team-lg" id="score-home-name">Home</div>
-          <div class="score-lg" id="score-home">0</div>
+    <!-- Screen X: Match Engine (Overlay) -->
+    <div id="screen-match" class="screen" style="background:black; z-index:20;">
+      <div class="match-layout">
+        <div class="match-header">
+          <div class="team-score">
+            <div class="team-lg" id="score-home-name">Home</div>
+            <div class="score-lg" id="score-home">0</div>
+          </div>
+          <div class="match-timer">
+            <div class="timer-box" id="match-time">00:00</div>
+            <div class="match-status">LIVE</div>
+          </div>
+          <div class="team-score">
+            <div class="score-lg" id="score-away">0</div>
+            <div class="team-lg" id="score-away-name">Away</div>
+          </div>
         </div>
-        <div class="match-timer">
-          <div class="timer-box" id="match-time">00:00</div>
-          <div class="match-status">LIVE</div>
-        </div>
-        <div class="team-score">
-          <div class="score-lg" id="score-away">0</div>
-          <div class="team-lg" id="score-away-name">Away</div>
-        </div>
-      </div>
 
-      <div class="match-body">
-        <div class="commentary-box" id="commentary-feed">
-          <!-- Events -->
+        <div class="match-body">
+          <div class="commentary-box" id="commentary-feed">
+            <!-- Events -->
+          </div>
         </div>
-      </div>
 
-      <div class="match-footer" style="padding:2rem; text-align:center;">
-        <button class="action-btn primary" id="btn-finish-match" onclick="app.finishMatch()"
-          style="display:none; margin:0 auto;">Finish Match</button>
+        <div class="match-footer" style="padding:2rem; text-align:center;">
+          <button class="action-btn primary" id="btn-finish-match" onclick="app.finishMatch()"
+            style="display:none; margin:0 auto;">Finish Match</button>
+        </div>
       </div>
     </div>
-  </div>
   </div>
   <div id="profile-modal" class="modal-overlay" onclick="if(event.target === this) app.closeProfile()">
     <div class="profile-card">

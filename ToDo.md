@@ -87,3 +87,10 @@ Roadmap completa para transformar o jogo em um executável Windows com interface
 ## 17. Season Management
 - [x] **Fixtures**: Generate a schedule for the league (Home/Away).
 - [x] **Progression**: Advance week-by-week playing scheduled matches.
+
+# Phase 5: Refinement & Bug Fixes (Urgent)
+
+## 18. UI/UX Fixes
+- [x] **Layout**: Fix 'Continue' button z-index/clickability (Button was behind header).
+- [x] **Navigation**: Enable all sidebar tabs (Squad, Tactics, Transfers, Finance, Competitions).
+- [x] **Structure**: Consolidate views inside `.main-content` for correct layout.
