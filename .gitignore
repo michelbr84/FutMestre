@@ -14,5 +14,11 @@ dist/
 crates/cm_gui/src-tauri/target/
 crates/cm_gui/src-tauri/gen/
 
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # VS Code
 .vscode/

@@ -418,6 +418,91 @@ const app = {
     } else if (tabName === 'Tactics') {
       document.getElementById('tactics-view').style.display = 'block';
       app.renderTactics();
+    } else if (tabName === 'Competitions') {
+      document.getElementById('comps-view').style.display = 'block';
+      app.loadCompetitions();
+    } else if (tabName === 'Transfers') {
+      document.getElementById('transfers-view').style.display = 'block';
+    }
+  },
+
+  showProfile: async (playerId) => {
+    const p = await invoke('get_player_details', { playerId: parseInt(playerId) || 100 });
+
+    if (p) {
+      document.getElementById('p-name').textContent = p.display.name;
+      document.getElementById('p-meta').textContent = `${p.display.age} yrs • ${p.display.nationality} • ${p.display.position}`;
+
+      // Render Attributes
+      const grid = document.getElementById('p-attributes');
+      grid.innerHTML = '';
+      const allAttrs = [...p.attributes.technical, ...p.attributes.mental, ...p.attributes.physical];
+      allAttrs.forEach(([k, v]) => {
+        const div = document.createElement('div');
+        div.className = 'attr-item';
+        let colorClass = 'attr-low';
+        if (v >= 15) colorClass = 'attr-excellent';
+        else if (v >= 10) colorClass = 'attr-good';
+        else if (v >= 6) colorClass = 'attr-average';
+        div.innerHTML = `<span class="attr-label">${k}</span><span class="attr-value ${colorClass}">${v}</span>`;
+        grid.appendChild(div);
+      });
+
+      // "Make Offer" Button Logic
+      const header = document.querySelector('.profile-header');
+      let btn = document.getElementById('btn-make-offer');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'btn-make-offer';
+        btn.className = 'action-btn primary';
+        btn.style.marginLeft = 'auto';
+        header.appendChild(btn);
+      }
+      btn.textContent = `Make Offer (£${p.display.value})`;
+      btn.onclick = async () => {
+        const amount = 55000000; // Mock offering 55M
+        const res = await invoke('offer_transfer', { playerId: p.display.name, amount });
+        alert(res);
+      };
+      btn.style.display = 'block';
+
+      document.getElementById('profile-modal').style.display = 'flex';
+    }
+  },
+
+  closeProfile: () => {
+    document.getElementById('profile-modal').style.display = 'none';
+  },
+
+  searchPlayers: async () => {
+    const query = document.getElementById('search-input').value;
+    const results = await invoke('search_players', { query });
+
+    const table = document.getElementById('transfer-table');
+    const tbody = table.querySelector('tbody');
+    const empty = document.getElementById('search-empty');
+
+    tbody.innerHTML = '';
+
+    if (results.length > 0) {
+      table.style.display = 'table';
+      empty.style.display = 'none';
+
+      results.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+                <td style="font-weight:bold; cursor:pointer;" onclick="app.showProfile('${p.id}')">${p.name}</td>
+                <td>${p.age}</td>
+                <td>${p.position}</td>
+                <td>Unknown FC</td> <!-- Mocking club name for display -->
+                <td>${p.value}</td>
+              `;
+        tbody.appendChild(tr);
+      });
+    } else {
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      empty.textContent = 'No players found.';
     }
   },
 
@@ -534,6 +619,33 @@ const app = {
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
     document.getElementById(`screen-${screenId}`).classList.add('active');
   }
+};
+
+app.loadCompetitions = async () => {
+  try {
+    const table = await invoke('get_league_table');
+    document.getElementById('comp-name').textContent = table.name;
+    const tbody = document.querySelector('#league-table tbody');
+    tbody.innerHTML = '';
+
+    table.rows.forEach(r => {
+      const tr = document.createElement('tr');
+      let posClass = '';
+      if (r.position === 1) posClass = 'color: #fbbf24; font-weight:bold;';
+      else if (r.position >= 18) posClass = 'color: #f87171;';
+
+      tr.innerHTML = `
+                <td style="${posClass}">${r.position}</td>
+                <td style="font-weight:600">${r.club_name}</td>
+                <td>${r.played}</td>
+                <td>${r.won}</td>
+                <td>${r.drawn}</td>
+                <td>${r.lost}</td>
+                <td style="font-weight:700">${r.points}</td>
+              `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) { console.error(e); }
 };
 
 window.app = app;

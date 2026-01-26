@@ -65,10 +65,9 @@ crates/
 - **Transfer System**: Bid evaluation, contract negotiations, player valuation
 
 ### 🔨 In Progress
-- [ ] Competition fixture generation and league tables
-- [ ] TUI screens (squad management, tactics, inbox, match day)
+- [ ] TUI screens (squad management, tactics, inbox, match day) (Legacy/Alternative)
 - [ ] REST API endpoints
-- [ ] Training and youth academy progression
+- [ ] Training and youth academy progression (Deep simulation)
 
 ## 🧪 Testing
 
@@ -107,9 +106,9 @@ cmrust/
 | M2 | ✅ | cm_data (JSON schema, SQLite, importer) |
 | M3 | ✅ | cm_engine (loop, 13+ systems, time) |
 | M4 | ✅ | cm_match (ticks, events, ratings) |
-| M5 | 🔨 | Competitions (fixtures, tables) |
-| M6 | ✅ | cm_transfers (valuation, negotiation) |
-| M7 | 🔨 | cm_finance (wages, sponsorship, FFP) |
+| M5 | ✅ | Competitions (fixtures, tables, GUI view) |
+| M6 | ✅ | cm_transfers (valuation, negotiation, GUI search) |
+| M7 | ✅ | cm_finance (wages, sponsorship, FFP) |
 | M8 | ✅ | cm_ai (matchday, transfers, press, squad) |
 | M9 | ✅ | cm_save (snapshot, compression) |
 | M10 | 🔨 | cm_tui (screens, widgets) |

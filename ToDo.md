@@ -70,6 +70,20 @@ Roadmap completa para transformar o jogo em um executável Windows com interface
 - [x] **Instruções**: Mentalidade, Estilo de Passe, Pressão.
 
 ## 14. Tela 8: Dia de Jogo (Match Day)
-- [x] **Engine**: Conectar `cm_engine` para simular partida.
-- [x] **Visualização**: Texto narrativo ("Silva chuta...") e placar ao vivo.
 - [x] **Pós-jogo**: Ratings e Estatísticas.
+
+# Phase 4: Season Structure & Transfers
+
+## 15. Competitions (League Tables)
+- [x] **Backend**: Create `LeagueTable` struct (Points, GD, Played).
+- [x] **Command**: `get_league_table(competition_id)`.
+- [x] **UI**: Render the table view.
+
+## 16. Transfers & Market
+- [x] **Search**: Implement `search_players(query)` for global database.
+- [x] **Bidding**: Implement `offer_transfer(player_id, amount)`.
+- [x] **Negotiation**: Simple AI response (Accept/Reject).
+
+## 17. Season Management
+- [x] **Fixtures**: Generate a schedule for the league (Home/Away).
+- [x] **Progression**: Advance week-by-week playing scheduled matches.

@@ -95,3 +95,50 @@ impl From<cm_match::MatchResult> for DisplayMatchResult {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplayLeagueRow {
+    pub position: u8,
+    pub club_name: String,
+    pub played: u8,
+    pub won: u8,
+    pub drawn: u8,
+    pub lost: u8,
+    pub gf: u16,
+    pub ga: u16,
+    pub points: u16,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplayLeagueTable {
+    pub name: String,
+    pub rows: Vec<DisplayLeagueRow>,
+}
+
+impl From<cm_core::competitions::LeagueTable> for DisplayLeagueTable {
+    fn from(t: cm_core::competitions::LeagueTable) -> Self {
+        let mut rows: Vec<DisplayLeagueRow> = t.rows.into_iter().enumerate().map(|(i, r)| DisplayLeagueRow {
+            position: (i + 1) as u8,
+            club_name: r.club_name,
+            played: r.played,
+            won: r.won,
+            drawn: r.drawn,
+            lost: r.lost,
+            gf: r.gf,
+            ga: r.ga,
+            points: r.points,
+        }).collect();
+        
+        // simple sort by points desc
+        rows.sort_by(|a, b| b.points.cmp(&a.points));
+        // fix positions after sort
+        for (i, r) in rows.iter_mut().enumerate() {
+            r.position = (i + 1) as u8;
+        }
+
+        Self {
+            name: t.competition_name,
+            rows,
+        }
+    }
+}
