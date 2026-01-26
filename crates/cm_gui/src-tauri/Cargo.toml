@@ -23,6 +23,7 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 
 cm_core = { path = "../../cm_core" }
+cm_match = { path = "../../cm_match" }
 cm_engine = { path = "../../cm_engine" }
 chrono = { version = "0.4", features = ["serde"] }
 

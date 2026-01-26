@@ -136,10 +136,28 @@ const app = {
   loadSquad: async (teamId) => {
     try {
       const players = await invoke('get_team_squad', { teamId: parseInt(teamId) });
-      app.renderSquadTable(players);
+      app.state.currentSquad = players; // Cache
+      app.filterSquad('ALL');
     } catch (e) {
       console.error("Failed to load squad:", e);
     }
+  },
+
+  filterSquad: (filter) => {
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.toggle('active', b.textContent.toUpperCase() === filter || (filter === 'ALL' && b.textContent === 'All'));
+    });
+
+    const players = app.state.currentSquad || [];
+    const filtered = players.filter(p => {
+      if (filter === 'ALL') return true;
+      if (filter === 'GK') return p.position === 'GK';
+      if (filter === 'DEF') return p.position.includes('D') || p.position.includes('WB');
+      if (filter === 'MID') return p.position.includes('M');
+      if (filter === 'ATT') return p.position.includes('F') || p.position.includes('S');
+      return true;
+    });
+    app.renderSquadTable(filtered);
   },
 
   renderSquadTable: (players) => {
@@ -148,10 +166,12 @@ const app = {
 
     players.forEach(p => {
       const tr = document.createElement('tr');
-      // Determine badge color
+      tr.style.cursor = 'pointer';
+      tr.onclick = () => app.openProfile(p.id);
+
       let posClass = 'pos-MID';
       if (p.position === 'GK') posClass = 'pos-GK';
-      else if (p.position.includes('D')) posClass = 'pos-DEF';
+      else if (p.position.includes('D') || p.position.includes('WB')) posClass = 'pos-DEF';
       else if (p.position.includes('F') || p.position.includes('S')) posClass = 'pos-ATT';
 
       tr.innerHTML = `
@@ -165,6 +185,62 @@ const app = {
         `;
       tbody.appendChild(tr);
     });
+  },
+
+  openProfile: async (playerId) => {
+    try {
+      const profile = await invoke('get_player_details', { playerId: parseInt(playerId) || 0 });
+      if (profile) {
+        document.getElementById('p-name').textContent = profile.display.name;
+        document.getElementById('p-meta').textContent = `${profile.display.age} yrs • ${profile.display.nationality} • ${profile.display.position}`;
+
+        const grid = document.getElementById('p-attributes');
+        grid.innerHTML = '';
+
+        const renderCat = (title, attrs) => {
+          const div = document.createElement('div');
+          div.className = 'attr-category';
+          div.innerHTML = `<div class="attr-cat-title">${title}</div>`;
+          attrs.forEach(([k, v]) => {
+            let colorClass = 'avg';
+            if (v >= 16) colorClass = 'excellent';
+            else if (v >= 11) colorClass = 'good';
+
+            div.innerHTML += `
+                        <div class="attr-row">
+                            <span>${k}</span>
+                            <span class="attr-val ${colorClass}">${v}</span>
+                        </div>
+                      `;
+          });
+          grid.appendChild(div);
+        };
+
+        // Map Rust tuples correctly
+        renderCat('Technical', profile.attributes.technical);
+        renderCat('Mental', profile.attributes.mental);
+        renderCat('Physical', profile.attributes.physical);
+
+        document.getElementById('profile-modal').style.display = 'flex';
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  closeProfile: () => {
+    document.getElementById('profile-modal').style.display = 'none';
+  },
+
+  advanceGame: async () => {
+    try {
+      const newDate = await invoke('advance_day');
+      document.getElementById('hud-game-date').textContent = newDate;
+      alert(`Simulation: Advanced to ${newDate}`);
+      // Here we would also refresh messages, matches, etc.
+    } catch (e) {
+      console.error(e);
+    }
   },
 
   toggleTab: (tabName) => {
@@ -319,8 +395,134 @@ const app = {
     msg.unread = false;
   },
 
-  advanceGame: () => {
-    alert("Simulation: Advancing to next day...");
+
+
+  toggleTab: (tabName) => {
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    const tabs = document.querySelectorAll('.nav-tab');
+    for (let t of tabs) { if (t.textContent === tabName) t.classList.add('active'); }
+
+    // Hide all
+    document.getElementById('inbox-list').style.display = 'none';
+    document.getElementById('reading-pane').style.display = 'none';
+    document.getElementById('squad-view').style.display = 'none';
+    document.getElementById('tactics-view').style.display = 'none';
+
+    if (tabName === 'Squad') {
+      document.getElementById('squad-view').style.display = 'flex';
+      // Load squad if needed
+      if (app.state.gameState) app.loadSquad(app.state.gameState.meta.clubId);
+    } else if (tabName === 'Inbox') {
+      document.getElementById('inbox-list').style.display = 'flex';
+      document.getElementById('reading-pane').style.display = 'block';
+    } else if (tabName === 'Tactics') {
+      document.getElementById('tactics-view').style.display = 'block';
+      app.renderTactics();
+    }
+  },
+
+  renderTactics: () => {
+    const pitch = document.getElementById('pitch-players');
+    pitch.innerHTML = '';
+
+    const positions = [
+      { top: '85%', left: '50%', name: 'GK' },
+      { top: '70%', left: '20%', name: 'LB' },
+      { top: '70%', left: '40%', name: 'CB' },
+      { top: '70%', left: '60%', name: 'CB' },
+      { top: '70%', left: '80%', name: 'RB' },
+      { top: '45%', left: '30%', name: 'CM' },
+      { top: '45%', left: '70%', name: 'CM' },
+      { top: '25%', left: '20%', name: 'LW' },
+      { top: '25%', left: '80%', name: 'RW' },
+      { top: '15%', left: '50%', name: 'ST' },
+    ];
+
+    positions.forEach(pos => {
+      const p = document.createElement('div');
+      p.className = 'pitch-player';
+      p.style.top = pos.top;
+      p.style.left = pos.left;
+      p.innerHTML = `<span>${pos.name}</span><span class="p-name">Player</span>`;
+      pitch.appendChild(p);
+    });
+
+    const bench = document.getElementById('bench-list');
+    bench.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      bench.innerHTML += `<div class="bench-item"><span>Bench Warmer ${i + 1}</span> <span>MID</span></div>`;
+    }
+  },
+
+  startMatch: async () => {
+    app.showScreen('match');
+    document.getElementById('score-home').textContent = '0';
+    document.getElementById('score-away').textContent = '0';
+    document.getElementById('match-time').textContent = '00:00';
+    document.getElementById('commentary-feed').innerHTML = '';
+    document.getElementById('btn-finish-match').style.display = 'none';
+
+    try {
+      const myClub = parseInt(app.state.gameState.meta.clubId);
+      const oppClub = myClub === 1 ? 2 : 1;
+      const result = await invoke('start_match', { homeId: myClub, awayId: oppClub });
+      app.playMatch(result);
+    } catch (e) {
+      console.error("Match failed", e);
+    }
+  },
+
+  playMatch: (result) => {
+    let minute = 0;
+    const totalMinutes = 90;
+    const speed = 100;
+    const tick = setInterval(() => {
+      minute++;
+      document.getElementById('match-time').textContent = `${minute}:00`;
+
+      result.highlights.forEach(h => {
+        if (h.startsWith(`${minute}'`)) {
+          app.addCommentary(h, h.includes("GOAL"));
+          if (h.includes("Home team scores")) {
+            let s = document.getElementById('score-home');
+            s.textContent = parseInt(s.textContent) + 1;
+          } else if (h.includes("Away team scores")) {
+            let s = document.getElementById('score-away');
+            s.textContent = parseInt(s.textContent) + 1;
+          }
+        }
+      });
+
+      if (minute >= totalMinutes) {
+        clearInterval(tick);
+        app.addCommentary("FULL TIME -- Match Ended", true);
+        document.getElementById('btn-finish-match').style.display = 'block';
+      }
+    }, speed);
+  },
+
+  addCommentary: (text, important = false) => {
+    const box = document.getElementById('commentary-feed');
+    const div = document.createElement('div');
+    div.className = `comm-event ${important ? 'goal' : ''}`;
+    div.textContent = text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  },
+
+  finishMatch: () => {
+    app.showScreen('news');
+  },
+
+  advanceGame: async () => {
+    if (confirm("Play Match Day?")) {
+      app.startMatch();
+    } else {
+      try {
+        const newDate = await invoke('advance_day');
+        document.getElementById('hud-game-date').textContent = newDate;
+      } catch (e) { console.error(e); }
+    }
   },
 
   changeLanguage: async (code) => {

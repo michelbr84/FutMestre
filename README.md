@@ -50,8 +50,12 @@ crates/
 
 ### ✅ Implemented
 - **Modern 4K GUI**: Tauri-based interface with Glassmorphism design and 4K support.
+### ✅ Implemented
+- **Modern 4K GUI**: Tauri-based interface with Glassmorphism design and 4K support.
 - **CM-Style Layout**: Authentic Top Bar + Sidebar + Content Split View + Bottom Actions layout.
-- **Match Engine**: Tick-by-tick probabilistic simulation with highlights, goals, cards, injuries
+- **Backend Integrations**: Full Rust <> JS bridge for Player Data, Attributes, Simulation, and Saving.
+- **Squad Screen**: Interactive DataGrid with filters, position badges, and player profiles.
+- **Match Engine**: Tick-by-tick probabilistic simulation (Stubbed).
 - **World Model**: Nations, Clubs, Players (with 40+ attributes), Staff, Competitions, Stadiums, Referees
 - **AI Systems**: Matchday lineup selection, transfer decision-making, squad analysis, press conferences
 - **Data Import**: JSON-based world loader with auto-generated defaults + SQLite persistence

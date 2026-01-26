@@ -918,6 +918,7 @@ dependencies = [
  "chrono",
  "cm_core",
  "cm_engine",
+ "cm_match",
  "serde",
  "tauri",
  "tauri-build",

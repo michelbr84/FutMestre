@@ -39,7 +39,6 @@ impl From<&Player> for DisplayPlayer {
 pub struct DisplayPlayerProfile {
     pub display: DisplayPlayer,
     pub attributes: DisplayAttributes,
-    // History, Stats, etc.
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -76,6 +75,23 @@ impl From<&Attributes> for DisplayAttributes {
                 ("Stamina".to_string(), a.physical.stamina),
                 ("Strength".to_string(), a.physical.strength),
             ],
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplayMatchResult {
+    pub home_goals: u8,
+    pub away_goals: u8,
+    pub highlights: Vec<String>,
+}
+
+impl From<cm_match::MatchResult> for DisplayMatchResult {
+    fn from(r: cm_match::MatchResult) -> Self {
+        Self {
+            home_goals: r.home_goals,
+            away_goals: r.away_goals,
+            highlights: r.highlights,
         }
     }
 }

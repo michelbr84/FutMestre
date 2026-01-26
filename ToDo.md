@@ -50,24 +50,26 @@ Roadmap completa para transformar o jogo em um executável Windows com interface
 ## 10. Conexão Backend Rust (Expor Comandos)
 - [x] Criar Structs de exibição (`DisplayPlayer`, `DisplaySquad`) em `src-tauri`.
 - [x] Implementar comando `get_squad(team_id)`: Retornar lista real de jogadores.
-- [ ] Implementar comando `advance_day()`: Processar simulação de dia.
-- [ ] Implementar comando `save_game()`: Gravar estado atual.
+- [x] Implementar comando `advance_day()`: Processar simulação de dia.
+- [x] Implementar comando `save_game()`: Gravar estado atual.
 
 ## 11. Tela 5: Elenco (Squad Screen)
 - [x] **DataGrid**: Tabela com Nome, Posição, Condição, Moral, Média, Gols.
-- [ ] **Filtros**: Titulares, Reservas, Não-relacionados.
-- [ ] **Interação**: Drag & Drop ou Context Menu para definir time.
+- [x] **Filtros**: Titulares, Reservas, Não-relacionados.
+- [x] **Interação**: Drag & Drop ou Context Menu para definir time.
 
 ## 12. Tela 6: Perfil do Jogador (Player Profile)
-- [ ] **Atributos**: Grade de habilidades (0-20) com color code.
-- [ ] **Histórico**: Estatísticas da temporada e clubes anteriores.
-- [ ] **Ações**: Oferecer contrato / Listar para transferência.
+- [x] **Atributos**: Grade de habilidades (0-20) com color code.
+- [x] **Histórico**: Estatísticas da temporada e clubes anteriores.
+- [x] **Ações**: Oferecer contrato / Listar para transferência.
+
+# Phase 3: Tactics & Match Engine
 
 ## 13. Tela 7: Tática
-- [ ] **Visualização**: Campo 2D com posições.
-- [ ] **Instruções**: Mentalidade, Estilo de Passe, Pressão.
+- [x] **Visualização**: Campo 2D com posições.
+- [x] **Instruções**: Mentalidade, Estilo de Passe, Pressão.
 
 ## 14. Tela 8: Dia de Jogo (Match Day)
-- [ ] **Engine**: Conectar `cm_engine` para simular partida.
-- [ ] **Visualização**: Texto narrativo ("Silva chuta...") e placar ao vivo.
-- [ ] **Pós-jogo**: Ratings e Estatísticas.
+- [x] **Engine**: Conectar `cm_engine` para simular partida.
+- [x] **Visualização**: Texto narrativo ("Silva chuta...") e placar ao vivo.
+- [x] **Pós-jogo**: Ratings e Estatísticas.
