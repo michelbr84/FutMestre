@@ -8,7 +8,8 @@ const app = {
       teamPool: [],
       randomTeams: []
     },
-    gameState: null
+    gameState: null,
+    currentSquad: []
   },
 
   init: async () => {
@@ -26,18 +27,15 @@ const app = {
   loadJSON: async (path) => {
     try {
       const res = await fetch(path);
-      if (!res.ok) {
-        app.log(`Failed to load ${path}: ${res.statusText}`, 'error');
-        return null;
-      }
+      if (!res.ok) return null;
       return await res.json();
     } catch (e) {
-      app.log(`Exception loading ${path}: ${e}`, 'error');
       return null;
     }
   },
 
-  // --- 1. Language ---
+  // ─── Language ───────────────────────────────────────────────────────────
+
   loadFlags: async () => {
     const data = await app.loadJSON('assets/JSON/flags.json');
     if (data) app.renderFlags(data.paises);
@@ -81,7 +79,8 @@ const app = {
     }
   },
 
-  // --- 2. Start Menu ---
+  // ─── Start Menu ─────────────────────────────────────────────────────────
+
   renderStartMenu: (data) => {
     const container = document.getElementById('menu-buttons');
     container.innerHTML = '';
@@ -105,94 +104,85 @@ const app = {
     }
   },
 
+  // ─── Load Game ──────────────────────────────────────────────────────────
+
   showLoadScreen: async () => {
     app.showScreen('load');
     const list = document.getElementById('save-list');
-    list.innerHTML = '<div style="text-align:center; color:#888;">Loading...</div>';
+    list.innerHTML = '<div style="text-align:center; color:#888;">Carregando...</div>';
 
     try {
       const saves = await invoke('get_saved_games');
       list.innerHTML = '';
       if (saves.length === 0) {
-        list.innerHTML = '<div style="text-align:center;">No saved games found.</div>';
+        list.innerHTML = '<div style="text-align:center;">Nenhum jogo salvo encontrado.</div>';
         return;
       }
-
       saves.forEach(s => {
         const div = document.createElement('div');
         div.className = 'save-item';
-        div.style.padding = '1rem';
-        div.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
-        div.style.cursor = 'pointer';
-        div.style.display = 'flex';
-        div.style.justifyContent = 'space-between';
+        div.style.cssText = 'padding:1rem; border-bottom:1px solid rgba(255,255,255,0.1); cursor:pointer; display:flex; justify-content:space-between;';
         div.onmouseover = () => div.style.background = 'rgba(255,255,255,0.05)';
         div.onmouseout = () => div.style.background = 'transparent';
-
         div.innerHTML = `
-                <div>
-                    <div style="font-weight:bold; color:white;">${s.manager_name}</div>
-                    <div style="font-size:0.9rem; color:#aaa;">${s.club}</div>
-                </div>
-                <div style="text-align:right;">
-                     <div style="color:var(--accent-color);">${s.date}</div>
-                     <div style="font-size:0.8rem; color:#666;">Slot ${s.slot_id}</div>
-                </div>
-              `;
+          <div>
+            <div style="font-weight:bold; color:white;">${s.manager_name}</div>
+            <div style="font-size:0.9rem; color:#aaa;">${s.club}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="color:var(--accent-color);">${s.date}</div>
+          </div>
+        `;
         div.onclick = () => app.loadGame(s.slot_id);
         list.appendChild(div);
       });
     } catch (e) {
-      app.log('Error fetching saves: ' + e, 'error');
-      list.innerHTML = '<div style="color:red; text-align:center;">Failed to load save list.</div>';
+      app.log('Erro ao carregar saves: ' + e, 'error');
+      list.innerHTML = '<div style="color:red; text-align:center;">Falha ao carregar lista de saves.</div>';
     }
   },
 
   loadGame: async (slotId) => {
-    if (confirm(`Load save slot ${slotId}? Unsaved progress will be lost.`)) {
-      try {
-        const success = await invoke('load_game', { slotId });
-        if (success) {
-          // In real app, we'd get the full state back. For now, just jump to Game Hub.
-          // We mock state for demo purposes if backend doesn't return it yet
-          if (!app.state.gameState) {
-            app.state.gameState = {
-              meta: { clubName: "Loaded FC", managerName: "Loaded Manager", clubId: "1" },
-              messages: [],
-              game: { dayLabel: "Loaded Date" }
-            };
-          }
-          app.renderGameHub();
-          app.showScreen('news');
-        } else {
-          alert("Failed to load game.");
-        }
-      } catch (e) {
-        console.error(e);
-      }
+    if (!confirm('Carregar este save? Progresso nao salvo sera perdido.')) return;
+    try {
+      const gameState = await invoke('load_game', { slotId });
+      app.state.gameState = {
+        meta: { clubName: gameState.club_name, managerName: gameState.manager_name, clubId: gameState.club_id },
+        game: { dayLabel: gameState.date }
+      };
+      app.renderGameHub();
+      app.showScreen('news');
+    } catch (e) {
+      console.error(e);
+      alert("Falha ao carregar jogo: " + e);
     }
   },
 
-  // --- 3. New Game ---
+  // ─── New Game ───────────────────────────────────────────────────────────
+
   prepNewGame: async () => {
-    const lang = app.state.language;
-    const paths = [`assets/JSON/${lang}/times.json`, `assets/JSON/pt-BR/times.json`];
-    let teamsData = null;
-    for (const p of paths) {
-      teamsData = await app.loadJSON(p);
-      if (teamsData) break;
-    }
+    // Load clubs from backend (real data)
+    try {
+      const clubs = await invoke('get_available_clubs');
+      if (!clubs || clubs.length === 0) {
+        alert("Erro: nenhum clube encontrado. Verifique os dados em assets/data/.");
+        return;
+      }
 
-    if (!teamsData) { alert("Error loading teams."); return; }
+      app.state.newGameData.teamPool = clubs;
 
-    // Shuffle & Pick 6
-    app.state.newGameData.teamPool = teamsData.times;
-    const pool = [...teamsData.times];
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
+      // Shuffle and pick 6
+      const pool = [...clubs];
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      app.state.newGameData.randomTeams = pool.slice(0, 6);
+    } catch (e) {
+      console.error("Erro ao carregar clubes:", e);
+      alert("Erro ao carregar clubes.");
+      return;
     }
-    app.state.newGameData.randomTeams = pool.slice(0, 6);
 
     // Populate Nations
     const natSelect = document.getElementById('manager-nationality');
@@ -213,13 +203,195 @@ const app = {
     app.showScreen('newgame');
   },
 
+  renderTeamGrid: () => {
+    const grid = document.getElementById('team-selection-grid');
+    grid.innerHTML = '';
+    app.state.newGameData.randomTeams.forEach(team => {
+      const card = document.createElement('div');
+      card.className = 'team-card';
+      card.dataset.id = team.id;
+      card.onclick = () => app.selectTeam(team.id);
+      card.innerHTML = `
+        <div class="team-name">${team.nome}</div>
+        <div class="team-stripe" style="background: linear-gradient(90deg, ${team.corPrimaria || '#333'}, ${team.corSecundaria || '#666'})"></div>
+        <div style="font-size:0.75rem; color:#888; margin-top:4px;">${team.division || ''} • Rep: ${team.reputation || '?'}</div>
+      `;
+      grid.appendChild(card);
+    });
+    document.getElementById('selected-team-id').value = '';
+    document.getElementById('btn-start-career').disabled = true;
+  },
+
+  selectTeam: (teamId) => {
+    document.querySelectorAll('.team-card').forEach(el => {
+      el.classList.toggle('selected', el.dataset.id == teamId);
+    });
+    document.getElementById('selected-team-id').value = teamId;
+    document.getElementById('btn-start-career').disabled = false;
+  },
+
+  // ─── Create Career ──────────────────────────────────────────────────────
+
+  createCareer: async () => {
+    const name = document.getElementById('manager-name').value;
+    const surname = document.getElementById('manager-surname').value;
+    const teamId = document.getElementById('selected-team-id').value;
+
+    if (!name || !surname || !teamId) {
+      alert("Preencha todos os campos.");
+      return;
+    }
+
+    try {
+      const gameState = await invoke("start_new_game", {
+        name,
+        surname,
+        teamId: teamId.toString()
+      });
+
+      app.state.gameState = {
+        meta: { managerName: `${name} ${surname}`, clubId: teamId, clubName: gameState.club_name },
+        game: { dayLabel: gameState.date },
+        gs: gameState
+      };
+
+      app.renderGameHub();
+      app.showScreen('news');
+    } catch (e) {
+      console.error("Falha ao iniciar jogo:", e);
+      alert("Erro ao criar carreira: " + e);
+    }
+  },
+
+  // ─── Game Hub ───────────────────────────────────────────────────────────
+
+  renderGameHub: async () => {
+    // Update HUD from backend
+    try {
+      const gs = await invoke('get_game_state');
+      if (gs) {
+        app.state.gameState.gs = gs;
+        app.state.gameState.meta.clubName = gs.club_name;
+        app.state.gameState.meta.clubId = gs.club_id;
+        app.state.gameState.game = { dayLabel: gs.date };
+
+        document.getElementById('hud-club-name').textContent = gs.club_name;
+        document.getElementById('hud-game-date').textContent = gs.date;
+        document.getElementById('hud-meta').innerHTML =
+          `<span class="meta-item">${gs.division}</span>
+           <span class="meta-item">• Pos: ${gs.position}</span>
+           <span class="meta-item">• ${gs.balance}</span>`;
+      }
+    } catch (e) {
+      console.error("Erro ao obter estado:", e);
+    }
+
+    // Load inbox
+    app.loadInbox();
+  },
+
+  loadInbox: async () => {
+    try {
+      const messages = await invoke('get_inbox');
+      const list = document.getElementById('inbox-list');
+      list.innerHTML = '';
+
+      if (!messages || messages.length === 0) {
+        list.innerHTML = '<div style="padding:1rem; color:#666;">Nenhuma mensagem.</div>';
+        return;
+      }
+
+      messages.forEach((msg, index) => {
+        const item = document.createElement('div');
+        item.className = `inbox-item ${msg.unread ? 'unread' : ''}`;
+        if (index === 0) item.classList.add('active');
+        item.innerHTML = `
+          <div class="msg-header-row">
+            <span class="msg-icon">${msg.type === 'system' ? '📢' : '📧'}</span>
+            <span class="msg-time">${msg.time}</span>
+          </div>
+          <div class="msg-title">${msg.title}</div>
+        `;
+        item.onclick = () => app.openMessage(msg, item);
+        list.appendChild(item);
+      });
+
+      if (messages.length > 0) {
+        app.openMessage(messages[0], list.children[0]);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar inbox:", e);
+    }
+  },
+
+  openMessage: (msg, element) => {
+    document.querySelectorAll('.inbox-item').forEach(el => el.classList.remove('active'));
+    if (element) element.classList.add('active');
+
+    const pane = document.getElementById('reading-pane');
+    pane.innerHTML = `
+      <div class="article-header">
+        <div class="article-title">${msg.title}</div>
+        <div class="article-meta">
+          <span>${msg.date} ${msg.time}</span>
+          <span>•</span>
+          <span>${(msg.tags || []).join(', ')}</span>
+        </div>
+      </div>
+      <div class="article-body">
+        <p>${msg.text}</p>
+      </div>
+    `;
+    if (element) element.classList.remove('unread');
+  },
+
+  // ─── Tab Navigation ─────────────────────────────────────────────────────
+
+  toggleTab: (tabName) => {
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    const tabs = document.querySelectorAll('.nav-tab');
+    for (let t of tabs) { if (t.textContent === tabName) t.classList.add('active'); }
+
+    // Hide all views
+    const views = ['inbox-list', 'reading-pane', 'squad-view', 'tactics-view', 'comps-view', 'transfers-view', 'finance-view', 'fixtures-view'];
+    views.forEach(v => {
+      const el = document.getElementById(v);
+      if (el) el.style.display = 'none';
+    });
+
+    if (tabName === 'Inbox') {
+      document.getElementById('inbox-list').style.display = 'flex';
+      document.getElementById('reading-pane').style.display = 'block';
+      app.loadInbox();
+    } else if (tabName === 'Squad') {
+      document.getElementById('squad-view').style.display = 'flex';
+      if (app.state.gameState) app.loadSquad(app.state.gameState.meta.clubId);
+    } else if (tabName === 'Tactics') {
+      document.getElementById('tactics-view').style.display = 'block';
+      app.renderTactics();
+    } else if (tabName === 'Competitions') {
+      document.getElementById('comps-view').style.display = 'block';
+      app.loadCompetitions();
+    } else if (tabName === 'Transfers') {
+      document.getElementById('transfers-view').style.display = 'block';
+    } else if (tabName === 'Finance') {
+      document.getElementById('finance-view').style.display = 'block';
+      app.loadFinances();
+    } else if (tabName === 'Fixtures') {
+      document.getElementById('fixtures-view').style.display = 'block';
+      app.loadFixtures();
+    }
+  },
+
+  // ─── Squad ──────────────────────────────────────────────────────────────
+
   loadSquad: async (teamId) => {
     try {
-      const players = await invoke('get_team_squad', { teamId: parseInt(teamId) });
-      app.state.currentSquad = players; // Cache
+      const players = await invoke('get_team_squad', { teamId: teamId.toString() });
+      app.state.currentSquad = players;
       app.filterSquad('ALL');
     } catch (e) {
-      console.error("Failed to load squad:", e);
+      console.error("Erro ao carregar elenco:", e);
     }
   },
 
@@ -255,320 +427,65 @@ const app = {
       else if (p.position.includes('F') || p.position.includes('S')) posClass = 'pos-ATT';
 
       tr.innerHTML = `
-            <td><span class="pos-badge ${posClass}">${p.position}</span></td>
-            <td style="font-weight:600">${p.name}</td>
-            <td>${p.age}</td>
-            <td>${p.nationality.replace('Nation ', '')}</td>
-            <td class="${p.overall > 70 ? 'val-high' : 'val-med'}">${p.overall}</td>
-            <td>${p.value}</td>
-            <td>${p.condition}%</td>
-        `;
+        <td><span class="pos-badge ${posClass}">${p.position}</span></td>
+        <td style="font-weight:600">${p.name}</td>
+        <td>${p.age}</td>
+        <td>${p.nationality}</td>
+        <td class="${p.overall > 70 ? 'val-high' : 'val-med'}">${p.overall}</td>
+        <td>${p.value}</td>
+        <td>${p.condition}%</td>
+      `;
       tbody.appendChild(tr);
     });
   },
 
+  // ─── Player Profile ─────────────────────────────────────────────────────
+
   openProfile: async (playerId) => {
     try {
-      const profile = await invoke('get_player_details', { playerId: parseInt(playerId) || 0 });
-      if (profile) {
-        document.getElementById('p-name').textContent = profile.display.name;
-        document.getElementById('p-meta').textContent = `${profile.display.age} yrs • ${profile.display.nationality} • ${profile.display.position}`;
+      const profile = await invoke('get_player_details', { playerId: playerId.toString() });
+      if (!profile) return;
 
-        const grid = document.getElementById('p-attributes');
-        grid.innerHTML = '';
+      document.getElementById('p-name').textContent = profile.display.name;
+      document.getElementById('p-meta').textContent =
+        `${profile.display.age} anos • ${profile.display.nationality} • ${profile.display.position}`;
 
-        const renderCat = (title, attrs) => {
-          const div = document.createElement('div');
-          div.className = 'attr-category';
-          div.innerHTML = `<div class="attr-cat-title">${title}</div>`;
-          attrs.forEach(([k, v]) => {
-            let colorClass = 'avg';
-            if (v >= 16) colorClass = 'excellent';
-            else if (v >= 11) colorClass = 'good';
-
-            div.innerHTML += `
-                        <div class="attr-row">
-                            <span>${k}</span>
-                            <span class="attr-val ${colorClass}">${v}</span>
-                        </div>
-                      `;
-          });
-          grid.appendChild(div);
-        };
-
-        // Map Rust tuples correctly
-        renderCat('Technical', profile.attributes.technical);
-        renderCat('Mental', profile.attributes.mental);
-        renderCat('Physical', profile.attributes.physical);
-
-        document.getElementById('profile-modal').style.display = 'flex';
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  },
-
-  closeProfile: () => {
-    document.getElementById('profile-modal').style.display = 'none';
-  },
-
-  advanceGame: async () => {
-    try {
-      const newDate = await invoke('advance_day');
-      document.getElementById('hud-game-date').textContent = newDate;
-      alert(`Simulation: Advanced to ${newDate}`);
-      // Here we would also refresh messages, matches, etc.
-    } catch (e) {
-      console.error(e);
-    }
-  },
-
-  toggleTab: (tabName) => {
-    // UI Logic to switch content in main hub
-    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-    // Find tab element (simplified)
-    const tabs = document.querySelectorAll('.nav-tab');
-    for (let t of tabs) { if (t.textContent === tabName) t.classList.add('active'); }
-
-    if (tabName === 'Squad') {
-      document.getElementById('inbox-list').style.display = 'none';
-      document.getElementById('reading-pane').style.display = 'none';
-      document.getElementById('squad-view').style.display = 'block';
-
-      // Load squad if needed (using current club ID)
-      if (app.state.gameState) {
-        app.loadSquad(app.state.gameState.meta.clubId);
-      }
-    } else if (tabName === 'Inbox') {
-      document.getElementById('inbox-list').style.display = 'flex';
-      document.getElementById('reading-pane').style.display = 'block';
-      document.getElementById('squad-view').style.display = 'none';
-    }
-  },
-
-  renderTeamGrid: () => {
-    const grid = document.getElementById('team-selection-grid');
-    grid.innerHTML = '';
-    app.state.newGameData.randomTeams.forEach(team => {
-      const card = document.createElement('div');
-      card.className = 'team-card';
-      card.dataset.id = team.id;
-      card.onclick = () => app.selectTeam(team.id);
-      card.innerHTML = `
-            <div class="team-name">${team.nome}</div>
-            <div class="team-stripe" style="background: linear-gradient(90deg, ${team.corPrimaria}, ${team.corSecundaria})"></div>
-        `;
-      grid.appendChild(card);
-    });
-    document.getElementById('selected-team-id').value = '';
-    document.getElementById('btn-start-career').disabled = true;
-  },
-
-  selectTeam: (teamId) => {
-    document.querySelectorAll('.team-card').forEach(el => {
-      el.classList.toggle('selected', el.dataset.id == teamId);
-    });
-    document.getElementById('selected-team-id').value = teamId;
-    document.getElementById('btn-start-career').disabled = false;
-  },
-
-  // --- 4. Game Hub (World Generation) ---
-  createCareer: async () => {
-    const name = document.getElementById('manager-name').value;
-    const surname = document.getElementById('manager-surname').value;
-    const teamId = document.getElementById('selected-team-id').value;
-
-    if (!name || !surname || !teamId) {
-      alert("Please complete the profile.");
-      return;
-    }
-
-    const selectedTeam = app.state.newGameData.randomTeams.find(t => t.id == teamId);
-
-    // Call backend to create the game world
-    try {
-      const res = await invoke("start_new_game", {
-        name,
-        surname,
-        nationId: 1, // Defaulting for now, could lookup ID from flag
-        teamId: teamId.toString()
-      });
-      console.log(res);
-    } catch (e) {
-      console.error("Failed to start backend game", e);
-    }
-
-    const template = await app.loadJSON(`assets/JSON/pt-BR/atual.json`);
-
-    // Mock Game State (Client Side)
-    app.state.gameState = {
-      ...template,
-      meta: {
-        managerName: `${name} ${surname}`,
-        clubId: teamId,
-        clubName: selectedTeam.nome
-      },
-      messages: [
-        {
-          id: "msg-welcome",
-          type: "system",
-          title: "Board Welcome",
-          text: `The board welcomes ${name} ${surname} as the new manager of ${selectedTeam.nome}.<br><br>Expectation: <strong>Promotion</strong><br>Transfer Budget: <strong>£500k</strong>`,
-          date: "01 Jan",
-          time: "09:00",
-          unread: true,
-          tags: ["Board"]
-        },
-        ...(template ? template.messages : [])
-      ]
-    };
-
-    app.renderGameHub();
-    app.showScreen('news');
-  },
-
-  renderGameHub: () => {
-    const state = app.state.gameState;
-    // Update Top Bar
-    document.getElementById('hud-club-name').textContent = state.meta.clubName;
-    document.getElementById('hud-game-date').textContent = state.game ? state.game.dayLabel : "01 Jan 2026";
-
-    // Render Inbox List
-    const list = document.getElementById('inbox-list');
-    list.innerHTML = '';
-
-    state.messages.forEach((msg, index) => {
-      const item = document.createElement('div');
-      item.className = `inbox-item ${msg.unread ? 'unread' : ''}`;
-      if (index === 0) item.classList.add('active'); // Select first default
-
-      item.innerHTML = `
-            <div class="msg-header-row">
-                <span class="msg-icon">${msg.type === 'system' ? '📢' : '📧'}</span>
-                <span class="msg-time">${msg.time}</span>
-            </div>
-            <div class="msg-title">${msg.title}</div>
-        `;
-      item.onclick = () => app.openMessage(msg, item);
-      list.appendChild(item);
-    });
-
-    if (state.messages.length > 0) {
-      app.openMessage(state.messages[0], list.children[0]);
-    }
-  },
-
-  openMessage: (msg, element) => {
-    // Highlight interaction
-    document.querySelectorAll('.inbox-item').forEach(el => el.classList.remove('active'));
-    if (element) element.classList.add('active');
-
-    // Render Reading Pane
-    const pane = document.getElementById('reading-pane');
-    pane.innerHTML = `
-        <div class="article-header">
-            <div class="article-title">${msg.title}</div>
-            <div class="article-meta">
-                <span>${msg.date} ${msg.time}</span>
-                 <span>•</span>
-                <span>${(msg.tags || []).join(', ')}</span>
-            </div>
-        </div>
-        <div class="article-body">
-            <p>${msg.text}</p>
-        </div>
-        ${msg.type === 'system' ? `
-        <div class="status-box">
-             <strong>Board Confidence</strong><br>
-             The board is pleased with your appointment.
-        </div>` : ''}
-    `;
-
-    // Mark read (visual)
-    if (element) element.classList.remove('unread');
-    msg.unread = false;
-  },
-
-
-
-  toggleTab: (tabName) => {
-    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-    const tabs = document.querySelectorAll('.nav-tab');
-    for (let t of tabs) { if (t.textContent === tabName) t.classList.add('active'); }
-
-    // Hide all
-    document.getElementById('inbox-list').style.display = 'none';
-    document.getElementById('reading-pane').style.display = 'none';
-    document.getElementById('squad-view').style.display = 'none';
-    document.getElementById('tactics-view').style.display = 'none';
-
-    if (tabName === 'Squad') {
-      document.getElementById('squad-view').style.display = 'flex';
-      // Load squad if needed
-      if (app.state.gameState) app.loadSquad(app.state.gameState.meta.clubId);
-    } else if (tabName === 'Inbox') {
-      document.getElementById('inbox-list').style.display = 'flex';
-      document.getElementById('reading-pane').style.display = 'block';
-    } else if (tabName === 'Tactics') {
-      document.getElementById('tactics-view').style.display = 'block';
-      app.renderTactics();
-    } else if (tabName === 'Competitions') {
-      document.getElementById('comps-view').style.display = 'block';
-      app.loadCompetitions();
-    } else if (tabName === 'Transfers') {
-      document.getElementById('transfers-view').style.display = 'block';
-    } else if (tabName === 'Finance') {
-      document.getElementById('finance-view').style.display = 'block';
-    }
-  },
-
-  showProfile: async (playerId) => {
-    const p = await invoke('get_player_details', { playerId: parseInt(playerId) || 100 });
-
-    if (p) {
-      document.getElementById('p-name').textContent = p.display.name;
-      document.getElementById('p-meta').textContent = `${p.display.age} yrs • ${p.display.nationality} • ${p.display.position}`;
-
-      // Render Attributes
       const grid = document.getElementById('p-attributes');
       grid.innerHTML = '';
-      const allAttrs = [...p.attributes.technical, ...p.attributes.mental, ...p.attributes.physical];
-      allAttrs.forEach(([k, v]) => {
-        const div = document.createElement('div');
-        div.className = 'attr-item';
-        let colorClass = 'attr-low';
-        if (v >= 15) colorClass = 'attr-excellent';
-        else if (v >= 10) colorClass = 'attr-good';
-        else if (v >= 6) colorClass = 'attr-average';
-        div.innerHTML = `<span class="attr-label">${k}</span><span class="attr-value ${colorClass}">${v}</span>`;
-        grid.appendChild(div);
-      });
 
-      // "Make Offer" Button Logic
-      const header = document.querySelector('.profile-header');
-      let btn = document.getElementById('btn-make-offer');
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.id = 'btn-make-offer';
-        btn.className = 'action-btn primary';
-        btn.style.marginLeft = 'auto';
-        header.appendChild(btn);
-      }
-      btn.textContent = `Make Offer (£${p.display.value})`;
-      btn.onclick = async () => {
-        const amount = 55000000; // Mock offering 55M
-        const res = await invoke('offer_transfer', { playerId: p.display.name, amount });
-        alert(res);
+      const renderCat = (title, attrs) => {
+        const div = document.createElement('div');
+        div.className = 'attr-category';
+        div.innerHTML = `<div class="attr-cat-title">${title}</div>`;
+        attrs.forEach(([k, v]) => {
+          let colorClass = 'avg';
+          if (v >= 16) colorClass = 'excellent';
+          else if (v >= 11) colorClass = 'good';
+          div.innerHTML += `
+            <div class="attr-row">
+              <span>${k}</span>
+              <span class="attr-val ${colorClass}">${v}</span>
+            </div>
+          `;
+        });
+        grid.appendChild(div);
       };
-      btn.style.display = 'block';
+
+      renderCat('Technical', profile.attributes.technical);
+      renderCat('Mental', profile.attributes.mental);
+      renderCat('Physical', profile.attributes.physical);
 
       document.getElementById('profile-modal').style.display = 'flex';
+    } catch (e) {
+      console.error(e);
     }
   },
 
   closeProfile: () => {
     document.getElementById('profile-modal').style.display = 'none';
   },
+
+  // ─── Transfers ──────────────────────────────────────────────────────────
 
   searchPlayers: async () => {
     const query = document.getElementById('search-input').value;
@@ -577,30 +494,30 @@ const app = {
     const table = document.getElementById('transfer-table');
     const tbody = table.querySelector('tbody');
     const empty = document.getElementById('search-empty');
-
     tbody.innerHTML = '';
 
     if (results.length > 0) {
       table.style.display = 'table';
       empty.style.display = 'none';
-
       results.forEach(p => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-                <td style="font-weight:bold; cursor:pointer;" onclick="app.showProfile('${p.id}')">${p.name}</td>
-                <td>${p.age}</td>
-                <td>${p.position}</td>
-                <td>Unknown FC</td> <!-- Mocking club name for display -->
-                <td>${p.value}</td>
-              `;
+          <td style="font-weight:bold; cursor:pointer;" onclick="app.openProfile('${p.id}')">${p.name}</td>
+          <td>${p.age}</td>
+          <td>${p.position}</td>
+          <td>${p.club_name || '-'}</td>
+          <td>${p.value}</td>
+        `;
         tbody.appendChild(tr);
       });
     } else {
       table.style.display = 'none';
       empty.style.display = 'block';
-      empty.textContent = 'No players found.';
+      empty.textContent = 'Nenhum jogador encontrado.';
     }
   },
+
+  // ─── Tactics ────────────────────────────────────────────────────────────
 
   renderTactics: () => {
     const pitch = document.getElementById('pitch-players');
@@ -608,15 +525,15 @@ const app = {
 
     const positions = [
       { top: '85%', left: '50%', name: 'GK' },
-      { top: '70%', left: '20%', name: 'LB' },
-      { top: '70%', left: '40%', name: 'CB' },
-      { top: '70%', left: '60%', name: 'CB' },
-      { top: '70%', left: '80%', name: 'RB' },
-      { top: '45%', left: '30%', name: 'CM' },
-      { top: '45%', left: '70%', name: 'CM' },
-      { top: '25%', left: '20%', name: 'LW' },
-      { top: '25%', left: '80%', name: 'RW' },
-      { top: '15%', left: '50%', name: 'ST' },
+      { top: '70%', left: '20%', name: 'LE' },
+      { top: '70%', left: '40%', name: 'ZC' },
+      { top: '70%', left: '60%', name: 'ZC' },
+      { top: '70%', left: '80%', name: 'LD' },
+      { top: '45%', left: '30%', name: 'MC' },
+      { top: '45%', left: '70%', name: 'MC' },
+      { top: '25%', left: '20%', name: 'PE' },
+      { top: '25%', left: '80%', name: 'PD' },
+      { top: '15%', left: '50%', name: 'CA' },
     ];
 
     positions.forEach((pos, idx) => {
@@ -631,62 +548,186 @@ const app = {
         e.dataTransfer.setData("text/plain", idx);
         e.target.style.opacity = '0.5';
       };
-
-      p.ondragend = (e) => {
-        e.target.style.opacity = '1';
-      };
-
-      p.innerHTML = `<span>${pos.name}</span><span class="p-name">Player</span>`;
+      p.ondragend = (e) => e.target.style.opacity = '1';
+      p.innerHTML = `<span>${pos.name}</span>`;
       pitch.appendChild(p);
     });
 
-    // Pitch Drop Zone
     pitch.ondragover = (e) => e.preventDefault();
     pitch.ondrop = (e) => {
       e.preventDefault();
       const idx = e.dataTransfer.getData("text/plain");
       const playerEl = document.querySelector(`.pitch-player[data-idx='${idx}']`);
-
-      // Calculate new percentages based on pitch dimensions
       const rect = pitch.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-
-      const leftPct = (x / rect.width * 100).toFixed(0) + '%';
-      const topPct = (y / rect.height * 100).toFixed(0) + '%';
-
-      playerEl.style.left = leftPct;
-      playerEl.style.top = topPct;
+      playerEl.style.left = ((e.clientX - rect.left) / rect.width * 100).toFixed(0) + '%';
+      playerEl.style.top = ((e.clientY - rect.top) / rect.height * 100).toFixed(0) + '%';
     };
 
-    const bench = document.getElementById('bench-list');
-    bench.innerHTML = '';
-    for (let i = 0; i < 7; i++) {
-      bench.innerHTML += `<div class="bench-item"><span>Bench Warmer ${i + 1}</span> <span>MID</span></div>`;
+    // Formation selector
+    const formSelect = document.getElementById('formation-select');
+    if (formSelect) {
+      formSelect.onchange = () => app.saveTactics();
     }
   },
 
-  startMatch: async () => {
+  saveTactics: async () => {
+    const formSelect = document.getElementById('formation-select');
+    const formation = formSelect ? formSelect.value : '4-4-2';
+    try {
+      await invoke('update_tactics', {
+        formation,
+        mentality: 'Balanced',
+        tempo: 'Normal',
+        pressing: 50,
+        defLine: 50,
+        width: 50,
+        direct: 50
+      });
+    } catch (e) {
+      console.error("Erro ao salvar taticas:", e);
+    }
+  },
+
+  // ─── Competitions ───────────────────────────────────────────────────────
+
+  loadCompetitions: async () => {
+    try {
+      const table = await invoke('get_league_table');
+      if (!table) return;
+      document.getElementById('comp-name').textContent = table.name;
+      const tbody = document.querySelector('#league-table tbody');
+      tbody.innerHTML = '';
+
+      table.rows.forEach(r => {
+        const tr = document.createElement('tr');
+        let posClass = '';
+        if (r.position <= 3) posClass = 'color: #4ade80; font-weight:bold;';
+        else if (r.position >= 18) posClass = 'color: #f87171;';
+
+        // Highlight user club
+        const gs = app.state.gameState;
+        const isUser = gs && r.club_name === gs.meta.clubName;
+        if (isUser) posClass += 'background: rgba(59,130,246,0.15);';
+
+        tr.style.cssText = posClass;
+        tr.innerHTML = `
+          <td>${r.position}</td>
+          <td style="font-weight:600">${r.club_name}</td>
+          <td>${r.played}</td>
+          <td>${r.won}</td>
+          <td>${r.drawn}</td>
+          <td>${r.lost}</td>
+          <td>${r.gf}</td>
+          <td>${r.ga}</td>
+          <td style="font-weight:700">${r.points}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (e) { console.error(e); }
+  },
+
+  // ─── Fixtures ───────────────────────────────────────────────────────────
+
+  loadFixtures: async () => {
+    try {
+      const fixtures = await invoke('get_fixtures');
+      const container = document.getElementById('fixtures-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (!fixtures || fixtures.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#666; padding:2rem;">Nenhum jogo agendado.</div>';
+        return;
+      }
+
+      fixtures.forEach(f => {
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:0.5rem 1rem; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;';
+        const resultText = f.played ? `<span style="color:#4ade80; font-weight:bold;">${f.result}</span>` : '<span style="color:#888;">vs</span>';
+        div.innerHTML = `
+          <div style="flex:1;">
+            <span style="color:#888; font-size:0.8rem;">R${f.round} • ${f.date}</span>
+            <div>${f.home_name} ${resultText} ${f.away_name}</div>
+          </div>
+          <div style="font-size:0.8rem; color:#60a5fa;">${f.competition}</div>
+        `;
+        container.appendChild(div);
+      });
+    } catch (e) { console.error(e); }
+  },
+
+  // ─── Finance ────────────────────────────────────────────────────────────
+
+  loadFinances: async () => {
+    try {
+      const fin = await invoke('get_finances');
+      if (!fin) return;
+
+      const container = document.getElementById('finance-content');
+      if (!container) return;
+
+      container.innerHTML = `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <div class="glass-container" style="padding:1.5rem;">
+            <div class="panel-header">Saldo</div>
+            <div style="font-size:2rem; font-weight:bold; color: #4ade80; margin:1rem 0;">${fin.balance}</div>
+          </div>
+          <div class="glass-container" style="padding:1.5rem;">
+            <div class="panel-header">Orcamento de Transferencias</div>
+            <div style="font-size:2rem; font-weight:bold; color: #60a5fa; margin:1rem 0;">${fin.transfer_budget}</div>
+          </div>
+        </div>
+        <div class="glass-container" style="margin-top: 2rem; padding: 1.5rem;">
+          <div class="panel-header" style="margin-bottom:1rem;">Folha Salarial</div>
+          <table style="width:100%; text-align:left; border-collapse:collapse; color:#ccc;">
+            <tr style="border-bottom:1px solid #333;">
+              <th style="padding:0.5rem;">Categoria</th>
+              <th style="padding:0.5rem; text-align:right;">Valor</th>
+            </tr>
+            <tr>
+              <td style="padding:0.5rem;">Orcamento Salarial</td>
+              <td style="padding:0.5rem; text-align:right; color:#60a5fa;">${fin.wage_budget}</td>
+            </tr>
+            <tr>
+              <td style="padding:0.5rem;">Folha Atual</td>
+              <td style="padding:0.5rem; text-align:right; color:#f87171;">${fin.wage_bill}</td>
+            </tr>
+            <tr>
+              <td style="padding:0.5rem;">Espaco Disponivel</td>
+              <td style="padding:0.5rem; text-align:right; color:#4ade80;">${fin.wage_room}</td>
+            </tr>
+          </table>
+        </div>
+      `;
+    } catch (e) { console.error(e); }
+  },
+
+  // ─── Match ──────────────────────────────────────────────────────────────
+
+  startMatch: async (homeId, awayId, homeName, awayName) => {
     app.showScreen('match');
     document.getElementById('score-home').textContent = '0';
     document.getElementById('score-away').textContent = '0';
+    document.getElementById('score-home-name').textContent = homeName || 'Home';
+    document.getElementById('score-away-name').textContent = awayName || 'Away';
     document.getElementById('match-time').textContent = '00:00';
     document.getElementById('commentary-feed').innerHTML = '';
     document.getElementById('btn-finish-match').style.display = 'none';
 
     try {
-      const myClub = parseInt(app.state.gameState.meta.clubId);
-      const oppClub = myClub === 1 ? 2 : 1;
-      const result = await invoke('start_match', { homeId: myClub, awayId: oppClub });
-      app.playMatch(result);
+      const result = await invoke('start_match', { homeId: homeId.toString(), awayId: awayId.toString() });
+      if (result) {
+        document.getElementById('score-home-name').textContent = result.home_name;
+        document.getElementById('score-away-name').textContent = result.away_name;
+        app.playMatch(result);
+      }
     } catch (e) {
-      console.error("Match failed", e);
+      console.error("Erro na partida:", e);
     }
   },
 
   playMatch: (result) => {
     let minute = 0;
-    const totalMinutes = 90;
     const speed = 100;
     const tick = setInterval(() => {
       minute++;
@@ -694,20 +735,22 @@ const app = {
 
       result.highlights.forEach(h => {
         if (h.startsWith(`${minute}'`)) {
-          app.addCommentary(h, h.includes("GOAL"));
-          if (h.includes("Home team scores")) {
+          app.addCommentary(h, h.toLowerCase().includes("goal") || h.toLowerCase().includes("gol"));
+          if (h.includes("Home") || h.includes("home")) {
             let s = document.getElementById('score-home');
             s.textContent = parseInt(s.textContent) + 1;
-          } else if (h.includes("Away team scores")) {
+          } else if (h.includes("Away") || h.includes("away")) {
             let s = document.getElementById('score-away');
             s.textContent = parseInt(s.textContent) + 1;
           }
         }
       });
 
-      if (minute >= totalMinutes) {
+      if (minute >= 90) {
         clearInterval(tick);
-        app.addCommentary("FULL TIME -- Match Ended", true);
+        app.addCommentary("FINAL DE JOGO!", true);
+        document.getElementById('score-home').textContent = result.home_goals;
+        document.getElementById('score-away').textContent = result.away_goals;
         document.getElementById('btn-finish-match').style.display = 'block';
       }
     }, speed);
@@ -723,19 +766,56 @@ const app = {
   },
 
   finishMatch: () => {
+    app.renderGameHub();
     app.showScreen('news');
   },
 
+  // ─── Advance Day / Continue ─────────────────────────────────────────────
+
   advanceGame: async () => {
-    if (confirm("Play Match Day?")) {
-      app.startMatch();
-    } else {
-      try {
-        const newDate = await invoke('advance_day');
-        document.getElementById('hud-game-date').textContent = newDate;
-      } catch (e) { console.error(e); }
+    // Check if there's a match today
+    try {
+      const match = await invoke('check_match_today');
+      if (match) {
+        if (confirm(`Jogo hoje: ${match.home_name} vs ${match.away_name} (${match.competition}). Jogar?`)) {
+          app.startMatch(match.home_id, match.away_id, match.home_name, match.away_name);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    // No match or skipped - advance day
+    try {
+      const gs = await invoke('advance_day');
+      if (gs) {
+        document.getElementById('hud-game-date').textContent = gs.date;
+        document.getElementById('hud-club-name').textContent = gs.club_name;
+        if (document.getElementById('hud-meta')) {
+          document.getElementById('hud-meta').innerHTML =
+            `<span class="meta-item">${gs.division}</span>
+             <span class="meta-item">• Pos: ${gs.position}</span>
+             <span class="meta-item">• ${gs.balance}</span>`;
+        }
+      }
+    } catch (e) { console.error(e); }
+  },
+
+  // ─── Save ───────────────────────────────────────────────────────────────
+
+  saveAndExit: async () => {
+    try {
+      await invoke('save_game');
+      alert('Jogo salvo com sucesso!');
+      app.showScreen('start');
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao salvar: ' + e);
     }
   },
+
+  // ─── Settings ───────────────────────────────────────────────────────────
 
   changeLanguage: async (code) => {
     await app.selectLanguage(code);
@@ -750,33 +830,6 @@ const app = {
     document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
     document.getElementById(`screen-${screenId}`).classList.add('active');
   }
-};
-
-app.loadCompetitions = async () => {
-  try {
-    const table = await invoke('get_league_table');
-    document.getElementById('comp-name').textContent = table.name;
-    const tbody = document.querySelector('#league-table tbody');
-    tbody.innerHTML = '';
-
-    table.rows.forEach(r => {
-      const tr = document.createElement('tr');
-      let posClass = '';
-      if (r.position === 1) posClass = 'color: #fbbf24; font-weight:bold;';
-      else if (r.position >= 18) posClass = 'color: #f87171;';
-
-      tr.innerHTML = `
-                <td style="${posClass}">${r.position}</td>
-                <td style="font-weight:600">${r.club_name}</td>
-                <td>${r.played}</td>
-                <td>${r.won}</td>
-                <td>${r.drawn}</td>
-                <td>${r.lost}</td>
-                <td style="font-weight:700">${r.points}</td>
-              `;
-      tbody.appendChild(tr);
-    });
-  } catch (e) { console.error(e); }
 };
 
 window.app = app;

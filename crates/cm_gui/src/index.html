@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Futebol Simulador 2026</title>
+  <title>FutMestre</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 
@@ -17,100 +17,81 @@
 
     <!-- Screen 2: Start Menu -->
     <div id="screen-start" class="screen">
-      <h1 class="game-title" id="game-title">Futebol Simulador</h1>
+      <h1 class="game-title" id="game-title">FutMestre</h1>
       <div class="menu-container" id="menu-buttons"></div>
     </div>
 
     <!-- Screen 3a: Load Game -->
     <div id="screen-load" class="screen">
-      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Load Game</h2>
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Carregar Jogo</h2>
       <div class="glass-container" style="width: 600px; padding: 2rem;">
         <div id="save-list" class="save-list">
-          <div style="text-align:center; color:#888;">Fetching saved games...</div>
+          <div style="text-align:center; color:#888;">Buscando saves...</div>
         </div>
         <div style="margin-top: 2rem; display:flex; justify-content:center;">
-          <button class="action-btn secondary" onclick="app.showScreen('start')">Back</button>
+          <button class="action-btn secondary" onclick="app.showScreen('start')">Voltar</button>
         </div>
       </div>
     </div>
 
     <!-- Screen 3: New Game -->
     <div id="screen-newgame" class="screen">
-      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">New Manager Profile</h2>
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Novo Treinador</h2>
       <div class="form-container">
         <div class="form-group">
-          <label>First Name</label>
-          <input type="text" id="manager-name" placeholder="Name" />
+          <label>Nome</label>
+          <input type="text" id="manager-name" placeholder="Nome" />
         </div>
         <div class="form-group">
-          <label>Last Name</label>
-          <input type="text" id="manager-surname" placeholder="Surname" />
+          <label>Sobrenome</label>
+          <input type="text" id="manager-surname" placeholder="Sobrenome" />
         </div>
         <div class="form-group">
-          <label>Nationality</label>
+          <label>Nacionalidade</label>
           <select id="manager-nationality"></select>
         </div>
 
         <div class="form-group">
-          <label>Select Team</label>
+          <label>Selecione o Clube</label>
           <div id="team-selection-grid" class="team-grid">
-            <div class="team-card">Loading teams...</div>
+            <div class="team-card">Carregando clubes...</div>
           </div>
           <input type="hidden" id="selected-team-id" />
         </div>
 
         <div style="display:flex; justify-content: space-between; margin-top: 1rem;">
-          <button class="action-btn secondary" onclick="app.showScreen('start')">Back</button>
-          <button id="btn-start-career" class="action-btn primary" onclick="app.createCareer()" disabled>Start
-            Career</button>
+          <button class="action-btn secondary" onclick="app.showScreen('start')">Voltar</button>
+          <button id="btn-start-career" class="action-btn primary" onclick="app.createCareer()" disabled>Iniciar
+            Carreira</button>
         </div>
       </div>
     </div>
 
     <!-- Screen 4: Options -->
     <div id="screen-options" class="screen">
-      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Options</h2>
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Opcoes</h2>
       <div class="glass-container" style="width: 500px; padding: 2rem;">
         <div class="form-group">
-          <label>Language</label>
+          <label>Idioma</label>
           <select id="opt-language" onchange="app.changeLanguage(this.value)">
             <option value="en">English (US)</option>
             <option value="en-GB">English (UK)</option>
-            <option value="pt-BR">Português (BR)</option>
-            <option value="es">Español</option>
+            <option value="pt-BR">Portugues (BR)</option>
+            <option value="es">Espanol</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label>Resolution / Zoom</label>
+          <label>Zoom</label>
           <select id="opt-scale" onchange="app.setZoom(this.value)">
-            <option value="1">100% (Default)</option>
-            <option value="1.25">125% (Large)</option>
-            <option value="1.5">150% (4K)</option>
+            <option value="1">100% (Padrao)</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
           </select>
         </div>
 
-        <div class="form-group">
-          <label>Window Mode</label>
-          <div style="display:flex; gap:1rem; margin-top:0.5rem;">
-            <label style="flex:1; background:rgba(255,255,255,0.05); padding:1rem; border-radius:4px; cursor:pointer;">
-              <input type="radio" name="winmode" checked> Windowed
-            </label>
-            <label style="flex:1; background:rgba(255,255,255,0.05); padding:1rem; border-radius:4px; cursor:pointer;">
-              <input type="radio" name="winmode"> Fullscreen
-            </label>
-          </div>
-        </div>
-
-        <div class="form-group" style="margin-top:1rem;">
-          <label>Simulation Speed</label>
-          <input type="range" min="1" max="5" value="3" />
-        </div>
-
-        <div style="margin-top: 2rem; display:flex; justify-content:space-between; align-items:center;">
-          <button class="action-btn secondary" style="border-color:#f87171; color:#f87171;"
-            onclick="alert('All data cleared.')">Reset Data</button>
-          <button class="action-btn primary" onclick="app.showScreen('start')">Back</button>
+        <div style="margin-top: 2rem; display:flex; justify-content:center;">
+          <button class="action-btn primary" onclick="app.showScreen('start')">Voltar</button>
         </div>
       </div>
     </div>
@@ -123,40 +104,35 @@
         <div class="top-bar">
           <div class="brand-section">
             <div class="club-name" id="hud-club-name">Club Name</div>
-            <div class="club-meta">
-              <span class="meta-item">4th Division</span>
-              <span class="meta-item">• Board: Promote</span>
-              <span class="meta-item">• Rank: 1st</span>
+            <div class="club-meta" id="hud-meta">
+              <span class="meta-item">-</span>
             </div>
           </div>
           <div class="date-section">
-            <div class="game-date" id="hud-game-date">01 Jan 2026</div>
-            <div class="game-time">09:00</div>
+            <div class="game-date" id="hud-game-date">01 Jul 2001</div>
           </div>
         </div>
 
         <!-- Navigation Tabs -->
         <div class="nav-tabs">
           <div class="nav-tab active" onclick="app.toggleTab('Inbox')">Inbox</div>
-          <div class="nav-tab" onclick="app.toggleTab('Squad')">Squad</div>
-          <div class="nav-tab" onclick="app.toggleTab('Tactics')">Tactics</div>
-          <div class="nav-tab" onclick="app.toggleTab('Transfers')">Transfers</div>
-          <div class="nav-tab" onclick="app.toggleTab('Finance')">Finance</div>
-          <div class="nav-tab" onclick="app.toggleTab('Competitions')">Competitions</div>
+          <div class="nav-tab" onclick="app.toggleTab('Squad')">Elenco</div>
+          <div class="nav-tab" onclick="app.toggleTab('Tactics')">Taticas</div>
+          <div class="nav-tab" onclick="app.toggleTab('Fixtures')">Jogos</div>
+          <div class="nav-tab" onclick="app.toggleTab('Transfers')">Transferencias</div>
+          <div class="nav-tab" onclick="app.toggleTab('Finance')">Financas</div>
+          <div class="nav-tab" onclick="app.toggleTab('Competitions')">Classificacao</div>
         </div>
 
-        <!-- 2. Main Content (Split) -->
+        <!-- 2. Main Content -->
         <div class="main-content">
-          <!-- Left: Inbox List -->
-          <div class="inbox-sidebar" id="inbox-list">
-            <!-- Items injected by JS -->
-          </div>
+          <!-- Inbox List -->
+          <div class="inbox-sidebar" id="inbox-list"></div>
 
-          <!-- Right: Reading Pane -->
+          <!-- Reading Pane -->
           <div class="reading-pane" id="reading-pane">
-            <!-- Article injected by JS -->
             <div style="height:100%; display:flex; align-items:center; justify-content:center; color:#555;">
-              Select a message
+              Selecione uma mensagem
             </div>
           </div>
 
@@ -173,24 +149,21 @@
               <thead>
                 <tr>
                   <th width="5%">Pos</th>
-                  <th width="35%">Name</th>
-                  <th width="10%">Age</th>
-                  <th width="15%">Nat</th>
+                  <th width="35%">Nome</th>
+                  <th width="10%">Idade</th>
+                  <th width="15%">Nac</th>
                   <th width="10%">Ovr</th>
-                  <th width="15%">Value</th>
+                  <th width="15%">Valor</th>
                   <th width="10%">Cond</th>
                 </tr>
               </thead>
-              <tbody>
-                <!-- Rows injected by JS -->
-              </tbody>
+              <tbody></tbody>
             </table>
           </div>
 
           <!-- Tactics View -->
           <div id="tactics-view" style="display:none; flex:1; padding: 2rem; overflow: hidden; background: #222;">
             <div style="display:flex; height:100%; gap:2rem;">
-              <!-- Pitch -->
               <div class="pitch-container">
                 <div class="pitch">
                   <div class="pitch-line half-line"></div>
@@ -198,110 +171,82 @@
                 </div>
                 <div id="pitch-players"></div>
               </div>
-
-              <!-- Sidebar -->
               <div style="flex:1; display:flex; flex-direction:column; gap:1rem;">
-                <div class="panel-header">Formation</div>
-                <select class="form-select" style="background:#333; color:white; padding:0.5rem;">
-                  <option>4-4-2 Classic</option>
-                  <option>4-3-3 Attack</option>
-                  <option>5-3-2 Defensive</option>
+                <div class="panel-header">Formacao</div>
+                <select id="formation-select" class="form-select" style="background:#333; color:white; padding:0.5rem;">
+                  <option value="4-4-2">4-4-2</option>
+                  <option value="4-3-3">4-3-3</option>
+                  <option value="3-5-2">3-5-2</option>
+                  <option value="4-5-1">4-5-1</option>
+                  <option value="4-2-3-1">4-2-3-1</option>
+                  <option value="3-4-1-2">3-4-1-2</option>
+                  <option value="5-3-2">5-3-2</option>
+                  <option value="4-1-4-1">4-1-4-1</option>
+                  <option value="4-4-1-1">4-4-1-1</option>
+                  <option value="3-4-3">3-4-3</option>
                 </select>
-
-                <div class="panel-header" style="margin-top:1rem;">Bench</div>
-                <div id="bench-list" class="bench-list"></div>
               </div>
             </div>
           </div>
 
+          <!-- Fixtures View -->
+          <div id="fixtures-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
+            <h2 style="color:var(--accent-color); margin-bottom:1rem;">Jogos</h2>
+            <div id="fixtures-list"></div>
+          </div>
+
           <!-- Competitions View -->
           <div id="comps-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
-            <h2 id="comp-name" style="color:var(--accent-color); margin-bottom:1rem;">Premier League</h2>
+            <h2 id="comp-name" style="color:var(--accent-color); margin-bottom:1rem;">Classificacao</h2>
             <table class="datagrid" id="league-table">
               <thead>
                 <tr>
-                  <th width="10%">Pos</th>
-                  <th width="40%">Club</th>
-                  <th width="10%">P</th>
-                  <th width="10%">W</th>
-                  <th width="10%">D</th>
-                  <th width="10%">L</th>
-                  <th width="10%">Pts</th>
+                  <th width="8%">Pos</th>
+                  <th width="32%">Clube</th>
+                  <th width="8%">J</th>
+                  <th width="8%">V</th>
+                  <th width="8%">E</th>
+                  <th width="8%">D</th>
+                  <th width="8%">GP</th>
+                  <th width="8%">GC</th>
+                  <th width="8%">Pts</th>
                 </tr>
               </thead>
-              <tbody>
-                <!-- Rows -->
-              </tbody>
+              <tbody></tbody>
             </table>
           </div>
 
           <!-- Transfers View -->
           <div id="transfers-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
             <div class="search-bar" style="display:flex; gap:1rem; margin-bottom:2rem;">
-              <input type="text" id="search-input" placeholder="Search player by name (e.g. 'Silva')..."
+              <input type="text" id="search-input" placeholder="Buscar jogador por nome..."
                 style="flex:1; padding:0.5rem; background:#333; border:1px solid #555; color:white;">
-              <button class="action-btn primary" onclick="app.searchPlayers()">Search</button>
+              <button class="action-btn primary" onclick="app.searchPlayers()">Buscar</button>
             </div>
-
             <div id="search-results">
               <table class="datagrid" id="transfer-table" style="display:none;">
                 <thead>
                   <tr>
-                    <th width="30%">Name</th>
-                    <th width="10%">Age</th>
-                    <th width="20%">Position</th>
-                    <th width="20%">Club</th>
-                    <th width="20%">Value</th>
+                    <th width="30%">Nome</th>
+                    <th width="10%">Idade</th>
+                    <th width="20%">Posicao</th>
+                    <th width="20%">Clube</th>
+                    <th width="20%">Valor</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
               </table>
               <div id="search-empty" style="text-align:center; color:#666; margin-top:4rem;">
-                Enter a name to search the global database.
+                Digite um nome para buscar no banco de dados.
               </div>
             </div>
           </div>
 
           <!-- Finance View -->
           <div id="finance-view" style="display:none; flex:1; padding: 2rem; overflow-y: auto;">
-            <h2 style="color:var(--accent-color);">Club Finances</h2>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem;">
-              <div class="glass-container" style="padding:1.5rem;">
-                <div class="panel-header">Balance</div>
-                <div style="font-size:2rem; font-weight:bold; color: #4ade80; margin:1rem 0;">£45,200,000</div>
-                <div style="font-size:0.9rem; color:#888;">Projected: £42M</div>
-              </div>
-              <div class="glass-container" style="padding:1.5rem;">
-                <div class="panel-header">Transfer Budget</div>
-                <div style="font-size:2rem; font-weight:bold; color: #60a5fa; margin:1rem 0;">£32,000,000</div>
-                <div style="font-size:0.9rem; color:#888;">Remaining Wage Budget: £150k/pw</div>
-              </div>
-            </div>
-
-            <div class="glass-container" style="margin-top: 2rem; padding: 1.5rem;">
-              <div class="panel-header" style="margin-bottom:1rem;">Income & Expenditure (This Season)</div>
-              <table style="width:100%; text-align:left; border-collapse:collapse; color:#ccc;">
-                <tr style="border-bottom:1px solid #333;">
-                  <th style="padding:0.5rem;">Category</th>
-                  <th style="padding:0.5rem; text-align:right;">Amount</th>
-                </tr>
-                <tr>
-                  <td style="padding:0.5rem;">TV Revenue</td>
-                  <td style="padding:0.5rem; text-align:right; color:#4ade80;">+£85,000,000</td>
-                </tr>
-                <tr>
-                  <td style="padding:0.5rem;">Gate Receipts</td>
-                  <td style="padding:0.5rem; text-align:right; color:#4ade80;">+£12,500,000</td>
-                </tr>
-                <tr>
-                  <td style="padding:0.5rem;">Player Wages</td>
-                  <td style="padding:0.5rem; text-align:right; color:#f87171;">-£55,000,000</td>
-                </tr>
-                <tr>
-                  <td style="padding:0.5rem;">Transfer Expenditure</td>
-                  <td style="padding:0.5rem; text-align:right; color:#f87171;">-£22,000,000</td>
-                </tr>
-              </table>
+            <h2 style="color:var(--accent-color); margin-bottom:1rem;">Financas do Clube</h2>
+            <div id="finance-content">
+              <div style="text-align:center; color:#666; padding:2rem;">Carregando dados financeiros...</div>
             </div>
           </div>
 
@@ -309,8 +254,8 @@
 
         <!-- 3. Bottom Bar -->
         <div class="bottom-bar">
-          <button class="action-btn secondary" onclick="app.showScreen('start')">Save & Exit</button>
-          <button class="action-btn primary" onclick="app.advanceGame()">Continue</button>
+          <button class="action-btn secondary" onclick="app.saveAndExit()">Salvar & Sair</button>
+          <button class="action-btn primary" onclick="app.advanceGame()">Continuar</button>
         </div>
 
       </div>
@@ -321,53 +266,52 @@
       <div class="match-layout">
         <div class="match-header">
           <div class="team-score">
-            <div class="team-lg" id="score-home-name">Home</div>
+            <div class="team-lg" id="score-home-name">Casa</div>
             <div class="score-lg" id="score-home">0</div>
           </div>
           <div class="match-timer">
             <div class="timer-box" id="match-time">00:00</div>
-            <div class="match-status">LIVE</div>
+            <div class="match-status">AO VIVO</div>
           </div>
           <div class="team-score">
             <div class="score-lg" id="score-away">0</div>
-            <div class="team-lg" id="score-away-name">Away</div>
+            <div class="team-lg" id="score-away-name">Fora</div>
           </div>
         </div>
 
         <div class="match-body">
-          <div class="commentary-box" id="commentary-feed">
-            <!-- Events -->
-          </div>
+          <div class="commentary-box" id="commentary-feed"></div>
         </div>
 
         <div class="match-footer" style="padding:2rem; text-align:center;">
           <button class="action-btn primary" id="btn-finish-match" onclick="app.finishMatch()"
-            style="display:none; margin:0 auto;">Finish Match</button>
+            style="display:none; margin:0 auto;">Encerrar Partida</button>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Player Profile Modal -->
   <div id="profile-modal" class="modal-overlay" onclick="if(event.target === this) app.closeProfile()">
     <div class="profile-card">
       <div class="profile-header">
         <div>
-          <div class="profile-name" id="p-name">Player Name</div>
-          <div class="profile-meta" id="p-meta">23 yrs • Brazilian • DM/MC</div>
+          <div class="profile-name" id="p-name">Nome do Jogador</div>
+          <div class="profile-meta" id="p-meta">23 anos • Brasileiro • MC</div>
         </div>
-        <button class="action-btn secondary" onclick="app.closeProfile()">Close</button>
+        <button class="action-btn secondary" onclick="app.closeProfile()">Fechar</button>
       </div>
       <div class="profile-tabs">
-        <div class="profile-tab active">Attributes</div>
-        <div class="profile-tab">Contract</div>
-        <div class="profile-tab">History</div>
+        <div class="profile-tab active">Atributos</div>
+        <div class="profile-tab">Contrato</div>
+        <div class="profile-tab">Historico</div>
       </div>
       <div class="profile-body">
-        <div class="attr-grid" id="p-attributes">
-          <!-- Attributes injected -->
-        </div>
+        <div class="attr-grid" id="p-attributes"></div>
       </div>
     </div>
   </div>
+
   <script src="main.js" type="module"></script>
 </body>
 
