@@ -6,7 +6,7 @@ use crate::config::GameConfig;
 use crate::state::GameState;
 use cm_core::ids::{ClubId, CompetitionId};
 use cm_core::world::World;
-use cm_match::{MatchInput, TeamStrength, simulate_match};
+use cm_match::{simulate_match, MatchInput, TeamStrength};
 
 /// Match system.
 pub struct MatchSystem;
@@ -23,6 +23,10 @@ impl MatchSystem {
         for (comp_id, comp) in &world.competitions {
             for (idx, fixture) in comp.fixtures.matches.iter().enumerate() {
                 if fixture.date == today && !fixture.is_played() {
+                    // Skip user's fixtures — the GUI handles those manually
+                    if fixture.home_id == state.club_id || fixture.away_id == state.club_id {
+                        continue;
+                    }
                     to_simulate.push((
                         comp_id.clone(),
                         idx,
@@ -40,10 +44,14 @@ impl MatchSystem {
 
         // Simulate each match
         for (comp_id, fix_idx, home_id, away_id) in &to_simulate {
-            let home_strength = world.clubs.get(home_id)
+            let home_strength = world
+                .clubs
+                .get(home_id)
                 .map(|c| TeamStrength::from_club(c))
                 .unwrap_or_default();
-            let away_strength = world.clubs.get(away_id)
+            let away_strength = world
+                .clubs
+                .get(away_id)
                 .map(|c| TeamStrength::from_club(c))
                 .unwrap_or_default();
 
@@ -58,10 +66,14 @@ impl MatchSystem {
 
             let result = simulate_match(&input);
 
-            let home_name = world.clubs.get(home_id)
+            let home_name = world
+                .clubs
+                .get(home_id)
                 .map(|c| c.short_name.clone())
                 .unwrap_or_else(|| home_id.to_string());
-            let away_name = world.clubs.get(away_id)
+            let away_name = world
+                .clubs
+                .get(away_id)
                 .map(|c| c.short_name.clone())
                 .unwrap_or_else(|| away_id.to_string());
 
@@ -88,9 +100,7 @@ impl MatchSystem {
             if home_id == &state.club_id || away_id == &state.club_id {
                 let msg = format!(
                     "Resultado: {} {} x {} {} ({})",
-                    home_name, result.home_goals,
-                    result.away_goals, away_name,
-                    comp_id
+                    home_name, result.home_goals, result.away_goals, away_name, comp_id
                 );
                 state.add_message(msg);
 
@@ -100,10 +110,14 @@ impl MatchSystem {
                         state.add_message(format!("  {}' - {}", event.minute, event.description));
                     }
                 }
+
+                // Preservar resultado completo para exibicao na TUI
+                state.last_match_result = Some(result.clone());
             }
         }
 
-        let user_played = to_simulate.iter()
+        let user_played = to_simulate
+            .iter()
             .any(|(_, _, h, a)| h == &state.club_id || a == &state.club_id);
         if !user_played {
             state.add_message(format!("{} jogo(s) simulado(s) hoje.", to_simulate.len()));

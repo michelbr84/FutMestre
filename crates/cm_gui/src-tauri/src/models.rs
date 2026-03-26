@@ -225,6 +225,24 @@ pub struct DisplayFinances {
     pub wage_room: String,
 }
 
+// ─── Advance Day Result ─────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AdvanceDayResult {
+    pub game_state: DisplayGameState,
+    pub user_match: Option<DisplayFixturePreview>,
+    pub round_results: Vec<RoundResult>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RoundResult {
+    pub home_name: String,
+    pub away_name: String,
+    pub home_goals: u8,
+    pub away_goals: u8,
+    pub competition: String,
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 pub fn format_money(m: Money) -> String {

@@ -340,11 +340,83 @@ fn swap_starter(player_id: String, state: State<AppState>) -> bool {
 // ─── Commands: Day Advancement ───────────────────────────────────────────────
 
 #[tauri::command]
-fn advance_day(state: State<AppState>) -> Option<DisplayGameState> {
+fn advance_day(state: State<AppState>) -> Option<AdvanceDayResult> {
     let mut lock = state.game.lock().unwrap();
     let game = lock.as_mut()?;
+
+    // Process the day (AI matches simulated, user match skipped by match_system)
     game.process_day();
-    Some(build_game_state(game))
+
+    let today = game.state().date.date();
+    let user_club = game.state().club_id.clone();
+
+    // Collect round results (AI matches played today)
+    // We need to collect data without holding borrows across add_message
+    let mut result_lines: Vec<String> = Vec::new();
+    let mut round_results: Vec<RoundResult> = Vec::new();
+
+    {
+        let world = game.world();
+        for comp in world.competitions.values() {
+            for fixture in &comp.fixtures.matches {
+                if fixture.date == today && fixture.is_played() {
+                    if let Some(ref r) = fixture.result {
+                        let hn = club_name(world, &fixture.home_id);
+                        let an = club_name(world, &fixture.away_id);
+                        result_lines.push(format!("{} {} x {} {}", hn, r.home_goals, r.away_goals, an));
+                        round_results.push(RoundResult {
+                            home_name: hn,
+                            away_name: an,
+                            home_goals: r.home_goals,
+                            away_goals: r.away_goals,
+                            competition: comp.name.clone(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Add round results summary to inbox
+    if !result_lines.is_empty() {
+        game.state_mut().add_message(format!(
+            "Resultados da rodada:\n{}",
+            result_lines.join("\n")
+        ));
+    }
+
+    // Check if user has a match TODAY (not yet played — match_system skipped it)
+    let mut user_match: Option<DisplayFixturePreview> = None;
+    {
+        let world = game.world();
+        for comp in world.competitions.values() {
+            for f in &comp.fixtures.matches {
+                if f.date == today
+                    && !f.is_played()
+                    && (f.home_id == user_club || f.away_id == user_club)
+                {
+                    user_match = Some(DisplayFixturePreview {
+                        home_name: club_name(world, &f.home_id),
+                        away_name: club_name(world, &f.away_id),
+                        home_id: f.home_id.to_string(),
+                        away_id: f.away_id.to_string(),
+                        competition: comp.name.clone(),
+                        is_home: f.home_id == user_club,
+                    });
+                    break;
+                }
+            }
+            if user_match.is_some() {
+                break;
+            }
+        }
+    }
+
+    Some(AdvanceDayResult {
+        game_state: build_game_state(game),
+        user_match,
+        round_results,
+    })
 }
 
 #[tauri::command]
@@ -549,20 +621,25 @@ fn get_inbox(state: State<AppState>) -> Vec<DisplayMessage> {
         None => return Vec::new(),
     };
 
+    let total = game.state().inbox.len();
     game.state()
         .inbox
         .iter()
-        .rev()
         .enumerate()
-        .map(|(i, msg)| DisplayMessage {
-            id: format!("msg-{}", i),
-            msg_type: "system".into(),
-            title: msg.lines().next().unwrap_or("Mensagem").to_string(),
-            text: msg.clone(),
-            date: format!("{}", game.state().date),
-            time: "09:00".into(),
-            unread: i < 3,
-            tags: vec!["Info".into()],
+        .rev()
+        .map(|(i, msg)| {
+            let title = msg.lines().next().unwrap_or("Mensagem").to_string();
+            let is_recent = i >= total.saturating_sub(5);
+            DisplayMessage {
+                id: format!("msg-{}", i),
+                msg_type: "system".into(),
+                title,
+                text: msg.clone(),
+                date: format!("{}", game.state().date),
+                time: "09:00".into(),
+                unread: is_recent,
+                tags: vec!["Info".into()],
+            }
         })
         .collect()
 }

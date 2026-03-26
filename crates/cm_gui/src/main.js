@@ -924,36 +924,26 @@ const app = {
   // ─── Advance Day / Continue ─────────────────────────────────────────────
 
   advanceGame: async () => {
-    // Check if there's a match today
     try {
-      const matchToday = await invoke('check_match_today');
-      if (matchToday) {
-        if (confirm(`${I18N.t('match_today')}: ${matchToday.home_name} vs ${matchToday.away_name} (${matchToday.competition}). ${I18N.t('play_match')}`)) {
-          app.startMatch(matchToday.home_id, matchToday.away_id, matchToday.home_name, matchToday.away_name);
+      // Advance day — backend processes AI matches, skips user match
+      const result = await invoke('advance_day');
+      if (!result) return;
+
+      // Update HUD
+      app.updateHUD(result.game_state);
+
+      // If user has a match today, prompt to play
+      if (result.user_match) {
+        const m = result.user_match;
+        if (confirm(`${I18N.t('match_today')}: ${m.home_name} vs ${m.away_name} (${m.competition}). ${I18N.t('play_match')}`)) {
+          app.startMatch(m.home_id, m.away_id, m.home_name, m.away_name);
           return;
         }
       }
-    } catch (e) {
-      console.error(e);
-    }
 
-    // Advance day
-    try {
-      const gs = await invoke('advance_day');
-      if (gs) {
-        app.updateHUD(gs);
+      // Refresh inbox to show new messages (round results added by backend)
+      app.loadInbox();
 
-        // Check for round results (other matches played today)
-        try {
-          const results = await invoke('get_round_results');
-          if (results && results.length > 0) {
-            app.showRoundResults(results);
-          }
-        } catch (e) { console.error(e); }
-
-        // Generate a random daily message
-        app.generateDailyMessage();
-      }
     } catch (e) { console.error(e); }
   },
 
@@ -968,48 +958,6 @@ const app = {
          <span class="meta-item">• Pos: ${gs.position}</span>
          <span class="meta-item">• ${I18N.formatMoney(gs.balance)}</span>`;
     }
-  },
-
-  showRoundResults: (results) => {
-    const clubName = app.state.gameState?.meta?.clubName || '';
-    const lines = results.map(r => `${r.home_name} ${r.home_goals} x ${r.away_goals} ${r.away_name}`);
-    const resultsText = lines.join('\n');
-
-    const msg = getRandomMessage('round_results', I18N.current, { results: resultsText });
-    if (msg) {
-      // Add to inbox display
-      app.addLocalMessage(msg.title, lines.join('<br>'));
-    }
-  },
-
-  generateDailyMessage: () => {
-    // ~40% chance of a daily message
-    if (Math.random() > 0.4) return;
-
-    const clubName = app.state.gameState?.meta?.clubName || 'Club';
-    const msg = getRandomMessage('daily', I18N.current, { club: clubName });
-    if (msg) {
-      app.addLocalMessage(msg.title, msg.text);
-    }
-  },
-
-  addLocalMessage: (title, text) => {
-    // Add message to the inbox UI directly
-    const list = document.getElementById('inbox-list');
-    if (!list || list.style.display === 'none') return;
-
-    const item = document.createElement('div');
-    item.className = 'inbox-item unread';
-    item.innerHTML = `
-      <div class="msg-header-row">
-        <span class="msg-icon">📰</span>
-        <span class="msg-time">now</span>
-      </div>
-      <div class="msg-title">${title}</div>
-    `;
-    const msgObj = { title, text, date: '', time: 'now', tags: ['News'], unread: true, type: 'news' };
-    item.onclick = () => app.openMessage(msgObj, item);
-    list.prepend(item);
   },
 
   // ─── Save ───────────────────────────────────────────────────────────────
