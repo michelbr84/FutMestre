@@ -1,8 +1,10 @@
+import I18N from './i18n.js';
+
 const { invoke } = window.__TAURI__.core;
 
 const app = {
   state: {
-    language: 'en',
+    language: 'pt-BR',
     strings: {},
     newGameData: {
       teamPool: [],
@@ -14,6 +16,8 @@ const app = {
 
   init: async () => {
     app.log("App initializing...");
+    I18N.setLanguage('pt-BR');
+    I18N.applyToDOM();
     await app.loadFlags();
     app.log("Flags loaded.");
   },
@@ -57,42 +61,34 @@ const app = {
   },
 
   selectLanguage: async (code) => {
-    app.state.language = code;
-    await app.loadStrings(code);
+    // Map country language codes to our supported i18n languages
+    const langMap = { 'pt-BR': 'pt-BR', 'es': 'es', 'es-MX': 'es', 'fr': 'fr' };
+    const i18nCode = langMap[code] || 'en';
+    app.state.language = i18nCode;
+    I18N.setLanguage(i18nCode);
+    I18N.applyToDOM();
+    app.renderStartMenuFromI18N();
     app.showScreen('start');
-  },
-
-  loadStrings: async (code) => {
-    const paths = [
-      `assets/JSON/${code}/start.json`,
-      `assets/JSON/${code.split('-')[0]}/start.json`,
-      `assets/JSON/en/start.json`
-    ];
-    let data = null;
-    for (const p of paths) {
-      data = await app.loadJSON(p);
-      if (data) break;
-    }
-    if (data) {
-      app.state.strings = data;
-      app.renderStartMenu(data);
-    }
   },
 
   // ─── Start Menu ─────────────────────────────────────────────────────────
 
-  renderStartMenu: (data) => {
+  renderStartMenuFromI18N: () => {
     const container = document.getElementById('menu-buttons');
     container.innerHTML = '';
-    if (data.menu_inicial) {
-      data.menu_inicial.forEach(item => {
-        const btn = document.createElement('button');
-        btn.className = 'menu-btn';
-        btn.textContent = item.label;
-        btn.onclick = () => app.handleMenuAction(item.id);
-        container.appendChild(btn);
-      });
-    }
+    const items = [
+      { id: 'start_game', key: 'start_game' },
+      { id: 'continue_game', key: 'continue_game' },
+      { id: 'options', key: 'options' },
+      { id: 'exit', key: 'exit' },
+    ];
+    items.forEach(item => {
+      const btn = document.createElement('button');
+      btn.className = 'menu-btn';
+      btn.textContent = I18N.t(item.key);
+      btn.onclick = () => app.handleMenuAction(item.id);
+      container.appendChild(btn);
+    });
   },
 
   handleMenuAction: (actionId) => {
@@ -109,13 +105,13 @@ const app = {
   showLoadScreen: async () => {
     app.showScreen('load');
     const list = document.getElementById('save-list');
-    list.innerHTML = '<div style="text-align:center; color:#888;">Carregando...</div>';
+    list.innerHTML = `<div style="text-align:center; color:#888;">${I18N.t('loading')}</div>`;
 
     try {
       const saves = await invoke('get_saved_games');
       list.innerHTML = '';
       if (saves.length === 0) {
-        list.innerHTML = '<div style="text-align:center;">Nenhum jogo salvo encontrado.</div>';
+        list.innerHTML = `<div style="text-align:center;">${I18N.t('no_saves')}</div>`;
         return;
       }
       saves.forEach(s => {
@@ -143,7 +139,7 @@ const app = {
   },
 
   loadGame: async (slotId) => {
-    if (!confirm('Carregar este save? Progresso nao salvo sera perdido.')) return;
+    if (!confirm(I18N.t('load_confirm'))) return;
     try {
       const gameState = await invoke('load_game', { slotId });
       app.state.gameState = {
@@ -154,7 +150,7 @@ const app = {
       app.showScreen('news');
     } catch (e) {
       console.error(e);
-      alert("Falha ao carregar jogo: " + e);
+      alert(I18N.t('load_fail') + ': ' + e);
     }
   },
 
@@ -165,7 +161,7 @@ const app = {
     try {
       const clubs = await invoke('get_available_clubs');
       if (!clubs || clubs.length === 0) {
-        alert("Erro: nenhum clube encontrado. Verifique os dados em assets/data/.");
+        alert(I18N.t('no_clubs'));
         return;
       }
 
@@ -238,7 +234,7 @@ const app = {
     const teamId = document.getElementById('selected-team-id').value;
 
     if (!name || !surname || !teamId) {
-      alert("Preencha todos os campos.");
+      alert(I18N.t('fill_all'));
       return;
     }
 
@@ -297,7 +293,7 @@ const app = {
       list.innerHTML = '';
 
       if (!messages || messages.length === 0) {
-        list.innerHTML = '<div style="padding:1rem; color:#666;">Nenhuma mensagem.</div>';
+        list.innerHTML = `<div style="padding:1rem; color:#666;">${I18N.t('no_messages')}</div>`;
         return;
       }
 
@@ -347,10 +343,10 @@ const app = {
 
   // ─── Tab Navigation ─────────────────────────────────────────────────────
 
-  toggleTab: (tabName) => {
+  toggleTab: (tabKey) => {
     document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-    const tabs = document.querySelectorAll('.nav-tab');
-    for (let t of tabs) { if (t.textContent === tabName) t.classList.add('active'); }
+    const tab = document.querySelector(`.nav-tab[data-tab="${tabKey}"]`);
+    if (tab) tab.classList.add('active');
 
     // Hide all views
     const views = ['inbox-list', 'reading-pane', 'squad-view', 'tactics-view', 'comps-view', 'transfers-view', 'finance-view', 'fixtures-view'];
@@ -359,25 +355,25 @@ const app = {
       if (el) el.style.display = 'none';
     });
 
-    if (tabName === 'Inbox') {
+    if (tabKey === 'inbox') {
       document.getElementById('inbox-list').style.display = 'flex';
       document.getElementById('reading-pane').style.display = 'block';
       app.loadInbox();
-    } else if (tabName === 'Squad') {
+    } else if (tabKey === 'squad') {
       document.getElementById('squad-view').style.display = 'flex';
       if (app.state.gameState) app.loadSquad(app.state.gameState.meta.clubId);
-    } else if (tabName === 'Tactics') {
+    } else if (tabKey === 'tactics') {
       document.getElementById('tactics-view').style.display = 'block';
       app.renderTactics();
-    } else if (tabName === 'Competitions') {
+    } else if (tabKey === 'standings') {
       document.getElementById('comps-view').style.display = 'block';
       app.loadCompetitions();
-    } else if (tabName === 'Transfers') {
+    } else if (tabKey === 'transfers') {
       document.getElementById('transfers-view').style.display = 'block';
-    } else if (tabName === 'Finance') {
+    } else if (tabKey === 'finance') {
       document.getElementById('finance-view').style.display = 'block';
       app.loadFinances();
-    } else if (tabName === 'Fixtures') {
+    } else if (tabKey === 'fixtures') {
       document.getElementById('fixtures-view').style.display = 'block';
       app.loadFixtures();
     }
@@ -448,7 +444,7 @@ const app = {
 
       document.getElementById('p-name').textContent = profile.display.name;
       document.getElementById('p-meta').textContent =
-        `${profile.display.age} anos • ${profile.display.nationality} • ${profile.display.position}`;
+        `${profile.display.age} ${I18N.t('years')} • ${profile.display.nationality} • ${profile.display.position}`;
 
       const grid = document.getElementById('p-attributes');
       grid.innerHTML = '';
@@ -513,7 +509,7 @@ const app = {
     } else {
       table.style.display = 'none';
       empty.style.display = 'block';
-      empty.textContent = 'Nenhum jogador encontrado.';
+      empty.textContent = I18N.t('no_players');
     }
   },
 
@@ -636,7 +632,7 @@ const app = {
       container.innerHTML = '';
 
       if (!fixtures || fixtures.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color:#666; padding:2rem;">Nenhum jogo agendado.</div>';
+        container.innerHTML = `<div style="text-align:center; color:#666; padding:2rem;">${I18N.t('no_fixtures')}</div>`;
         return;
       }
 
@@ -666,35 +662,36 @@ const app = {
       const container = document.getElementById('finance-content');
       if (!container) return;
 
+      const $ = I18N.formatMoney.bind(I18N);
       container.innerHTML = `
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
           <div class="glass-container" style="padding:1.5rem;">
-            <div class="panel-header">Saldo</div>
-            <div style="font-size:2rem; font-weight:bold; color: #4ade80; margin:1rem 0;">${fin.balance}</div>
+            <div class="panel-header">${I18N.t('balance')}</div>
+            <div style="font-size:2rem; font-weight:bold; color: #4ade80; margin:1rem 0;">${$(fin.balance)}</div>
           </div>
           <div class="glass-container" style="padding:1.5rem;">
-            <div class="panel-header">Orcamento de Transferencias</div>
-            <div style="font-size:2rem; font-weight:bold; color: #60a5fa; margin:1rem 0;">${fin.transfer_budget}</div>
+            <div class="panel-header">${I18N.t('transfer_budget')}</div>
+            <div style="font-size:2rem; font-weight:bold; color: #60a5fa; margin:1rem 0;">${$(fin.transfer_budget)}</div>
           </div>
         </div>
         <div class="glass-container" style="margin-top: 2rem; padding: 1.5rem;">
-          <div class="panel-header" style="margin-bottom:1rem;">Folha Salarial</div>
+          <div class="panel-header" style="margin-bottom:1rem;">${I18N.t('payroll')}</div>
           <table style="width:100%; text-align:left; border-collapse:collapse; color:#ccc;">
             <tr style="border-bottom:1px solid #333;">
-              <th style="padding:0.5rem;">Categoria</th>
-              <th style="padding:0.5rem; text-align:right;">Valor</th>
+              <th style="padding:0.5rem;"></th>
+              <th style="padding:0.5rem; text-align:right;"></th>
             </tr>
             <tr>
-              <td style="padding:0.5rem;">Orcamento Salarial</td>
-              <td style="padding:0.5rem; text-align:right; color:#60a5fa;">${fin.wage_budget}</td>
+              <td style="padding:0.5rem;">${I18N.t('wage_budget')}</td>
+              <td style="padding:0.5rem; text-align:right; color:#60a5fa;">${$(fin.wage_budget)}</td>
             </tr>
             <tr>
-              <td style="padding:0.5rem;">Folha Atual</td>
-              <td style="padding:0.5rem; text-align:right; color:#f87171;">${fin.wage_bill}</td>
+              <td style="padding:0.5rem;">${I18N.t('current_wages')}</td>
+              <td style="padding:0.5rem; text-align:right; color:#f87171;">${$(fin.wage_bill)}</td>
             </tr>
             <tr>
-              <td style="padding:0.5rem;">Espaco Disponivel</td>
-              <td style="padding:0.5rem; text-align:right; color:#4ade80;">${fin.wage_room}</td>
+              <td style="padding:0.5rem;">${I18N.t('wage_room')}</td>
+              <td style="padding:0.5rem; text-align:right; color:#4ade80;">${$(fin.wage_room)}</td>
             </tr>
           </table>
         </div>
@@ -748,7 +745,7 @@ const app = {
 
       if (minute >= 90) {
         clearInterval(tick);
-        app.addCommentary("FINAL DE JOGO!", true);
+        app.addCommentary(I18N.t('full_time'), true);
         document.getElementById('score-home').textContent = result.home_goals;
         document.getElementById('score-away').textContent = result.away_goals;
         document.getElementById('btn-finish-match').style.display = 'block';
@@ -777,7 +774,7 @@ const app = {
     try {
       const match = await invoke('check_match_today');
       if (match) {
-        if (confirm(`Jogo hoje: ${match.home_name} vs ${match.away_name} (${match.competition}). Jogar?`)) {
+        if (confirm(`${I18N.t('match_today')}: ${match.home_name} vs ${match.away_name} (${match.competition}). ${I18N.t('play_match')}`)) {
           app.startMatch(match.home_id, match.away_id, match.home_name, match.away_name);
           return;
         }
@@ -807,19 +804,94 @@ const app = {
   saveAndExit: async () => {
     try {
       await invoke('save_game');
-      alert('Jogo salvo com sucesso!');
+      alert(I18N.t('game_saved'));
       app.showScreen('start');
     } catch (e) {
       console.error(e);
-      alert('Erro ao salvar: ' + e);
+      alert(I18N.t('save_error') + ': ' + e);
     }
   },
 
-  // ─── Settings ───────────────────────────────────────────────────────────
+  // ─── Settings Modal ─────────────────────────────────────────────────────
 
-  changeLanguage: async (code) => {
-    await app.selectLanguage(code);
-    app.showScreen('options');
+  openSettings: () => {
+    const modal = document.getElementById('settings-modal');
+    if (!modal) return;
+
+    // Populate language options
+    const langSelect = document.getElementById('settings-language');
+    langSelect.innerHTML = '';
+    Object.entries(I18N.languages).forEach(([code, info]) => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = `${info.flag} ${info.name}`;
+      if (code === I18N.current) opt.selected = true;
+      langSelect.appendChild(opt);
+    });
+
+    // Populate currency options
+    const curSelect = document.getElementById('settings-currency');
+    curSelect.innerHTML = '';
+    Object.entries(I18N.currencies).forEach(([code, info]) => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = `${info.symbol} — ${info.name}`;
+      if (code === I18N.currency) opt.selected = true;
+      curSelect.appendChild(opt);
+    });
+
+    // Update labels
+    document.getElementById('settings-title').textContent = I18N.t('settings');
+    document.getElementById('settings-lang-label').textContent = I18N.t('language');
+    document.getElementById('settings-cur-label').textContent = I18N.t('currency');
+    document.getElementById('settings-zoom-label').textContent = I18N.t('zoom');
+    document.getElementById('settings-apply-btn').textContent = I18N.t('apply');
+    document.getElementById('settings-close-btn').textContent = I18N.t('close');
+
+    modal.style.display = 'flex';
+  },
+
+  closeSettings: () => {
+    document.getElementById('settings-modal').style.display = 'none';
+  },
+
+  applySettings: () => {
+    const lang = document.getElementById('settings-language').value;
+    const cur = document.getElementById('settings-currency').value;
+    const zoom = document.getElementById('settings-zoom').value;
+
+    I18N.setLanguage(lang);
+    I18N.setCurrency(cur);
+    I18N.applyToDOM();
+    document.body.style.zoom = zoom;
+    app.state.language = lang;
+
+    // Re-render the game hub tabs text
+    app.updateTabLabels();
+
+    // Refresh currently active view
+    if (app.state.gameState) {
+      app.renderGameHub();
+    }
+
+    app.closeSettings();
+  },
+
+  updateTabLabels: () => {
+    document.querySelectorAll('.nav-tab[data-tab]').forEach(tab => {
+      const key = tab.getAttribute('data-tab');
+      tab.textContent = I18N.t(key);
+    });
+  },
+
+  applyMenuSettings: () => {
+    const lang = document.getElementById('opt-language').value;
+    const cur = document.getElementById('opt-currency').value;
+    I18N.setLanguage(lang);
+    I18N.setCurrency(cur);
+    I18N.applyToDOM();
+    app.state.language = lang;
+    app.renderStartMenuFromI18N();
   },
 
   setZoom: (scale) => {

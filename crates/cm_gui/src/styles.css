@@ -150,6 +150,17 @@ body {
   box-shadow: inset 0 -2px 0 var(--accent-color);
 }
 
+.nav-tab-settings {
+  margin-left: auto;
+  font-size: 1.2rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.nav-tab-settings:hover {
+  opacity: 1;
+}
+
 /* 2. Main Content (Split View) */
 .main-content {
   flex: 1;

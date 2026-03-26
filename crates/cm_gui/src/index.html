@@ -17,13 +17,13 @@
 
     <!-- Screen 2: Start Menu -->
     <div id="screen-start" class="screen">
-      <h1 class="game-title" id="game-title">FutMestre</h1>
+      <h1 class="game-title" id="game-title" data-i18n="game_title">FutMestre</h1>
       <div class="menu-container" id="menu-buttons"></div>
     </div>
 
     <!-- Screen 3a: Load Game -->
     <div id="screen-load" class="screen">
-      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Carregar Jogo</h2>
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;" data-i18n="load_game">Carregar Jogo</h2>
       <div class="glass-container" style="width: 600px; padding: 2rem;">
         <div id="save-list" class="save-list">
           <div style="text-align:center; color:#888;">Buscando saves...</div>
@@ -36,7 +36,7 @@
 
     <!-- Screen 3: New Game -->
     <div id="screen-newgame" class="screen">
-      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Novo Treinador</h2>
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;" data-i18n="new_manager">Novo Treinador</h2>
       <div class="form-container">
         <div class="form-group">
           <label>Nome</label>
@@ -69,29 +69,40 @@
 
     <!-- Screen 4: Options -->
     <div id="screen-options" class="screen">
-      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;">Opcoes</h2>
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;" data-i18n="settings">Configuracoes</h2>
       <div class="glass-container" style="width: 500px; padding: 2rem;">
         <div class="form-group">
-          <label>Idioma</label>
-          <select id="opt-language" onchange="app.changeLanguage(this.value)">
-            <option value="en">English (US)</option>
-            <option value="en-GB">English (UK)</option>
-            <option value="pt-BR">Portugues (BR)</option>
-            <option value="es">Espanol</option>
+          <label data-i18n="language">Idioma</label>
+          <select id="opt-language" onchange="app.applyMenuSettings()">
+            <option value="en">&#127468;&#127463; English</option>
+            <option value="pt-BR" selected>&#127463;&#127479; Portugues</option>
+            <option value="es">&#127466;&#127480; Espanol</option>
+            <option value="fr">&#127467;&#127479; Francais</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label>Zoom</label>
+          <label data-i18n="currency">Moeda</label>
+          <select id="opt-currency" onchange="app.applyMenuSettings()">
+            <option value="BRL">R$ — Real (BRL)</option>
+            <option value="USD">$ — Dollar (USD)</option>
+            <option value="EUR">&#8364; — Euro (EUR)</option>
+            <option value="GBP">&#163; — Pound (GBP)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label data-i18n="zoom">Zoom</label>
           <select id="opt-scale" onchange="app.setZoom(this.value)">
-            <option value="1">100% (Padrao)</option>
+            <option value="1">100%</option>
+            <option value="1.1">110%</option>
             <option value="1.25">125%</option>
             <option value="1.5">150%</option>
           </select>
         </div>
 
         <div style="margin-top: 2rem; display:flex; justify-content:center;">
-          <button class="action-btn primary" onclick="app.showScreen('start')">Voltar</button>
+          <button class="action-btn primary" onclick="app.showScreen('start')" data-i18n="back">Voltar</button>
         </div>
       </div>
     </div>
@@ -115,13 +126,14 @@
 
         <!-- Navigation Tabs -->
         <div class="nav-tabs">
-          <div class="nav-tab active" onclick="app.toggleTab('Inbox')">Inbox</div>
-          <div class="nav-tab" onclick="app.toggleTab('Squad')">Elenco</div>
-          <div class="nav-tab" onclick="app.toggleTab('Tactics')">Taticas</div>
-          <div class="nav-tab" onclick="app.toggleTab('Fixtures')">Jogos</div>
-          <div class="nav-tab" onclick="app.toggleTab('Transfers')">Transferencias</div>
-          <div class="nav-tab" onclick="app.toggleTab('Finance')">Financas</div>
-          <div class="nav-tab" onclick="app.toggleTab('Competitions')">Classificacao</div>
+          <div class="nav-tab active" data-tab="inbox" onclick="app.toggleTab('inbox')" data-i18n="inbox">Inbox</div>
+          <div class="nav-tab" data-tab="squad" onclick="app.toggleTab('squad')" data-i18n="squad">Elenco</div>
+          <div class="nav-tab" data-tab="tactics" onclick="app.toggleTab('tactics')" data-i18n="tactics">Taticas</div>
+          <div class="nav-tab" data-tab="fixtures" onclick="app.toggleTab('fixtures')" data-i18n="fixtures">Jogos</div>
+          <div class="nav-tab" data-tab="transfers" onclick="app.toggleTab('transfers')" data-i18n="transfers">Transferencias</div>
+          <div class="nav-tab" data-tab="finance" onclick="app.toggleTab('finance')" data-i18n="finance">Financas</div>
+          <div class="nav-tab" data-tab="standings" onclick="app.toggleTab('standings')" data-i18n="standings">Classificacao</div>
+          <div class="nav-tab nav-tab-settings" onclick="app.openSettings()" title="Settings">&#9881;</div>
         </div>
 
         <!-- 2. Main Content -->
@@ -254,8 +266,8 @@
 
         <!-- 3. Bottom Bar -->
         <div class="bottom-bar">
-          <button class="action-btn secondary" onclick="app.saveAndExit()">Salvar & Sair</button>
-          <button class="action-btn primary" onclick="app.advanceGame()">Continuar</button>
+          <button class="action-btn secondary" onclick="app.saveAndExit()" data-i18n="save_exit">Salvar & Sair</button>
+          <button class="action-btn primary" onclick="app.advanceGame()" data-i18n="continue_btn">Continuar</button>
         </div>
 
       </div>
@@ -308,6 +320,38 @@
       </div>
       <div class="profile-body">
         <div class="attr-grid" id="p-attributes"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay" onclick="if(event.target === this) app.closeSettings()" style="display:none;">
+    <div class="profile-card" style="max-width:450px;">
+      <div class="profile-header">
+        <div>
+          <div class="profile-name" id="settings-title">Configuracoes</div>
+        </div>
+        <button class="action-btn secondary" id="settings-close-btn" onclick="app.closeSettings()">Fechar</button>
+      </div>
+      <div class="profile-body" style="padding:1.5rem; display:flex; flex-direction:column; gap:1.5rem;">
+        <div class="form-group">
+          <label id="settings-lang-label">Idioma</label>
+          <select id="settings-language" style="background:#222; color:white; padding:0.8rem; border:1px solid #444; border-radius:4px; font-size:1rem;"></select>
+        </div>
+        <div class="form-group">
+          <label id="settings-cur-label">Moeda</label>
+          <select id="settings-currency" style="background:#222; color:white; padding:0.8rem; border:1px solid #444; border-radius:4px; font-size:1rem;"></select>
+        </div>
+        <div class="form-group">
+          <label id="settings-zoom-label">Zoom</label>
+          <select id="settings-zoom" style="background:#222; color:white; padding:0.8rem; border:1px solid #444; border-radius:4px; font-size:1rem;">
+            <option value="1">100%</option>
+            <option value="1.1">110%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+          </select>
+        </div>
+        <button class="action-btn primary" id="settings-apply-btn" onclick="app.applySettings()" style="width:100%; margin-top:0.5rem;">Aplicar</button>
       </div>
     </div>
   </div>
