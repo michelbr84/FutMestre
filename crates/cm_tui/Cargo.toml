@@ -13,8 +13,11 @@ crossterm.workspace = true
 ratatui.workspace = true
 anyhow.workspace = true
 serde.workspace = true
+chrono.workspace = true
+rand.workspace = true
 
 cm_core = { path = "../cm_core" }
 cm_engine = { path = "../cm_engine" }
 cm_data = { path = "../cm_data" }
 cm_save = { path = "../cm_save" }
+cm_match = { path = "../cm_match" }

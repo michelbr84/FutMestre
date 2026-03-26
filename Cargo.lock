@@ -682,6 +682,8 @@ dependencies = [
  "chrono",
  "cm_core",
  "cm_utils",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "rusqlite",
  "serde",
  "serde_json",
@@ -784,11 +786,14 @@ name = "cm_tui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "cm_core",
  "cm_data",
  "cm_engine",
+ "cm_match",
  "cm_save",
  "crossterm",
+ "rand 0.8.5",
  "ratatui",
  "serde",
 ]

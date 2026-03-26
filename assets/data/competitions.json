@@ -1,30 +1,51 @@
 [
     {
-        "id": "EPL",
-        "name": "English Premier League",
-        "short_name": "Premier League",
-        "nation_id": "ENG",
+        "id": "BRA1",
+        "name": "Campeonato Brasileiro Serie A",
+        "short_name": "Serie A",
+        "nation_id": "BRA",
         "competition_type": "league",
-        "reputation": 98,
-        "teams": [
-            "LIV",
-            "ARS",
-            "MUN",
-            "CHE"
-        ]
+        "reputation": 90,
+        "division_level": 1,
+        "teams": ["FLA", "PAL", "SAO", "COR", "SAN", "GRE", "INT", "CRU", "CAM", "FLU", "VAS", "BOT", "BAH", "SPT", "FOR", "CAP", "CEA", "GOI", "CFC", "VIT"]
     },
     {
-        "id": "FAC",
-        "name": "FA Cup",
-        "short_name": "FA Cup",
-        "nation_id": "ENG",
+        "id": "BRA2",
+        "name": "Campeonato Brasileiro Serie B",
+        "short_name": "Serie B",
+        "nation_id": "BRA",
+        "competition_type": "league",
+        "reputation": 65,
+        "division_level": 2,
+        "teams": ["PPR", "GUA", "NAU", "AVA", "CHA", "CSA", "CRB", "SAM", "BRU", "LON", "CRI", "VNO", "TOM", "ABC", "OPR", "NOV", "ITU", "MIR", "REM", "PAY"]
+    },
+    {
+        "id": "BRA3",
+        "name": "Campeonato Brasileiro Serie C",
+        "short_name": "Serie C",
+        "nation_id": "BRA",
+        "competition_type": "league",
+        "reputation": 45,
+        "division_level": 3,
+        "teams": ["CNF", "MAN", "VRD", "FER", "APA", "BSP", "FIG", "FLO", "JAC", "ALT", "SJR", "YPI", "BPL", "TRZ", "IMP", "SBR", "POR", "ATH", "AMZ", "SCR"]
+    },
+    {
+        "id": "BRA4",
+        "name": "Campeonato Brasileiro Serie D",
+        "short_name": "Serie D",
+        "nation_id": "BRA",
+        "competition_type": "league",
+        "reputation": 25,
+        "division_level": 4,
+        "teams": ["MAD", "BAN", "RBR", "NIG", "CAX", "PEL", "HLZ", "MCD", "ILM", "RCL", "TAU", "DES", "RNO", "IPA", "TUP", "NAM", "FST", "TLB", "CAS", "AGM"]
+    },
+    {
+        "id": "CDB",
+        "name": "Copa do Brasil",
+        "short_name": "Copa do Brasil",
+        "nation_id": "BRA",
         "competition_type": "cup",
-        "reputation": 85,
-        "teams": [
-            "LIV",
-            "ARS",
-            "MUN",
-            "CHE"
-        ]
+        "reputation": 80,
+        "teams": ["FLA", "PAL", "SAO", "COR", "SAN", "GRE", "INT", "CRU", "CAM", "FLU", "VAS", "BOT", "BAH", "SPT", "FOR", "CAP", "CEA", "GOI", "CFC", "VIT", "PPR", "GUA", "NAU", "AVA", "CHA", "CSA", "CRB", "SAM", "BRU", "LON", "CRI", "VNO"]
     }
 ]

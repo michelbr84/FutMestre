@@ -12,6 +12,18 @@ pub enum MoraleLevel {
     VeryPoor,
 }
 
+impl std::fmt::Display for MoraleLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Superb => write!(f, "Excelente"),
+            Self::Good => write!(f, "Bom"),
+            Self::Okay => write!(f, "Normal"),
+            Self::Poor => write!(f, "Ruim"),
+            Self::VeryPoor => write!(f, "Pessimo"),
+        }
+    }
+}
+
 impl MoraleLevel {
     /// Get performance modifier.
     pub fn modifier(&self) -> f32 {

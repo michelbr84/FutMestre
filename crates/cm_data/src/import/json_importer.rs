@@ -4,6 +4,8 @@
 use std::path::Path;
 
 use chrono::NaiveDate;
+use rand::{Rng, SeedableRng};
+use rand_chacha::ChaCha8Rng;
 use serde::Deserialize;
 
 use cm_core::economy::{Budget, Money};
@@ -11,6 +13,26 @@ use cm_core::ids::*;
 use cm_core::world::*;
 
 use crate::errors::DataError;
+
+/// Brazilian first names for procedural generation.
+const FIRST_NAMES: &[&str] = &[
+    "João", "Pedro", "Lucas", "Gabriel", "Matheus", "Rafael", "Bruno", "Felipe",
+    "Gustavo", "Leonardo", "Ricardo", "Carlos", "André", "Paulo", "Marcos",
+    "Eduardo", "Fernando", "Diego", "Thiago", "Rodrigo", "Daniel", "Alexandre",
+    "Vinicius", "Henrique", "Arthur", "Caio", "Leandro", "Marcelo", "Fabio",
+    "Sergio", "Renato", "Willian", "Luiz", "Danilo", "Igor", "Renan", "Hugo",
+    "Victor", "Otávio", "Wesley", "Luan", "Yuri", "Raul", "Enzo", "Murilo",
+];
+
+/// Brazilian last names for procedural generation.
+const LAST_NAMES: &[&str] = &[
+    "Silva", "Santos", "Oliveira", "Souza", "Lima", "Pereira", "Costa",
+    "Ferreira", "Rodrigues", "Almeida", "Nascimento", "Carvalho", "Gomes",
+    "Martins", "Araújo", "Ribeiro", "Barbosa", "Rocha", "Dias", "Moreira",
+    "Mendes", "Nunes", "Correia", "Vieira", "Lopes", "Monteiro", "Batista",
+    "Cardoso", "Teixeira", "Freitas", "Pinto", "Melo", "Cunha", "Andrade",
+    "Barros", "Campos", "Rezende", "Machado", "Ramos", "Fonseca",
+];
 
 /// JSON importer for world data.
 pub struct JsonWorldImporter {
@@ -47,16 +69,15 @@ impl JsonWorldImporter {
     fn load_nations(&self, world: &mut World) -> Result<(), DataError> {
         let path = Path::new(&self.data_dir).join("nations.json");
         if !path.exists() {
-            // Create default nations
             let nations = vec![
-                ("ENG", "England", "Europe"),
-                ("ESP", "Spain", "Europe"),
-                ("GER", "Germany", "Europe"),
-                ("ITA", "Italy", "Europe"),
-                ("FRA", "France", "Europe"),
-                ("POR", "Portugal", "Europe"),
-                ("BRA", "Brazil", "South America"),
-                ("ARG", "Argentina", "South America"),
+                ("BRA", "Brasil", "América do Sul"),
+                ("ARG", "Argentina", "América do Sul"),
+                ("ENG", "Inglaterra", "Europa"),
+                ("ESP", "Espanha", "Europa"),
+                ("GER", "Alemanha", "Europa"),
+                ("ITA", "Itália", "Europa"),
+                ("FRA", "França", "Europa"),
+                ("POR", "Portugal", "Europa"),
             ];
 
             for (id, name, continent) in nations {
@@ -89,14 +110,11 @@ impl JsonWorldImporter {
     fn load_clubs(&self, world: &mut World) -> Result<(), DataError> {
         let path = Path::new(&self.data_dir).join("clubs.json");
         if !path.exists() {
-            // Create default clubs
             let clubs = vec![
-                ("LIV", "Liverpool", "ENG", 90, 50_000_000),
-                ("ARS", "Arsenal", "ENG", 88, 40_000_000),
-                ("MUN", "Manchester United", "ENG", 91, 60_000_000),
-                ("CHE", "Chelsea", "ENG", 87, 45_000_000),
-                ("NEW", "Newcastle United", "ENG", 75, 15_000_000),
-                ("LEE", "Leeds United", "ENG", 78, 20_000_000),
+                ("FLA", "Flamengo", "BRA", 92, 100_000_000),
+                ("PAL", "Palmeiras", "BRA", 90, 90_000_000),
+                ("SAO", "São Paulo", "BRA", 88, 80_000_000),
+                ("COR", "Corinthians", "BRA", 88, 80_000_000),
             ];
 
             for (id, name, nation, rep, budget) in clubs {
@@ -147,47 +165,125 @@ impl JsonWorldImporter {
     fn load_players(&self, world: &mut World) -> Result<(), DataError> {
         let path = Path::new(&self.data_dir).join("players.json");
         if !path.exists() {
-            // Create some default players for each club
+            // Generate players with real names for each club
+            let mut rng = ChaCha8Rng::seed_from_u64(42);
             let mut player_id = 1;
+
             for club_id in world.clubs.keys().cloned().collect::<Vec<_>>() {
-                // Create 15 players per club
+                let club_rep = world.clubs.get(&club_id).map(|c| c.reputation).unwrap_or(50);
+
+                // Squad of 22 players with balanced positions
                 let positions = vec![
+                    Position::Goalkeeper,
                     Position::Goalkeeper,
                     Position::DefenderLeft,
                     Position::DefenderCenter,
                     Position::DefenderCenter,
+                    Position::DefenderCenter,
                     Position::DefenderRight,
+                    Position::MidfielderDefensive,
                     Position::MidfielderLeft,
                     Position::MidfielderCenter,
                     Position::MidfielderCenter,
                     Position::MidfielderRight,
                     Position::MidfielderAttacking,
+                    Position::MidfielderAttacking,
                     Position::ForwardLeft,
                     Position::ForwardCenter,
                     Position::ForwardCenter,
                     Position::ForwardRight,
+                    // Subs
+                    Position::DefenderCenter,
+                    Position::MidfielderCenter,
+                    Position::ForwardCenter,
                     Position::Goalkeeper,
                 ];
 
                 for (i, pos) in positions.iter().enumerate() {
                     let id = format!("P{:04}", player_id);
+                    let first = FIRST_NAMES[rng.gen_range(0..FIRST_NAMES.len())];
+                    let last = LAST_NAMES[rng.gen_range(0..LAST_NAMES.len())];
+
+                    // Age distribution: mostly 20-32
+                    let age: i32 = if i < 18 {
+                        rng.gen_range(19..32)
+                    } else {
+                        rng.gen_range(17..22) // younger subs
+                    };
+                    let birth_year = 2001 - age;
+                    let birth_month = rng.gen_range(1..=12);
+                    let birth_day = rng.gen_range(1..=28);
+
                     let mut player = Player::new(
                         &id,
-                        format!("Player{}", player_id),
-                        format!("Name{}", player_id),
-                        NationId::new("ENG"),
-                        NaiveDate::from_ymd_opt(1980 + (i as i32 % 15), 1, 1).unwrap(),
+                        first,
+                        last,
+                        NationId::new("BRA"),
+                        NaiveDate::from_ymd_opt(birth_year, birth_month, birth_day).unwrap(),
                         *pos,
                     );
                     player.club_id = Some(club_id.clone());
-                    player.value = Money::from_major(100_000 + (i as i64 * 50_000));
 
-                    // Set some basic attributes
-                    player.attributes.technical.passing = 50 + (i as u8 % 30);
-                    player.attributes.technical.finishing = 40 + (i as u8 % 40);
-                    player.attributes.physical.pace = 50 + (i as u8 % 30);
-                    player.attributes.physical.stamina = 60 + (i as u8 % 20);
-                    player.attributes.mental.decisions = 50 + (i as u8 % 30);
+                    // Attributes based on club reputation + randomness
+                    let base = (club_rep as i32 - 20).max(20) as u8;
+                    let var = 15u8;
+
+                    player.attributes.technical.passing = base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.finishing = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.dribbling = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.crossing = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.tackling = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.heading = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.first_touch = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.technique = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.long_shots = base.saturating_sub(8).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.marking = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.penalties = base.saturating_sub(10).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.free_kick = base.saturating_sub(10).saturating_add(rng.gen_range(0..var)).min(95);
+
+                    player.attributes.mental.decisions = base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.positioning = base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.composure = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.vision = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.anticipation = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.determination = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.teamwork = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.work_rate = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.concentration = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.leadership = base.saturating_sub(10).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.bravery = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.aggression = base.saturating_sub(10).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.flair = base.saturating_sub(8).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.off_the_ball = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+
+                    player.attributes.physical.pace = base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.stamina = base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.strength = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.acceleration = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.agility = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.balance = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.jumping = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.natural_fitness = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+
+                    if *pos == Position::Goalkeeper {
+                        player.attributes.goalkeeper.handling = base.saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.reflexes = base.saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.positioning = base.saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.aerial_ability = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.command_of_area = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.communication = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.kicking = base.saturating_sub(8).saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.one_on_ones = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.throwing = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    }
+
+                    // Value based on reputation
+                    let value_base = (club_rep as i64) * 50_000;
+                    player.value = Money::from_major(value_base + rng.gen_range(0..value_base));
+
+                    player.potential = (base + rng.gen_range(0..20)).min(99);
+                    player.fitness = (80 + rng.gen_range(0..20)).min(100);
+                    player.form = (40 + rng.gen_range(0..30)) as u8;
 
                     world.players.insert(PlayerId::new(&id), player);
 
@@ -237,20 +333,19 @@ impl JsonWorldImporter {
     fn load_competitions(&self, world: &mut World) -> Result<(), DataError> {
         let path = Path::new(&self.data_dir).join("competitions.json");
         if !path.exists() {
-            // Create default Premier League
-            let mut league = Competition::new("EPL", "English Premier League", CompetitionType::League);
-            league.short_name = "Premier League".into();
-            league.nation_id = Some(NationId::new("ENG"));
-            league.reputation = 95;
+            let mut league = Competition::new("BRA1", "Serie A", CompetitionType::League);
+            league.short_name = "Serie A".into();
+            league.nation_id = Some(NationId::new("BRA"));
+            league.reputation = 90;
+            league.division_level = Some(DivisionLevel::SerieA);
 
-            // Add all English clubs
             for (club_id, club) in &world.clubs {
-                if club.nation_id.as_str() == "ENG" {
+                if club.nation_id.as_str() == "BRA" {
                     league.add_team(club_id.clone());
                 }
             }
 
-            world.competitions.insert(CompetitionId::new("EPL"), league);
+            world.competitions.insert(CompetitionId::new("BRA1"), league);
             return Ok(());
         }
 
@@ -268,6 +363,15 @@ impl JsonWorldImporter {
             comp.short_name = c.short_name.unwrap_or_default();
             comp.nation_id = c.nation_id.as_ref().map(|s| NationId::new(s));
             comp.reputation = c.reputation.unwrap_or(50);
+
+            // Parse division_level
+            comp.division_level = c.division_level.and_then(|lvl| match lvl {
+                1 => Some(DivisionLevel::SerieA),
+                2 => Some(DivisionLevel::SerieB),
+                3 => Some(DivisionLevel::SerieC),
+                4 => Some(DivisionLevel::SerieD),
+                _ => None,
+            });
 
             for team_id in c.teams.unwrap_or_default() {
                 comp.add_team(ClubId::new(&team_id));
@@ -344,5 +448,6 @@ struct RawCompetition {
     nation_id: Option<String>,
     competition_type: Option<String>,
     reputation: Option<u8>,
+    division_level: Option<u8>,
     teams: Option<Vec<String>>,
 }

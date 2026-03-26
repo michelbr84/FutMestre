@@ -10,6 +10,8 @@ serde_json.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
 rusqlite.workspace = true
 
 cm_core = { path = "../cm_core" }
