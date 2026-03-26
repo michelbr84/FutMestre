@@ -1,6 +1,141 @@
 import I18N from './i18n.js';
+import { getRandomMessage } from './messages_db.js';
 
 const { invoke } = window.__TAURI__.core;
+
+// ─── Formation Position Maps ──────────────────────────────────────────────
+const FORMATION_POSITIONS = {
+  '4-4-2': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '15%', label: 'LE' },
+    { top: '68%', left: '38%', label: 'ZC' },
+    { top: '68%', left: '62%', label: 'ZC' },
+    { top: '68%', left: '85%', label: 'LD' },
+    { top: '42%', left: '15%', label: 'ME' },
+    { top: '42%', left: '38%', label: 'MC' },
+    { top: '42%', left: '62%', label: 'MC' },
+    { top: '42%', left: '85%', label: 'MD' },
+    { top: '18%', left: '35%', label: 'CA' },
+    { top: '18%', left: '65%', label: 'CA' },
+  ],
+  '4-3-3': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '15%', label: 'LE' },
+    { top: '68%', left: '38%', label: 'ZC' },
+    { top: '68%', left: '62%', label: 'ZC' },
+    { top: '68%', left: '85%', label: 'LD' },
+    { top: '42%', left: '25%', label: 'MC' },
+    { top: '42%', left: '50%', label: 'MC' },
+    { top: '42%', left: '75%', label: 'MC' },
+    { top: '18%', left: '20%', label: 'PE' },
+    { top: '14%', left: '50%', label: 'CA' },
+    { top: '18%', left: '80%', label: 'PD' },
+  ],
+  '3-5-2': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '25%', label: 'ZC' },
+    { top: '68%', left: '50%', label: 'ZC' },
+    { top: '68%', left: '75%', label: 'ZC' },
+    { top: '42%', left: '10%', label: 'ALE' },
+    { top: '42%', left: '30%', label: 'MC' },
+    { top: '42%', left: '50%', label: 'MC' },
+    { top: '42%', left: '70%', label: 'MC' },
+    { top: '42%', left: '90%', label: 'ALD' },
+    { top: '18%', left: '35%', label: 'CA' },
+    { top: '18%', left: '65%', label: 'CA' },
+  ],
+  '4-5-1': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '15%', label: 'LE' },
+    { top: '68%', left: '38%', label: 'ZC' },
+    { top: '68%', left: '62%', label: 'ZC' },
+    { top: '68%', left: '85%', label: 'LD' },
+    { top: '42%', left: '10%', label: 'ME' },
+    { top: '42%', left: '30%', label: 'MC' },
+    { top: '42%', left: '50%', label: 'MC' },
+    { top: '42%', left: '70%', label: 'MC' },
+    { top: '42%', left: '90%', label: 'MD' },
+    { top: '16%', left: '50%', label: 'CA' },
+  ],
+  '4-2-3-1': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '15%', label: 'LE' },
+    { top: '68%', left: '38%', label: 'ZC' },
+    { top: '68%', left: '62%', label: 'ZC' },
+    { top: '68%', left: '85%', label: 'LD' },
+    { top: '50%', left: '35%', label: 'VOL' },
+    { top: '50%', left: '65%', label: 'VOL' },
+    { top: '32%', left: '20%', label: 'ME' },
+    { top: '32%', left: '50%', label: 'MEI' },
+    { top: '32%', left: '80%', label: 'MD' },
+    { top: '14%', left: '50%', label: 'CA' },
+  ],
+  '3-4-1-2': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '25%', label: 'ZC' },
+    { top: '68%', left: '50%', label: 'ZC' },
+    { top: '68%', left: '75%', label: 'ZC' },
+    { top: '45%', left: '10%', label: 'ALE' },
+    { top: '45%', left: '38%', label: 'MC' },
+    { top: '45%', left: '62%', label: 'MC' },
+    { top: '45%', left: '90%', label: 'ALD' },
+    { top: '28%', left: '50%', label: 'MEI' },
+    { top: '15%', left: '35%', label: 'CA' },
+    { top: '15%', left: '65%', label: 'CA' },
+  ],
+  '5-3-2': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '10%', label: 'LE' },
+    { top: '68%', left: '30%', label: 'ZC' },
+    { top: '68%', left: '50%', label: 'ZC' },
+    { top: '68%', left: '70%', label: 'ZC' },
+    { top: '68%', left: '90%', label: 'LD' },
+    { top: '42%', left: '25%', label: 'MC' },
+    { top: '42%', left: '50%', label: 'MC' },
+    { top: '42%', left: '75%', label: 'MC' },
+    { top: '18%', left: '35%', label: 'CA' },
+    { top: '18%', left: '65%', label: 'CA' },
+  ],
+  '4-1-4-1': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '15%', label: 'LE' },
+    { top: '68%', left: '38%', label: 'ZC' },
+    { top: '68%', left: '62%', label: 'ZC' },
+    { top: '68%', left: '85%', label: 'LD' },
+    { top: '52%', left: '50%', label: 'VOL' },
+    { top: '35%', left: '10%', label: 'ME' },
+    { top: '35%', left: '38%', label: 'MC' },
+    { top: '35%', left: '62%', label: 'MC' },
+    { top: '35%', left: '90%', label: 'MD' },
+    { top: '14%', left: '50%', label: 'CA' },
+  ],
+  '4-4-1-1': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '15%', label: 'LE' },
+    { top: '68%', left: '38%', label: 'ZC' },
+    { top: '68%', left: '62%', label: 'ZC' },
+    { top: '68%', left: '85%', label: 'LD' },
+    { top: '45%', left: '15%', label: 'ME' },
+    { top: '45%', left: '38%', label: 'MC' },
+    { top: '45%', left: '62%', label: 'MC' },
+    { top: '45%', left: '85%', label: 'MD' },
+    { top: '26%', left: '50%', label: 'SS' },
+    { top: '14%', left: '50%', label: 'CA' },
+  ],
+  '3-4-3': [
+    { top: '87%', left: '50%', label: 'GK' },
+    { top: '68%', left: '25%', label: 'ZC' },
+    { top: '68%', left: '50%', label: 'ZC' },
+    { top: '68%', left: '75%', label: 'ZC' },
+    { top: '42%', left: '10%', label: 'ME' },
+    { top: '42%', left: '38%', label: 'MC' },
+    { top: '42%', left: '62%', label: 'MC' },
+    { top: '42%', left: '90%', label: 'MD' },
+    { top: '18%', left: '20%', label: 'PE' },
+    { top: '14%', left: '50%', label: 'CA' },
+    { top: '18%', left: '80%', label: 'PD' },
+  ],
+};
 
 const app = {
   state: {
@@ -93,7 +228,7 @@ const app = {
 
   handleMenuAction: (actionId) => {
     switch (actionId) {
-      case 'start_game': app.prepNewGame(); break;
+      case 'start_game': app.showGameModeScreen(); break;
       case 'continue_game': app.showLoadScreen(); break;
       case 'options': app.showScreen('options'); break;
       case 'exit': window.close(); break;
@@ -156,10 +291,20 @@ const app = {
 
   // ─── New Game ───────────────────────────────────────────────────────────
 
-  prepNewGame: async () => {
-    // Load clubs from backend (real data)
+  showGameModeScreen: () => {
+    app.showScreen('gamemode');
+  },
+
+  selectGameMode: async (mode) => {
+    app.state.selectedGameMode = mode;
+    await app.prepNewGame(mode);
+  },
+
+  prepNewGame: async (gameMode) => {
+    const mode = gameMode || app.state.selectedGameMode || 'Sandbox';
+
     try {
-      const clubs = await invoke('get_available_clubs');
+      const clubs = await invoke('get_available_clubs', { gameMode: mode });
       if (!clubs || clubs.length === 0) {
         alert(I18N.t('no_clubs'));
         return;
@@ -176,7 +321,7 @@ const app = {
       app.state.newGameData.randomTeams = pool.slice(0, 6);
     } catch (e) {
       console.error("Erro ao carregar clubes:", e);
-      alert("Erro ao carregar clubes.");
+      alert(I18N.t('no_clubs'));
       return;
     }
 
@@ -242,7 +387,8 @@ const app = {
       const gameState = await invoke("start_new_game", {
         name,
         surname,
-        teamId: teamId.toString()
+        teamId: teamId.toString(),
+        gameMode: app.state.selectedGameMode || 'Sandbox'
       });
 
       app.state.gameState = {
@@ -516,21 +662,25 @@ const app = {
   // ─── Tactics ────────────────────────────────────────────────────────────
 
   renderTactics: () => {
+    const formSelect = document.getElementById('formation-select');
+    if (formSelect) {
+      formSelect.onchange = () => {
+        app.renderFormationOnPitch(formSelect.value);
+        app.saveTactics();
+      };
+    }
+    // Render initial formation
+    const formation = formSelect ? formSelect.value : '4-4-2';
+    app.renderFormationOnPitch(formation);
+  },
+
+  renderFormationOnPitch: (formation) => {
     const pitch = document.getElementById('pitch-players');
+    if (!pitch) return;
     pitch.innerHTML = '';
 
-    const positions = [
-      { top: '85%', left: '50%', name: 'GK' },
-      { top: '70%', left: '20%', name: 'LE' },
-      { top: '70%', left: '40%', name: 'ZC' },
-      { top: '70%', left: '60%', name: 'ZC' },
-      { top: '70%', left: '80%', name: 'LD' },
-      { top: '45%', left: '30%', name: 'MC' },
-      { top: '45%', left: '70%', name: 'MC' },
-      { top: '25%', left: '20%', name: 'PE' },
-      { top: '25%', left: '80%', name: 'PD' },
-      { top: '15%', left: '50%', name: 'CA' },
-    ];
+    const positions = FORMATION_POSITIONS[formation] || FORMATION_POSITIONS['4-4-2'];
+    const squad = app.state.currentSquad || [];
 
     positions.forEach((pos, idx) => {
       const p = document.createElement('div');
@@ -540,40 +690,44 @@ const app = {
       p.draggable = true;
       p.dataset.idx = idx;
 
+      // Try to assign a player name from squad
+      const playerName = squad[idx] ? squad[idx].name.split(' ').pop() : '';
+
       p.ondragstart = (e) => {
-        e.dataTransfer.setData("text/plain", idx);
+        e.dataTransfer.setData("text/plain", idx.toString());
         e.target.style.opacity = '0.5';
       };
       p.ondragend = (e) => e.target.style.opacity = '1';
-      p.innerHTML = `<span>${pos.name}</span>`;
+
+      p.innerHTML = `<span>${pos.label}</span>${playerName ? `<span class="p-name">${playerName}</span>` : ''}`;
       pitch.appendChild(p);
     });
 
+    // Pitch drop zone for repositioning
     pitch.ondragover = (e) => e.preventDefault();
     pitch.ondrop = (e) => {
       e.preventDefault();
       const idx = e.dataTransfer.getData("text/plain");
       const playerEl = document.querySelector(`.pitch-player[data-idx='${idx}']`);
+      if (!playerEl) return;
       const rect = pitch.getBoundingClientRect();
       playerEl.style.left = ((e.clientX - rect.left) / rect.width * 100).toFixed(0) + '%';
       playerEl.style.top = ((e.clientY - rect.top) / rect.height * 100).toFixed(0) + '%';
     };
-
-    // Formation selector
-    const formSelect = document.getElementById('formation-select');
-    if (formSelect) {
-      formSelect.onchange = () => app.saveTactics();
-    }
   },
 
   saveTactics: async () => {
     const formSelect = document.getElementById('formation-select');
     const formation = formSelect ? formSelect.value : '4-4-2';
+    const mentSelect = document.getElementById('mentality-select');
+    const mentality = mentSelect ? mentSelect.value : 'Balanced';
+    const tempoSelect = document.getElementById('tempo-select');
+    const tempo = tempoSelect ? tempoSelect.value : 'Normal';
     try {
       await invoke('update_tactics', {
         formation,
-        mentality: 'Balanced',
-        tempo: 'Normal',
+        mentality,
+        tempo,
         pressing: 50,
         defLine: 50,
         width: 50,
@@ -626,7 +780,7 @@ const app = {
 
   loadFixtures: async () => {
     try {
-      const fixtures = await invoke('get_fixtures');
+      const fixtures = await invoke('get_all_fixtures');
       const container = document.getElementById('fixtures-list');
       if (!container) return;
       container.innerHTML = '';
@@ -772,10 +926,10 @@ const app = {
   advanceGame: async () => {
     // Check if there's a match today
     try {
-      const match = await invoke('check_match_today');
-      if (match) {
-        if (confirm(`${I18N.t('match_today')}: ${match.home_name} vs ${match.away_name} (${match.competition}). ${I18N.t('play_match')}`)) {
-          app.startMatch(match.home_id, match.away_id, match.home_name, match.away_name);
+      const matchToday = await invoke('check_match_today');
+      if (matchToday) {
+        if (confirm(`${I18N.t('match_today')}: ${matchToday.home_name} vs ${matchToday.away_name} (${matchToday.competition}). ${I18N.t('play_match')}`)) {
+          app.startMatch(matchToday.home_id, matchToday.away_id, matchToday.home_name, matchToday.away_name);
           return;
         }
       }
@@ -783,20 +937,79 @@ const app = {
       console.error(e);
     }
 
-    // No match or skipped - advance day
+    // Advance day
     try {
       const gs = await invoke('advance_day');
       if (gs) {
-        document.getElementById('hud-game-date').textContent = gs.date;
-        document.getElementById('hud-club-name').textContent = gs.club_name;
-        if (document.getElementById('hud-meta')) {
-          document.getElementById('hud-meta').innerHTML =
-            `<span class="meta-item">${gs.division}</span>
-             <span class="meta-item">• Pos: ${gs.position}</span>
-             <span class="meta-item">• ${gs.balance}</span>`;
-        }
+        app.updateHUD(gs);
+
+        // Check for round results (other matches played today)
+        try {
+          const results = await invoke('get_round_results');
+          if (results && results.length > 0) {
+            app.showRoundResults(results);
+          }
+        } catch (e) { console.error(e); }
+
+        // Generate a random daily message
+        app.generateDailyMessage();
       }
     } catch (e) { console.error(e); }
+  },
+
+  updateHUD: (gs) => {
+    if (!gs) return;
+    document.getElementById('hud-game-date').textContent = gs.date;
+    document.getElementById('hud-club-name').textContent = gs.club_name;
+    const meta = document.getElementById('hud-meta');
+    if (meta) {
+      meta.innerHTML =
+        `<span class="meta-item">${gs.division}</span>
+         <span class="meta-item">• Pos: ${gs.position}</span>
+         <span class="meta-item">• ${I18N.formatMoney(gs.balance)}</span>`;
+    }
+  },
+
+  showRoundResults: (results) => {
+    const clubName = app.state.gameState?.meta?.clubName || '';
+    const lines = results.map(r => `${r.home_name} ${r.home_goals} x ${r.away_goals} ${r.away_name}`);
+    const resultsText = lines.join('\n');
+
+    const msg = getRandomMessage('round_results', I18N.current, { results: resultsText });
+    if (msg) {
+      // Add to inbox display
+      app.addLocalMessage(msg.title, lines.join('<br>'));
+    }
+  },
+
+  generateDailyMessage: () => {
+    // ~40% chance of a daily message
+    if (Math.random() > 0.4) return;
+
+    const clubName = app.state.gameState?.meta?.clubName || 'Club';
+    const msg = getRandomMessage('daily', I18N.current, { club: clubName });
+    if (msg) {
+      app.addLocalMessage(msg.title, msg.text);
+    }
+  },
+
+  addLocalMessage: (title, text) => {
+    // Add message to the inbox UI directly
+    const list = document.getElementById('inbox-list');
+    if (!list || list.style.display === 'none') return;
+
+    const item = document.createElement('div');
+    item.className = 'inbox-item unread';
+    item.innerHTML = `
+      <div class="msg-header-row">
+        <span class="msg-icon">📰</span>
+        <span class="msg-time">now</span>
+      </div>
+      <div class="msg-title">${title}</div>
+    `;
+    const msgObj = { title, text, date: '', time: 'now', tags: ['News'], unread: true, type: 'news' };
+    item.onclick = () => app.openMessage(msgObj, item);
+    list.prepend(item);
   },
 
   // ─── Save ───────────────────────────────────────────────────────────────

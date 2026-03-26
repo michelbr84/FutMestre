@@ -198,7 +198,6 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 ## Pendente (Fase 8)
 - [ ] Melhorar UI de negociacao com contra-propostas
-- [ ] Drag & drop visual para taticas
 
 ---
 
@@ -207,11 +206,16 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Projeto Tauri com frontend web
 - [x] State Machine de telas e navegacao
 - [x] Layout CM-style com glassmorphism
+- [x] Integracao completa com engine real (19 comandos Tauri)
+- [x] Drag & drop para taticas com mapa de formacoes
+- [x] Formacoes mudam posicoes dos bonecos ao trocar dropdown
+- [x] Mentalidade e ritmo na tela de taticas
 
 ## Pendente (Fase 9)
-- [ ] Telas completas no Tauri
-- [ ] Match day ao vivo com animacoes
-- [ ] Drag & drop para taticas
+- [ ] Match day ao vivo com animacoes melhoradas
+- [ ] Substituicoes durante partida na GUI
+- [ ] Estatisticas individuais de jogadores na partida
+- [ ] Overview de partida (arbitro, clima, cartoes)
 
 ---
 
@@ -222,12 +226,11 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] 16 nacoes (10 sul-americanas + 6 europeias)
 - [x] 5 competicoes (4 ligas + Copa do Brasil)
 - [x] Atributos proporcionais a reputacao do clube
-
 - [x] Estadios brasileiros com capacidades reais (80 estadios)
 - [x] 20 arbitros brasileiros com perfis de personalidade
 
 ## Pendente (Fase 10)
-- [ ] Staff tecnico completo
+- [ ] Staff tecnico completo (treinadores especializados afetando treino)
 - [ ] Dados configuraveis via JSON
 
 ---
@@ -237,34 +240,77 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Cores de destaque: verde=titular, amarelo=selecionado, vermelho=lesionado
 - [x] Zonas de promocao (verde) e rebaixamento (vermelho) na classificacao
 - [x] Footer com atalhos de teclado por aba
+- [x] Sistema i18n com 4 idiomas (EN, PT-BR, ES, FR) e 4 moedas (BRL, USD, EUR, GBP)
+- [x] Banco de mensagens multilingue (messages_db.js) com templates por categoria
+- [x] Mensagens aleatorias diarias (treino, olheiros, torcida, imprensa, diretoria)
+- [x] Resultados de rodada visiveis (todos os jogos, nao so do usuario)
+- [x] Settings acessivel durante o jogo (engrenagem na barra de tabs)
 
 ## Pendente (Fase 11)
-- [ ] Sistema de noticias expandido (resultados, lesoes, transferencias, rumores)
 - [ ] Historico de temporadas anteriores
 - [ ] Artilharia e premiacoes
-- [ ] Multiplos idiomas na interface
 - [ ] Sons e musica
+- [ ] Flashing text para noticias urgentes
+- [ ] Background matches (placares ao vivo durante partida)
 
 ---
 
-# Fase 12 — Testes e Qualidade
+# Fase 12 — Modos de Jogo
+
+- [x] GameMode enum (Sandbox, CareerSerieD)
+- [x] Tela de selecao de modo antes de criar carreira
+- [x] Filtro de clubes por modo (Serie D apenas no Desafio)
+
+## Pendente (Fase 12)
+- [ ] Objetivo tracking para CareerSerieD (progresso de promocao)
+- [ ] Tela de vitoria ao conquistar Serie A
+- [ ] Modo historia com cutscenes de texto
+- [ ] Modo desafio com restricoes (orcamento minimo, elenco fraco)
+
+---
+
+# Fase 13 — Settings Estilo CM 01/02
+
+- [x] Idioma (4 linguas)
+- [x] Moeda (4 opcoes)
+- [x] Zoom (100-150%)
+- [x] GameMode na config
+
+## Pendente (Fase 13)
+- [ ] Exibicao de salarios: semanal / mensal / anual
+- [ ] Auto-save por intervalo configuravel (semanal, quinzenal, mensal, etc)
+- [ ] Velocidade de comentario (match speed 1-5)
+- [ ] Background matches on/off
+- [ ] Save compressed on/off
+- [ ] Flashing text on/off
+- [ ] Tamanho do banco de dados (min/normal/max)
+- [ ] Foreground/background leagues
+- [ ] Add manager (multiplayer hot-seat)
+- [ ] Board confidence / board request
+- [ ] Scouting (observar time, pais, regiao, competicao, proximo adversario)
+- [ ] Reserve team / control reserve
+- [ ] Resign from club
+
+---
+
+# Fase 14 — Testes e Qualidade
 
 - [x] 508+ testes passando em todo o workspace
 - [x] Testes de motor de partida, financas, transferencias, IA, competicoes, treinamento
 
-## Pendente (Fase 12)
+## Pendente (Fase 14)
 - [ ] Cobertura > 70%
 - [ ] Testes de integracao para game loop completo
 - [ ] CI/CD com GitHub Actions
 
 ---
 
-# Fase 13 — Release
+# Fase 15 — Release
 
 - [x] README.md e documentacao
 - [x] Roadmap unificado
 
-## Pendente (Fase 13)
+## Pendente (Fase 15)
 - [ ] Guia do jogador
 - [ ] Changelog
 - [ ] Release v1.0 com binarios
@@ -273,12 +319,15 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 # Backlog (pos-v1.0)
 
-- [ ] Editor de dataset
+- [ ] Editor de dataset (usuario pode adicionar mensagens, jogadores, etc)
 - [ ] Replay de partidas
 - [ ] Multithreading
 - [ ] Web UI alternativa
 - [ ] Mod support
 - [ ] Multiplayer online
+- [ ] 10+ idiomas (Danish, Dutch, German, Italian, Norwegian, Swedish)
+- [ ] Impressao de relatorios (TXT/PDF)
+- [ ] Fontes customizaveis na interface
 
 ---
 
@@ -287,5 +336,6 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 1. **Contra-propostas** — IA responde com valores alternativos nas negociacoes
 2. **Categorias de base** — geracao anual de jovens da academia
 3. **Staff tecnico** — treinadores especializados afetando treino
-4. **GUI Tauri** — completar interface desktop com animacoes
-5. **Multiplayer** — modo hot-seat local
+4. **Substituicoes na GUI** — trocar jogadores durante partida ao vivo
+5. **Objetivo tracking** — progresso do Desafio Serie D
+6. **Settings expandidos** — salarios week/month/year, auto-save intervalos, match speed

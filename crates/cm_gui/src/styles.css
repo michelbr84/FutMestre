@@ -773,6 +773,16 @@ body {
   box-shadow: 0 4px 16px rgba(59, 130, 246, 0.5);
 }
 
+.pitch-player .p-name {
+  font-size: 0.5rem;
+  font-weight: 400;
+  opacity: 0.8;
+  max-width: 50px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* --- Match Layout --- */
 .match-layout {
   width: 100%;

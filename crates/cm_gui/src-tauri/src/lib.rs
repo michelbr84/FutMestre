@@ -6,6 +6,7 @@ use chrono::NaiveDate;
 use cm_core::ids::{ClubId, CompetitionId, PlayerId};
 use cm_core::world::{Fixtures, Table, World};
 use cm_data::import::JsonWorldImporter;
+use cm_engine::config::GameMode;
 use cm_engine::{Game, GameConfig, GameState};
 use cm_match::model::{MatchInput, TeamStrength};
 use cm_save::snapshot::{GameConfigData, GameStateData, SaveSnapshot};
@@ -76,17 +77,33 @@ fn saves_dir() -> std::path::PathBuf {
 // ─── Commands: Game Lifecycle ────────────────────────────────────────────────
 
 #[tauri::command]
-fn get_available_clubs(_state: State<AppState>) -> Vec<DisplayClubOption> {
-    // Load a temporary world just to list clubs
+fn get_available_clubs(game_mode: Option<String>, _state: State<AppState>) -> Vec<DisplayClubOption> {
     let importer = JsonWorldImporter::new(resolve_data_dir());
     let world = match importer.load_world() {
         Ok(w) => w,
         Err(_) => return Vec::new(),
     };
 
+    let mode = match game_mode.as_deref() {
+        Some("CareerSerieD") => GameMode::CareerSerieD,
+        _ => GameMode::Sandbox,
+    };
+
     let mut clubs: Vec<DisplayClubOption> = world
         .clubs
         .values()
+        .filter(|c| {
+            if mode == GameMode::CareerSerieD {
+                // Only Serie D clubs
+                world.competitions.values().any(|comp| {
+                    comp.is_league()
+                        && comp.teams.contains(&c.id)
+                        && comp.division_level == Some(cm_core::world::DivisionLevel::SerieD)
+                })
+            } else {
+                true
+            }
+        })
         .map(|c| {
             let division = world
                 .competitions
@@ -116,6 +133,7 @@ fn start_new_game(
     name: &str,
     surname: &str,
     team_id: &str,
+    game_mode: Option<String>,
     state: State<AppState>,
 ) -> Result<DisplayGameState, String> {
     let importer = JsonWorldImporter::new(resolve_data_dir());
@@ -125,8 +143,14 @@ fn start_new_game(
     let manager = format!("{} {}", name, surname);
     let start_date = NaiveDate::from_ymd_opt(2001, 7, 1).unwrap();
 
+    let mode = match game_mode.as_deref() {
+        Some("CareerSerieD") => GameMode::CareerSerieD,
+        _ => GameMode::Sandbox,
+    };
+
     let game_state = GameState::new(start_date, manager, club_id.clone());
-    let cfg = GameConfig::default();
+    let mut cfg = GameConfig::default();
+    cfg.game_mode = mode;
     let mut game = Game::new(cfg, world, game_state);
 
     game.bootstrap_inbox();
@@ -836,6 +860,92 @@ fn load_game(slot_id: u32, state: State<AppState>) -> Result<DisplayGameState, S
     Ok(result)
 }
 
+// ─── Commands: Round Results ─────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+struct DisplayRoundResult {
+    home_name: String,
+    away_name: String,
+    home_goals: u8,
+    away_goals: u8,
+    competition: String,
+}
+
+#[tauri::command]
+fn get_round_results(state: State<AppState>) -> Vec<DisplayRoundResult> {
+    let lock = state.game.lock().unwrap();
+    let game = match lock.as_ref() {
+        Some(g) => g,
+        None => return Vec::new(),
+    };
+    let world = game.world();
+    let today = game.state().date.date();
+
+    let mut results = Vec::new();
+    for comp in world.competitions.values() {
+        for fixture in &comp.fixtures.matches {
+            if fixture.date == today && fixture.is_played() {
+                if let Some(ref r) = fixture.result {
+                    results.push(DisplayRoundResult {
+                        home_name: club_name(world, &fixture.home_id),
+                        away_name: club_name(world, &fixture.away_id),
+                        home_goals: r.home_goals,
+                        away_goals: r.away_goals,
+                        competition: comp.name.clone(),
+                    });
+                }
+            }
+        }
+    }
+    results
+}
+
+// ─── Commands: All Fixtures (all competitions) ──────────────────────────
+
+#[tauri::command]
+fn get_all_fixtures(state: State<AppState>) -> Vec<DisplayFixture> {
+    let lock = state.game.lock().unwrap();
+    let game = match lock.as_ref() {
+        Some(g) => g,
+        None => return Vec::new(),
+    };
+    let world = game.world();
+    let today = game.state().date.date();
+
+    let mut fixtures: Vec<DisplayFixture> = world
+        .competitions
+        .values()
+        .flat_map(|comp| {
+            comp.fixtures.matches.iter()
+                .filter(|f| {
+                    // Show: played today, or upcoming within 7 days
+                    (f.is_played() && f.date == today)
+                        || (!f.is_played() && f.date >= today && f.date <= today + chrono::Duration::days(14))
+                })
+                .map(move |f| {
+                    let result_str = f.result.as_ref().map(|r| {
+                        format!("{} x {}", r.home_goals, r.away_goals)
+                    });
+                    DisplayFixture {
+                        id: f.id.to_string(),
+                        competition: comp.name.clone(),
+                        round: f.round,
+                        date: f.date.format("%d %b %Y").to_string(),
+                        home_name: club_name(world, &f.home_id),
+                        away_name: club_name(world, &f.away_id),
+                        home_id: f.home_id.to_string(),
+                        away_id: f.away_id.to_string(),
+                        result: result_str,
+                        played: f.is_played(),
+                    }
+                })
+        })
+        .collect();
+
+    fixtures.sort_by(|a, b| a.date.cmp(&b.date));
+    fixtures
+}
+
 // ─── Tauri Entry Point ───────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -865,6 +975,8 @@ pub fn run() {
             save_game,
             get_saved_games,
             load_game,
+            get_round_results,
+            get_all_fixtures,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

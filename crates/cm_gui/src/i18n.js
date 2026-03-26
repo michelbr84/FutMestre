@@ -133,6 +133,7 @@ const I18N = {
       // Settings accessible during game
       division: 'Division',
       rep: 'Rep',
+      select_mode: 'Game Mode',
     },
 
     'pt-BR': {
@@ -233,6 +234,7 @@ const I18N = {
 
       division: 'Divisao',
       rep: 'Rep',
+      select_mode: 'Modo de Jogo',
     },
 
     'es': {
@@ -333,6 +335,7 @@ const I18N = {
 
       division: 'Division',
       rep: 'Rep',
+      select_mode: 'Modo de Juego',
     },
 
     'fr': {
@@ -433,6 +436,7 @@ const I18N = {
 
       division: 'Division',
       rep: 'Rep',
+      select_mode: 'Mode de Jeu',
     },
   },
 

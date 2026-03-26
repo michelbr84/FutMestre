@@ -21,6 +21,36 @@
       <div class="menu-container" id="menu-buttons"></div>
     </div>
 
+    <!-- Screen 2b: Game Mode Selection -->
+    <div id="screen-gamemode" class="screen">
+      <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;" data-i18n="select_mode">Modo de Jogo</h2>
+      <div style="display:flex; gap:2rem; max-width:800px;">
+        <div class="glass-container" style="flex:1; padding:2rem; cursor:pointer; transition:all 0.2s; text-align:center;"
+          onclick="app.selectGameMode('Sandbox')"
+          onmouseover="this.style.borderColor='var(--accent-color)'"
+          onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">
+          <div style="font-size:2.5rem; margin-bottom:1rem;">&#9917;</div>
+          <div style="font-size:1.3rem; font-weight:700; color:white; margin-bottom:0.5rem;">Sandbox</div>
+          <div style="color:#aaa; font-size:0.9rem; line-height:1.5;">
+            Escolha qualquer clube de qualquer divisao. Sem restricoes, jogue do seu jeito.
+          </div>
+        </div>
+        <div class="glass-container" style="flex:1; padding:2rem; cursor:pointer; transition:all 0.2s; text-align:center;"
+          onclick="app.selectGameMode('CareerSerieD')"
+          onmouseover="this.style.borderColor='var(--accent-color)'"
+          onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">
+          <div style="font-size:2.5rem; margin-bottom:1rem;">&#127942;</div>
+          <div style="font-size:1.3rem; font-weight:700; color:white; margin-bottom:0.5rem;">Desafio Serie D</div>
+          <div style="color:#aaa; font-size:0.9rem; line-height:1.5;">
+            Comece na Serie D e suba ate a Serie A. Seja campeao brasileiro!
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:2rem;">
+        <button class="action-btn secondary" onclick="app.showScreen('start')" data-i18n="back">Voltar</button>
+      </div>
+    </div>
+
     <!-- Screen 3a: Load Game -->
     <div id="screen-load" class="screen">
       <h2 style="font-size: 2rem; margin-bottom: 2rem; color:white;" data-i18n="load_game">Carregar Jogo</h2>
@@ -184,7 +214,7 @@
                 <div id="pitch-players"></div>
               </div>
               <div style="flex:1; display:flex; flex-direction:column; gap:1rem;">
-                <div class="panel-header">Formacao</div>
+                <div class="panel-header" data-i18n="formation">Formacao</div>
                 <select id="formation-select" class="form-select" style="background:#333; color:white; padding:0.5rem;">
                   <option value="4-4-2">4-4-2</option>
                   <option value="4-3-3">4-3-3</option>
@@ -196,6 +226,22 @@
                   <option value="4-1-4-1">4-1-4-1</option>
                   <option value="4-4-1-1">4-4-1-1</option>
                   <option value="3-4-3">3-4-3</option>
+                </select>
+
+                <div class="panel-header" style="margin-top:0.5rem;">Mentalidade</div>
+                <select id="mentality-select" class="form-select" style="background:#333; color:white; padding:0.5rem;" onchange="app.saveTactics()">
+                  <option value="Defensive">Defensivo</option>
+                  <option value="Cautious">Cauteloso</option>
+                  <option value="Balanced" selected>Equilibrado</option>
+                  <option value="Attacking">Ofensivo</option>
+                  <option value="AllOutAttack">Ataque Total</option>
+                </select>
+
+                <div class="panel-header" style="margin-top:0.5rem;">Ritmo</div>
+                <select id="tempo-select" class="form-select" style="background:#333; color:white; padding:0.5rem;" onchange="app.saveTactics()">
+                  <option value="Slow">Lento</option>
+                  <option value="Normal" selected>Normal</option>
+                  <option value="Fast">Rapido</option>
                 </select>
               </div>
             </div>
