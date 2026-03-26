@@ -3,9 +3,13 @@
 use crate::config::GameConfig;
 use crate::state::GameState;
 use crate::inbox::generators;
+use chrono::Datelike;
 use cm_core::economy::Money;
 use cm_core::world::World;
 use cm_core::ids::ClubId;
+use cm_finance::tv_revenue;
+use cm_finance::merchandising;
+use cm_finance::report::{MonthlyReport, IncomeBreakdown, ExpenseBreakdown};
 
 /// Finance system.
 pub struct FinanceSystem;
@@ -46,16 +50,54 @@ impl FinanceSystem {
     /// Generate monthly financial report.
     fn generate_monthly_report(&self, world: &World, state: &mut GameState) {
         let user_club_id = &state.club_id;
-        
+
         if let Some(club) = world.clubs.get(user_club_id) {
             let weekly_wages = club.budget.wage_bill;
             let monthly_wages = weekly_wages.multiply(4.33); // ~4.33 weeks per month
-            
-            // Estimate monthly income based on reputation
+
+            // Calculate TV revenue (monthly = annual / 12)
+            // Default to division 1 position 10 out of 20 if not tracked
+            let annual_tv = tv_revenue::calculate_tv_revenue(1, 10, 20);
+            let monthly_tv = annual_tv / 12;
+
+            // Calculate merchandising revenue (monthly = annual / 12)
+            let annual_merch = merchandising::calculate_merchandising(
+                club.reputation as u32, 0, 0,
+            );
+            let monthly_merch = annual_merch / 12;
+
+            // Estimate other monthly income based on reputation
             let base_income = Money::from_major(100_000);
             let reputation_bonus = Money::from_major(club.reputation as i64 * 10_000);
-            let monthly_income = base_income + reputation_bonus;
-            
+            let other_monthly_income = base_income + reputation_bonus;
+
+            let monthly_income = other_monthly_income
+                + Money::from_major(monthly_tv)
+                + Money::from_major(monthly_merch);
+
+            // Build the structured monthly report
+            let income_breakdown = IncomeBreakdown {
+                matchday: other_monthly_income.major(),
+                tv_rights: monthly_tv,
+                sponsorship: 0,
+                merchandising: monthly_merch,
+                prize_money: 0,
+                transfers: 0,
+            };
+            let expense_breakdown = ExpenseBreakdown {
+                wages: monthly_wages.major(),
+                transfers: 0,
+                stadium: 0,
+                other: 0,
+            };
+            let _report = MonthlyReport::new(
+                state.date.date().month(),
+                state.date.date().year() as u32,
+                income_breakdown,
+                expense_breakdown,
+                club.budget.balance.major(),
+            );
+
             let msg = generators::monthly_financial_report(
                 state.date.date(),
                 monthly_income,

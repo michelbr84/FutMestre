@@ -701,6 +701,7 @@ dependencies = [
  "cm_match",
  "cm_save",
  "cm_transfers",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "thiserror 1.0.69",

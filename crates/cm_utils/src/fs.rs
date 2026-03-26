@@ -47,7 +47,9 @@ mod tests {
     use std::fs as std_fs;
 
     fn temp_dir() -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("cm_utils_test_{}", std::process::id()));
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("cm_utils_test_{}_{}", std::process::id(), id));
         std_fs::create_dir_all(&dir).unwrap();
         dir
     }

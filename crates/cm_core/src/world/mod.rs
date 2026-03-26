@@ -27,7 +27,7 @@ pub use attributes::{Attributes, GoalkeeperAttributes, MentalAttributes, Physica
 pub use board::Board;
 pub use calendar::{Calendar, CalendarEntry};
 pub use club::Club;
-pub use competition::{Competition, CompetitionType};
+pub use competition::{Competition, CompetitionType, DivisionLevel};
 pub use contract::Contract;
 pub use fixtures::{Fixture, Fixtures};
 pub use history::{ClubHistory, PlayerHistory, SeasonRecord};

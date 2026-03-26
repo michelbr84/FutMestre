@@ -1,28 +1,58 @@
-
 # Rust
 /target/
-/release/
 **/*.rs.bk
-Cargo.lock
+*.pdb
 
-# Node / Web
+# Cargo.lock é versionado em projetos binários
+# (descomente a linha abaixo se for biblioteca)
+# Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node / Tauri
 node_modules/
 dist/
-.DS_Store
-
-# Tauri
 crates/cm_gui/src-tauri/target/
 crates/cm_gui/src-tauri/gen/
 
 # Logs
 *.log
+error_log.txt
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# VS Code
-.vscode/
+# Saves do jogo (dados do usuário)
+/saves/*.cmsave
 
-# Game Data
-/saves/
+# Dados gerados
 /assets/data/generated/
+
+# Environment
+.env
+.env.local
+
+# Banco de dados local
+*.db
+*.db-journal
+*.sqlite
+
+# Estado de sessão Claude Code
+.estado.md
+.estado_auth.md
+
+# Backups
+*.bk
+*.bak
+*.orig
+
+# Release artifacts
+/release/

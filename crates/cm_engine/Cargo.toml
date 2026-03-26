@@ -10,6 +10,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
 anyhow.workspace = true
+rand.workspace = true
 
 cm_core = { path = "../cm_core" }
 cm_data = { path = "../cm_data" }

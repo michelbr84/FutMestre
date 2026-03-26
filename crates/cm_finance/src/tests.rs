@@ -264,6 +264,204 @@ mod model_tests {
 }
 
 #[cfg(test)]
+mod tv_revenue_tests {
+    use crate::tv_revenue::*;
+
+    #[test]
+    fn test_serie_a_top4() {
+        let revenue = calculate_tv_revenue(1, 1, 20);
+        assert_eq!(revenue, 7_500_000);
+    }
+
+    #[test]
+    fn test_serie_a_mid_table() {
+        let revenue = calculate_tv_revenue(1, 10, 20);
+        assert_eq!(revenue, 5_000_000);
+    }
+
+    #[test]
+    fn test_serie_a_bottom3() {
+        let revenue = calculate_tv_revenue(1, 20, 20);
+        assert_eq!(revenue, 4_000_000);
+    }
+
+    #[test]
+    fn test_serie_b_base() {
+        let revenue = calculate_tv_revenue(2, 10, 20);
+        assert_eq!(revenue, 2_000_000);
+    }
+
+    #[test]
+    fn test_serie_c_base() {
+        let revenue = calculate_tv_revenue(3, 10, 20);
+        assert_eq!(revenue, 500_000);
+    }
+
+    #[test]
+    fn test_serie_d_base() {
+        let revenue = calculate_tv_revenue(4, 10, 20);
+        assert_eq!(revenue, 100_000);
+    }
+
+    #[test]
+    fn test_higher_division_more_revenue() {
+        let a = calculate_tv_revenue(1, 10, 20);
+        let b = calculate_tv_revenue(2, 10, 20);
+        let c = calculate_tv_revenue(3, 10, 20);
+        assert!(a > b);
+        assert!(b > c);
+    }
+
+    #[test]
+    fn test_tv_revenue_as_money() {
+        let money = tv_revenue_as_money(1, 1, 20);
+        assert_eq!(money.major(), 7_500_000);
+    }
+}
+
+#[cfg(test)]
+mod merchandising_tests {
+    use crate::merchandising::*;
+
+    #[test]
+    fn test_base_merchandising() {
+        let revenue = calculate_merchandising(100, 0, 0);
+        assert_eq!(revenue, 100_000);
+    }
+
+    #[test]
+    fn test_wins_boost() {
+        let base = calculate_merchandising(100, 0, 0);
+        let boosted = calculate_merchandising(100, 10, 0);
+        assert!(boosted > base);
+    }
+
+    #[test]
+    fn test_losses_reduce() {
+        let base = calculate_merchandising(100, 0, 0);
+        let reduced = calculate_merchandising(100, 0, 10);
+        assert!(reduced < base);
+    }
+
+    #[test]
+    fn test_floor_at_50_percent() {
+        let revenue = calculate_merchandising(100, 0, 100);
+        assert_eq!(revenue, 50_000); // 50% floor
+    }
+
+    #[test]
+    fn test_cap_at_200_percent() {
+        let revenue = calculate_merchandising(100, 100, 0);
+        assert_eq!(revenue, 200_000); // 200% cap
+    }
+
+    #[test]
+    fn test_merchandising_as_money() {
+        let money = merchandising_as_money(100, 0, 0);
+        assert_eq!(money.major(), 100_000);
+    }
+
+    #[test]
+    fn test_zero_reputation() {
+        let revenue = calculate_merchandising(0, 10, 0);
+        assert_eq!(revenue, 0);
+    }
+}
+
+#[cfg(test)]
+mod report_tests {
+    use crate::report::*;
+
+    #[test]
+    fn test_report_profitable() {
+        let income = IncomeBreakdown {
+            matchday: 2_000_000,
+            tv_rights: 5_000_000,
+            sponsorship: 1_000_000,
+            merchandising: 500_000,
+            prize_money: 0,
+            transfers: 0,
+        };
+        let expenses = ExpenseBreakdown {
+            wages: 3_000_000,
+            transfers: 0,
+            stadium: 200_000,
+            other: 100_000,
+        };
+        let report = MonthlyReport::new(1, 2026, income, expenses, 50_000_000);
+        assert!(report.is_profitable());
+        assert_eq!(report.net_profit, 5_200_000);
+        assert_eq!(report.balance_end, 55_200_000);
+    }
+
+    #[test]
+    fn test_report_loss() {
+        let income = IncomeBreakdown {
+            matchday: 500_000,
+            ..Default::default()
+        };
+        let expenses = ExpenseBreakdown {
+            wages: 2_000_000,
+            ..Default::default()
+        };
+        let report = MonthlyReport::new(6, 2026, income, expenses, 10_000_000);
+        assert!(!report.is_profitable());
+        assert_eq!(report.net_profit, -1_500_000);
+        assert_eq!(report.balance_end, 8_500_000);
+    }
+
+    #[test]
+    fn test_breakdown_totals() {
+        let income = IncomeBreakdown {
+            matchday: 1,
+            tv_rights: 2,
+            sponsorship: 3,
+            merchandising: 4,
+            prize_money: 5,
+            transfers: 6,
+        };
+        assert_eq!(income.total(), 21);
+
+        let expenses = ExpenseBreakdown {
+            wages: 10,
+            transfers: 20,
+            stadium: 30,
+            other: 40,
+        };
+        assert_eq!(expenses.total(), 100);
+    }
+}
+
+#[cfg(test)]
+mod budget_transfer_tests {
+    use cm_core::economy::{Budget, Money};
+
+    #[test]
+    fn test_process_transfer_expense() {
+        let mut budget = Budget::new(
+            Money::from_major(50_000_000),
+            Money::from_major(20_000_000),
+            Money::from_major(500_000),
+        );
+        budget.process_transfer_expense(Money::from_major(5_000_000));
+        assert_eq!(budget.transfer_budget.major(), 15_000_000);
+        assert_eq!(budget.balance.major(), 45_000_000);
+    }
+
+    #[test]
+    fn test_process_transfer_income() {
+        let mut budget = Budget::new(
+            Money::from_major(50_000_000),
+            Money::from_major(20_000_000),
+            Money::from_major(500_000),
+        );
+        budget.process_transfer_income(Money::from_major(10_000_000));
+        assert_eq!(budget.transfer_budget.major(), 30_000_000);
+        assert_eq!(budget.balance.major(), 60_000_000);
+    }
+}
+
+#[cfg(test)]
 mod integration_tests {
     use cm_core::economy::Money;
     use crate::*;

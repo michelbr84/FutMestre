@@ -12,6 +12,14 @@ pub enum TrainingFocus {
     Tactics,
     SetPieces,
     Goalkeeping,
+    /// Physical training: pace, stamina, strength, acceleration, agility.
+    Physical,
+    /// Technical training: finishing, passing, dribbling, crossing, tackling.
+    Technical,
+    /// Tactical training: positioning, decisions, anticipation, vision, composure.
+    Tactical,
+    /// Recovery: restores fitness, reduces injury risk, no attribute gains.
+    Recovery,
 }
 
 impl Default for TrainingFocus {

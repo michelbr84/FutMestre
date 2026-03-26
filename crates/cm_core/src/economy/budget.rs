@@ -73,6 +73,16 @@ impl Budget {
     pub fn pay_weekly_wages(&mut self) {
         self.balance -= self.wage_bill;
     }
+
+    /// Process a transfer expense (alias for spend_transfer).
+    pub fn process_transfer_expense(&mut self, fee: Money) {
+        self.spend_transfer(fee);
+    }
+
+    /// Process transfer income (alias for receive_transfer).
+    pub fn process_transfer_income(&mut self, fee: Money) {
+        self.receive_transfer(fee);
+    }
 }
 
 impl Default for Budget {

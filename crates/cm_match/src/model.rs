@@ -47,6 +47,50 @@ impl TeamStrength {
     }
 }
 
+/// Match statistics.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct MatchStats {
+    pub home_possession: f64,
+    pub away_possession: f64,
+    pub home_shots: u32,
+    pub away_shots: u32,
+    pub home_shots_on_target: u32,
+    pub away_shots_on_target: u32,
+    pub home_fouls: u32,
+    pub away_fouls: u32,
+    pub home_corners: u32,
+    pub away_corners: u32,
+    pub home_yellow_cards: u32,
+    pub away_yellow_cards: u32,
+    pub home_red_cards: u32,
+    pub away_red_cards: u32,
+}
+
+/// Type of match event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MatchEventType {
+    Goal,
+    YellowCard,
+    RedCard,
+    Injury,
+    Substitution,
+    Corner,
+    FreeKick,
+    Penalty,
+    PenaltyMiss,
+    HalfTime,
+    FullTime,
+    ExtraTime,
+}
+
+/// A single match event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchEvent {
+    pub minute: u32,
+    pub event_type: MatchEventType,
+    pub description: String,
+}
+
 /// Match result.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchResult {
@@ -55,6 +99,10 @@ pub struct MatchResult {
     pub home_goals: u8,
     pub away_goals: u8,
     pub highlights: Vec<String>,
+    #[serde(default)]
+    pub stats: MatchStats,
+    #[serde(default)]
+    pub events: Vec<MatchEvent>,
 }
 
 impl MatchResult {

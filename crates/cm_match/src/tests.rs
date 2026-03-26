@@ -70,6 +70,8 @@ mod match_tests {
             home_goals: 2,
             away_goals: 1,
             highlights: vec![],
+            stats: Default::default(),
+            events: vec![],
         };
 
         assert!(result.is_home_win());
@@ -86,6 +88,8 @@ mod match_tests {
             home_goals: 1,
             away_goals: 1,
             highlights: vec![],
+            stats: Default::default(),
+            events: vec![],
         };
 
         assert!(!result.is_home_win());
@@ -344,10 +348,10 @@ mod commentary_tests {
         let home_goal = goal_commentary(45, "Gerrard", true);
         assert!(home_goal.contains("45"));
         assert!(home_goal.contains("Gerrard"));
-        assert!(home_goal.contains("home"));
+        assert!(home_goal.contains("mandante"));
 
         let away_goal = goal_commentary(67, "Henry", false);
-        assert!(away_goal.contains("away"));
+        assert!(away_goal.contains("visitante"));
     }
 
     #[test]
@@ -360,10 +364,10 @@ mod commentary_tests {
     #[test]
     fn test_card_commentary() {
         let yellow = card_commentary(55, "Keane", true);
-        assert!(yellow.contains("yellow"));
+        assert!(yellow.contains("amarelo"));
 
         let red = card_commentary(88, "Vieira", false);
-        assert!(red.contains("red"));
+        assert!(red.contains("vermelho"));
     }
 
     #[test]
@@ -376,18 +380,18 @@ mod commentary_tests {
     #[test]
     fn test_fulltime_commentary_home_win() {
         let ft = fulltime_commentary(3, 1, "Liverpool", "Arsenal");
-        assert!(ft.contains("Liverpool wins"));
+        assert!(ft.contains("Liverpool vence"));
     }
 
     #[test]
     fn test_fulltime_commentary_away_win() {
         let ft = fulltime_commentary(1, 2, "Liverpool", "Arsenal");
-        assert!(ft.contains("Arsenal wins"));
+        assert!(ft.contains("Arsenal vence"));
     }
 
     #[test]
     fn test_fulltime_commentary_draw() {
         let ft = fulltime_commentary(1, 1, "Liverpool", "Arsenal");
-        assert!(ft.contains("draw"));
+        assert!(ft.contains("Empate"));
     }
 }
