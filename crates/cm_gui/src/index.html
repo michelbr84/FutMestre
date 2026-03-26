@@ -206,12 +206,11 @@
           <!-- Tactics View -->
           <div id="tactics-view" style="display:none; flex:1; padding: 2rem; overflow: hidden; background: #222;">
             <div style="display:flex; height:100%; gap:2rem;">
-              <div class="pitch-container">
+              <div class="pitch-container" id="pitch-players">
                 <div class="pitch">
                   <div class="pitch-line half-line"></div>
                   <div class="pitch-circle"></div>
                 </div>
-                <div id="pitch-players"></div>
               </div>
               <div style="flex:1; display:flex; flex-direction:column; gap:1rem;">
                 <div class="panel-header" data-i18n="formation">Formacao</div>
@@ -285,11 +284,13 @@
               <table class="datagrid" id="transfer-table" style="display:none;">
                 <thead>
                   <tr>
-                    <th width="30%">Nome</th>
-                    <th width="10%">Idade</th>
-                    <th width="20%">Posicao</th>
-                    <th width="20%">Clube</th>
-                    <th width="20%">Valor</th>
+                    <th width="25%">Nome</th>
+                    <th width="8%">Idade</th>
+                    <th width="10%">Pos</th>
+                    <th width="18%">Clube</th>
+                    <th width="14%">Valor</th>
+                    <th width="8%">Ovr</th>
+                    <th width="17%">Acao</th>
                   </tr>
                 </thead>
                 <tbody></tbody>

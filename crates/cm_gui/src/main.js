@@ -565,7 +565,7 @@ const app = {
       app.squadSort.col = col;
       app.squadSort.asc = true;
     }
-    const posOrder = { 'GK': 0, 'DC': 1, 'DL': 2, 'DR': 3, 'WBL': 3, 'WBR': 3, 'DMC': 4, 'MC': 5, 'ML': 5, 'MR': 5, 'AMC': 6, 'AML': 6, 'AMR': 6, 'FC': 7, 'FL': 7, 'FR': 7, 'SC': 7 };
+    const posOrder = { 'GK': 0, 'DC': 1, 'DL': 2, 'DR': 3, 'DM': 4, 'MC': 5, 'ML': 5, 'MR': 5, 'AM': 6, 'FC': 7, 'FL': 7, 'FR': 7 };
     const players = [...(app.state.filteredSquad || app.state.currentSquad || [])];
     const dir = app.squadSort.asc ? 1 : -1;
 
@@ -604,7 +604,7 @@ const app = {
         <td>${p.age}</td>
         <td>${p.nationality}</td>
         <td class="${p.overall > 70 ? 'val-high' : 'val-med'}">${p.overall}</td>
-        <td>${p.value}</td>
+        <td>${I18N.formatMoney(p.value)}</td>
         <td>${p.condition}%</td>
       `;
       tbody.appendChild(tr);
@@ -673,12 +673,20 @@ const app = {
       empty.style.display = 'none';
       results.forEach(p => {
         const tr = document.createElement('tr');
+        const posClass = p.position === 'GK' ? 'pos-GK' : p.position.includes('D') || p.position === 'DM' ? 'pos-DEF' : p.position.includes('F') ? 'pos-ATT' : 'pos-MID';
         tr.innerHTML = `
           <td style="font-weight:bold; cursor:pointer;" onclick="app.openProfile('${p.id}')">${p.name}</td>
           <td>${p.age}</td>
-          <td>${p.position}</td>
-          <td>${p.club_name || '-'}</td>
-          <td>${p.value}</td>
+          <td><span class="pos-badge ${posClass}">${p.position}</span></td>
+          <td>${p.club_name || 'Livre'}</td>
+          <td>${I18N.formatMoney(p.value)}</td>
+          <td>${p.overall}</td>
+          <td>
+            <button class="action-btn primary" style="padding:0.3rem 0.8rem; font-size:0.75rem;"
+              onclick="event.stopPropagation(); app.makeOffer('${p.id}', '${p.name}', '${p.value}')">
+              Comprar
+            </button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
@@ -687,6 +695,45 @@ const app = {
       empty.style.display = 'block';
       empty.textContent = I18N.t('no_players');
     }
+  },
+
+  makeOffer: async (playerId, playerName, valueStr) => {
+    // Parse value from display string (e.g. "£5.0M" -> 5000000)
+    let amount = 0;
+    const clean = valueStr.replace(/[^0-9.MKk]/g, '');
+    if (clean.includes('M')) {
+      amount = Math.round(parseFloat(clean) * 1000000);
+    } else if (clean.toUpperCase().includes('K')) {
+      amount = Math.round(parseFloat(clean) * 1000);
+    } else {
+      amount = parseInt(clean) || 0;
+    }
+
+    const bid = prompt(`Oferta por ${playerName}:\nValor estimado: ${valueStr}\n\nDigite o valor da proposta (ex: 5000000):`, amount.toString());
+    if (!bid) return;
+
+    const bidAmount = parseInt(bid);
+    if (isNaN(bidAmount) || bidAmount <= 0) {
+      alert('Valor invalido.');
+      return;
+    }
+
+    try {
+      const response = await invoke('offer_transfer', { playerId, amount: bidAmount });
+      alert(response);
+      // Refresh squad if transfer was accepted
+      if (response.includes('aceita') || response.includes('accepted')) {
+        if (app.state.gameState) app.loadSquad(app.state.gameState.meta.clubId);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro na transferencia: ' + e);
+    }
+  },
+
+  sellPlayer: async (playerId, playerName) => {
+    // Simple sell: list on market (other clubs will make offers via AI)
+    alert(`${playerName} foi listado no mercado. Clubes interessados farao propostas em breve.`);
   },
 
   // ─── Tactics ────────────────────────────────────────────────────────────
@@ -707,7 +754,8 @@ const app = {
   renderFormationOnPitch: (formation) => {
     const pitch = document.getElementById('pitch-players');
     if (!pitch) return;
-    pitch.innerHTML = '';
+    // Remove only player elements, keep pitch lines
+    pitch.querySelectorAll('.pitch-player').forEach(el => el.remove());
 
     const positions = FORMATION_POSITIONS[formation] || FORMATION_POSITIONS['4-4-2'];
     const squad = app.state.currentSquad || [];
