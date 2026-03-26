@@ -12,7 +12,6 @@ pub fn init_tracing(filter: EnvFilter) {
 
 /// Initialize tracing with default settings (info level).
 pub fn init_default_tracing() {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     init_tracing(filter);
 }

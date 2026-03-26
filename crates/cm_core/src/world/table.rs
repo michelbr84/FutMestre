@@ -1,7 +1,8 @@
 //! League table.
 
-use serde::{Deserialize, Serialize};
 use crate::ids::ClubId;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// A row in the league table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,12 +69,19 @@ impl TableRow {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Table {
     pub rows: Vec<TableRow>,
+    /// Head-to-head record: maps (ClubA, ClubB) to (goals scored by A, goals scored by B)
+    /// across all matches between the two clubs.
+    #[serde(default)]
+    pub head_to_head: HashMap<(ClubId, ClubId), (u16, u16)>,
 }
 
 impl Table {
     /// Create a new table.
     pub fn new() -> Self {
-        Self { rows: Vec::new() }
+        Self {
+            rows: Vec::new(),
+            head_to_head: HashMap::new(),
+        }
     }
 
     /// Add a team.
@@ -93,13 +101,56 @@ impl Table {
         self.rows.iter_mut().find(|r| &r.club_id == club_id)
     }
 
-    /// Sort table by points, then goal difference, then goals for.
+    /// Record a head-to-head result between two clubs.
+    pub fn record_head_to_head(
+        &mut self,
+        home_id: &ClubId,
+        away_id: &ClubId,
+        home_goals: u8,
+        away_goals: u8,
+    ) {
+        // Record from home's perspective
+        let entry_home = self
+            .head_to_head
+            .entry((home_id.clone(), away_id.clone()))
+            .or_insert((0, 0));
+        entry_home.0 += home_goals as u16;
+        entry_home.1 += away_goals as u16;
+
+        // Record from away's perspective
+        let entry_away = self
+            .head_to_head
+            .entry((away_id.clone(), home_id.clone()))
+            .or_insert((0, 0));
+        entry_away.0 += away_goals as u16;
+        entry_away.1 += home_goals as u16;
+    }
+
+    /// Sort table by points, then goal difference, then goals for,
+    /// then head-to-head, then club ID as final tiebreak.
     pub fn sort(&mut self) {
+        // Clone the h2h map so the closure can reference it without borrowing self
+        let h2h = self.head_to_head.clone();
         self.rows.sort_by(|a, b| {
             b.points
                 .cmp(&a.points)
                 .then_with(|| b.goal_difference().cmp(&a.goal_difference()))
                 .then_with(|| b.goals_for.cmp(&a.goals_for))
+                .then_with(|| {
+                    // Head-to-head: compare goal difference between the two clubs
+                    let key_a = (a.club_id.clone(), b.club_id.clone());
+                    let key_b = (b.club_id.clone(), a.club_id.clone());
+                    let a_diff = h2h
+                        .get(&key_a)
+                        .map(|&(s, c)| s as i16 - c as i16)
+                        .unwrap_or(0);
+                    let b_diff = h2h
+                        .get(&key_b)
+                        .map(|&(s, c)| s as i16 - c as i16)
+                        .unwrap_or(0);
+                    b_diff.cmp(&a_diff)
+                })
+                .then_with(|| a.club_id.0.cmp(&b.club_id.0))
         });
     }
 
@@ -143,6 +194,7 @@ impl Table {
                 row.record_draw(away_goals, home_goals, draw_points);
             }
         }
+        self.record_head_to_head(home_id, away_id, home_goals, away_goals);
         self.sort();
     }
 }

@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use crate::ids::ClubId;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeagueRow {
@@ -42,7 +42,10 @@ pub struct LeagueTable {
 
 impl LeagueTable {
     pub fn new(name: String, teams: Vec<(ClubId, String)>) -> Self {
-        let mut rows = teams.into_iter().map(|(id, name)| LeagueRow::new(id, name)).collect::<Vec<_>>();
+        let rows = teams
+            .into_iter()
+            .map(|(id, name)| LeagueRow::new(id, name))
+            .collect::<Vec<_>>();
         Self {
             competition_name: name,
             rows,

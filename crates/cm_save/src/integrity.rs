@@ -1,7 +1,7 @@
 //! Integrity verification.
 
-use sha2::{Digest, Sha256};
 use crate::errors::SaveError;
+use sha2::{Digest, Sha256};
 
 /// Hash bytes with SHA256 and return hex string.
 pub fn hash_bytes_sha256(data: &[u8]) -> String {

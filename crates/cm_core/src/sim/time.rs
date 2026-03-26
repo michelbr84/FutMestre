@@ -10,9 +10,10 @@ pub struct GameDate(pub NaiveDate);
 impl GameDate {
     /// Create a new game date.
     pub fn new(year: i32, month: u32, day: u32) -> Self {
-        Self(NaiveDate::from_ymd_opt(year, month, day).unwrap_or_else(|| {
-            NaiveDate::from_ymd_opt(2001, 7, 1).unwrap()
-        }))
+        Self(
+            NaiveDate::from_ymd_opt(year, month, day)
+                .unwrap_or_else(|| NaiveDate::from_ymd_opt(2001, 7, 1).unwrap()),
+        )
     }
 
     /// Get the inner NaiveDate.
@@ -86,9 +87,7 @@ impl GameDate {
 
     /// Parse from string.
     pub fn parse(s: &str) -> Option<Self> {
-        NaiveDate::parse_from_str(s, "%Y-%m-%d")
-            .ok()
-            .map(Self)
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").ok().map(Self)
     }
 }
 
@@ -175,11 +174,11 @@ mod tests {
         // 2024-01-06 is Saturday
         let saturday = GameDate::new(2024, 1, 6);
         assert!(saturday.is_weekend());
-        
+
         // 2024-01-07 is Sunday
         let sunday = GameDate::new(2024, 1, 7);
         assert!(sunday.is_weekend());
-        
+
         // 2024-01-08 is Monday
         let monday = GameDate::new(2024, 1, 8);
         assert!(!monday.is_weekend());
@@ -189,7 +188,7 @@ mod tests {
     fn test_is_saturday() {
         let saturday = GameDate::new(2024, 1, 6);
         assert!(saturday.is_saturday());
-        
+
         let sunday = GameDate::new(2024, 1, 7);
         assert!(!sunday.is_saturday());
     }
@@ -198,7 +197,7 @@ mod tests {
     fn test_is_first_of_month() {
         let first = GameDate::new(2024, 1, 1);
         assert!(first.is_first_of_month());
-        
+
         let second = GameDate::new(2024, 1, 2);
         assert!(!second.is_first_of_month());
     }
@@ -254,7 +253,7 @@ mod tests {
         let date1 = GameDate::new(2024, 1, 1);
         let date2 = GameDate::new(2024, 1, 15);
         let date3 = GameDate::new(2024, 2, 1);
-        
+
         assert!(date1 < date2);
         assert!(date2 < date3);
         assert!(date1 < date3);

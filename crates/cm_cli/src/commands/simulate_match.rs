@@ -50,7 +50,10 @@ pub fn run(args: SimulateMatchArgs) -> anyhow::Result<()> {
     let result = simulate_match(&input);
 
     println!("━━━━━━━━━ FULL TIME ━━━━━━━━━");
-    println!("  {}  {}  -  {}  {}", home.name, result.home_goals, result.away_goals, away.name);
+    println!(
+        "  {}  {}  -  {}  {}",
+        home.name, result.home_goals, result.away_goals, away.name
+    );
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
     if !result.highlights.is_empty() {

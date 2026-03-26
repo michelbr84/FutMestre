@@ -1,7 +1,7 @@
 //! Seeded RNG for deterministic simulation.
 
-use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 
 /// Simulation RNG wrapper for reproducible results.
@@ -84,7 +84,7 @@ mod tests {
     fn test_seeded_rng_deterministic() {
         let mut rng1 = SimRng::new(42);
         let mut rng2 = SimRng::new(42);
-        
+
         for _ in 0..100 {
             assert_eq!(rng1.range(0, 1000), rng2.range(0, 1000));
         }
@@ -94,10 +94,10 @@ mod tests {
     fn test_different_seeds_different_output() {
         let mut rng1 = SimRng::new(42);
         let mut rng2 = SimRng::new(43);
-        
+
         let vals1: Vec<i32> = (0..10).map(|_| rng1.range(0, 1000)).collect();
         let vals2: Vec<i32> = (0..10).map(|_| rng2.range(0, 1000)).collect();
-        
+
         assert_ne!(vals1, vals2);
     }
 
@@ -177,7 +177,7 @@ mod tests {
         let rng = SimRng::new(12345);
         let json = serde_json::to_string(&rng).unwrap();
         let parsed: SimRng = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(rng.seed(), parsed.seed());
     }
 
@@ -186,7 +186,7 @@ mod tests {
         let original = SimRng::new(42);
         let json = serde_json::to_string(&original).unwrap();
         let mut parsed: SimRng = serde_json::from_str(&json).unwrap();
-        
+
         // RNG should be reinitialized and work
         let val = parsed.range(0, 100);
         assert!(val >= 0 && val < 100);
@@ -196,7 +196,7 @@ mod tests {
     fn test_from_entropy_different() {
         let rng1 = SimRng::from_entropy();
         let rng2 = SimRng::from_entropy();
-        
+
         // Seeds should be different (extremely unlikely to be equal)
         assert_ne!(rng1.seed(), rng2.seed());
     }

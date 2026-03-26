@@ -1,7 +1,7 @@
 //! Inbox message types.
 
-use serde::{Deserialize, Serialize};
 use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
 
 /// Message category.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -11,5 +11,7 @@ pub mod snapshot;
 pub mod versioning;
 
 pub use errors::SaveError;
-pub use metadata::{SaveMetadata, list_saves, should_auto_save};
+pub mod export;
+
+pub use metadata::{delete_save, list_saves, should_auto_save, SaveMetadata};
 pub use snapshot::SaveSnapshot;

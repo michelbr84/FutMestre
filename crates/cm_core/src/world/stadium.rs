@@ -1,7 +1,7 @@
 //! Stadium entity.
 
-use serde::{Deserialize, Serialize};
 use crate::ids::StadiumId;
+use serde::{Deserialize, Serialize};
 
 /// A stadium.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -41,8 +41,14 @@ pub struct GameConfig {
     pub auto_save_interval: u16, // days
     pub game_mode: GameMode,
     pub wage_display: WageDisplay,
-    pub match_speed: u8,         // 1-5, commentary speed
+    pub match_speed: u8,          // 1-5, commentary speed
     pub background_matches: bool, // show other match scores
+    #[serde(default = "default_save_compressed")]
+    pub save_compressed: bool, // compress save files
+}
+
+fn default_save_compressed() -> bool {
+    true
 }
 
 impl Default for GameConfig {
@@ -56,6 +62,7 @@ impl Default for GameConfig {
             wage_display: WageDisplay::Weekly,
             match_speed: 3,
             background_matches: true,
+            save_compressed: true,
         }
     }
 }

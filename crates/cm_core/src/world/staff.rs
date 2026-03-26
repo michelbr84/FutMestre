@@ -3,8 +3,8 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{ClubId, NationId, StaffId};
 use super::Contract;
+use crate::ids::{ClubId, NationId, StaffId};
 
 /// Staff role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -101,7 +101,8 @@ impl Staff {
     pub fn role_rating(&self) -> u8 {
         match self.role {
             StaffRole::Manager | StaffRole::AssistantManager => {
-                ((self.coaching as u16 + self.man_management as u16 + self.tactics as u16) / 3) as u8
+                ((self.coaching as u16 + self.man_management as u16 + self.tactics as u16) / 3)
+                    as u8
             }
             StaffRole::Coach | StaffRole::GoalkeeperCoach | StaffRole::FitnessCoach => {
                 self.coaching

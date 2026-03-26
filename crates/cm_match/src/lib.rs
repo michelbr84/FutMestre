@@ -14,5 +14,8 @@ pub mod set_pieces;
 pub mod tactics;
 pub mod tests;
 
-pub use model::{MatchEvent, MatchEventType, MatchInput, MatchResult, MatchStats, TeamStrength};
+pub use model::{
+    MatchEvent, MatchEventType, MatchInput, MatchResult, MatchStats, PlayerMatchRating, TeamSide,
+    TeamStrength,
+};
 pub use probabilistic::{simulate_match, simulate_with_extra_time};

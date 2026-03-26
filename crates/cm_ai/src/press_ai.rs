@@ -48,11 +48,11 @@ impl MatchResult {
     pub fn is_win(&self) -> bool {
         self.own_score > self.opponent_score
     }
-    
+
     pub fn is_draw(&self) -> bool {
         self.own_score == self.opponent_score
     }
-    
+
     pub fn is_loss(&self) -> bool {
         self.own_score < self.opponent_score
     }
@@ -110,11 +110,11 @@ pub enum Tone {
 /// Generate press questions based on context.
 pub fn generate_questions(context: &PressContext, count: usize) -> Vec<PressQuestion> {
     let mut questions = Vec::new();
-    
+
     match context.event_type {
         PressEventType::PreMatch => {
             questions.push(generate_match_preview_question(context));
-            
+
             if let Some(opponent) = &context.upcoming_opponent {
                 questions.push(PressQuestion {
                     question_type: QuestionType::OpponentQuestion,
@@ -122,7 +122,7 @@ pub fn generate_questions(context: &PressContext, count: usize) -> Vec<PressQues
                     tone: Tone::Neutral,
                 });
             }
-            
+
             questions.push(generate_tactics_question(context));
         }
         PressEventType::PostMatch => {
@@ -144,7 +144,7 @@ pub fn generate_questions(context: &PressContext, count: usize) -> Vec<PressQues
             }
         }
     }
-    
+
     // Always add a general question if we don't have enough
     while questions.len() < count {
         questions.push(PressQuestion {
@@ -153,7 +153,7 @@ pub fn generate_questions(context: &PressContext, count: usize) -> Vec<PressQues
             tone: Tone::Neutral,
         });
     }
-    
+
     questions.truncate(count);
     questions
 }
@@ -163,7 +163,7 @@ fn generate_match_preview_question(context: &PressContext) -> PressQuestion {
         Some(opponent) => format!("How are you preparing for the match against {}?", opponent),
         None => "How is preparation going for your next match?".into(),
     };
-    
+
     PressQuestion {
         question_type: QuestionType::MatchPreview,
         text,
@@ -179,9 +179,13 @@ fn generate_match_review_question(result: &MatchResult) -> PressQuestion {
     } else {
         "It was a disappointing result. What went wrong?".into()
     };
-    
-    let tone = if result.is_loss() { Tone::Challenging } else { Tone::Friendly };
-    
+
+    let tone = if result.is_loss() {
+        Tone::Challenging
+    } else {
+        Tone::Friendly
+    };
+
     PressQuestion {
         question_type: QuestionType::MatchReview,
         text,
@@ -197,7 +201,7 @@ fn generate_performance_question(result: &MatchResult) -> PressQuestion {
     } else {
         "How would you rate the overall performance?".into()
     };
-    
+
     PressQuestion {
         question_type: QuestionType::PlayerPerformance,
         text,
@@ -228,7 +232,7 @@ fn generate_form_question(context: &PressContext) -> PressQuestion {
             Tone::Provocative,
         ),
     };
-    
+
     PressQuestion {
         question_type: QuestionType::FormQuestion,
         text,
@@ -262,11 +266,14 @@ fn generate_league_position_question(context: &PressContext) -> PressQuestion {
         )
     } else {
         (
-            format!("You're currently {}th in the table. Where do you see the team finishing?", context.league_position),
+            format!(
+                "You're currently {}th in the table. Where do you see the team finishing?",
+                context.league_position
+            ),
             Tone::Neutral,
         )
     };
-    
+
     PressQuestion {
         question_type: QuestionType::LeaguePosition,
         text,
@@ -277,11 +284,14 @@ fn generate_league_position_question(context: &PressContext) -> PressQuestion {
 fn generate_transfer_question(context: &PressContext) -> PressQuestion {
     if let Some(transfer) = context.recent_transfers.first() {
         let text = if transfer.is_incoming {
-            format!("Can you tell us about the signing of {}?", transfer.player_name)
+            format!(
+                "Can you tell us about the signing of {}?",
+                transfer.player_name
+            )
         } else {
             format!("Why did you decide to let {} go?", transfer.player_name)
         };
-        
+
         PressQuestion {
             question_type: QuestionType::TransferQuestion,
             text,
@@ -302,7 +312,7 @@ fn generate_injury_question(context: &PressContext) -> PressQuestion {
     } else {
         "How is the squad's fitness looking?".into()
     };
-    
+
     PressQuestion {
         question_type: QuestionType::InjuryQuestion,
         text,
@@ -325,7 +335,7 @@ pub enum ResponseTone {
 pub struct PressResponse {
     pub text: String,
     pub tone: ResponseTone,
-    pub morale_effect: i8,  // Effect on squad morale (-10 to +10)
+    pub morale_effect: i8, // Effect on squad morale (-10 to +10)
     pub media_reaction: MediaReaction,
 }
 
@@ -361,7 +371,8 @@ fn generate_preview_response(context: &PressContext) -> PressResponse {
             ResponseTone::Confident,
         ),
         Form::Average => (
-            "We're taking nothing for granted. Every match is a challenge and we'll give our best.".into(),
+            "We're taking nothing for granted. Every match is a challenge and we'll give our best."
+                .into(),
             ResponseTone::Diplomatic,
         ),
         _ => (
@@ -369,7 +380,7 @@ fn generate_preview_response(context: &PressContext) -> PressResponse {
             ResponseTone::Defiant,
         ),
     };
-    
+
     PressResponse {
         text,
         tone,
@@ -380,7 +391,7 @@ fn generate_preview_response(context: &PressContext) -> PressResponse {
 
 fn generate_review_response(context: &PressContext) -> PressResponse {
     let result = context.result.as_ref();
-    
+
     let (text, tone, morale) = match result {
         Some(r) if r.is_win() => (
             "A great performance from the team. We executed our plan and got the result we deserved.".into(),
@@ -403,7 +414,7 @@ fn generate_review_response(context: &PressContext) -> PressResponse {
             0,
         ),
     };
-    
+
     PressResponse {
         text,
         tone,
@@ -433,13 +444,16 @@ fn generate_form_response(context: &PressContext) -> PressResponse {
             media_reaction: MediaReaction::Neutral,
         },
         Form::Poor => PressResponse {
-            text: "We're working hard to turn things around. The players are giving everything.".into(),
+            text: "We're working hard to turn things around. The players are giving everything."
+                .into(),
             tone: ResponseTone::Defiant,
             morale_effect: 1,
             media_reaction: MediaReaction::Neutral,
         },
         Form::Terrible => PressResponse {
-            text: "It's been a difficult period but I believe in this squad. We'll come through it.".into(),
+            text:
+                "It's been a difficult period but I believe in this squad. We'll come through it."
+                    .into(),
             tone: ResponseTone::Defiant,
             morale_effect: 2,
             media_reaction: MediaReaction::Neutral,
@@ -458,7 +472,8 @@ fn generate_tactics_response() -> PressResponse {
 
 fn generate_transfer_response() -> PressResponse {
     PressResponse {
-        text: "We're always looking to improve the squad, but I won't comment on speculation.".into(),
+        text: "We're always looking to improve the squad, but I won't comment on speculation."
+            .into(),
         tone: ResponseTone::Diplomatic,
         morale_effect: 0,
         media_reaction: MediaReaction::Neutral,
@@ -475,7 +490,8 @@ fn generate_injury_response(context: &PressContext) -> PressResponse {
         }
     } else {
         PressResponse {
-            text: "We're monitoring the situation. The medical team is working hard on recovery.".into(),
+            text: "We're monitoring the situation. The medical team is working hard on recovery."
+                .into(),
             tone: ResponseTone::Diplomatic,
             morale_effect: 0,
             media_reaction: MediaReaction::Neutral,
@@ -521,7 +537,8 @@ fn generate_performance_response(context: &PressContext) -> PressResponse {
     if let Some(result) = &context.result {
         if result.own_score >= 3 {
             PressResponse {
-                text: "The attackers were clinical today. That's what we work on in training.".into(),
+                text: "The attackers were clinical today. That's what we work on in training."
+                    .into(),
                 tone: ResponseTone::Confident,
                 morale_effect: 2,
                 media_reaction: MediaReaction::Positive,
@@ -535,7 +552,8 @@ fn generate_performance_response(context: &PressContext) -> PressResponse {
             }
         } else {
             PressResponse {
-                text: "Overall a solid performance. Some areas to improve but plenty of positives.".into(),
+                text: "Overall a solid performance. Some areas to improve but plenty of positives."
+                    .into(),
                 tone: ResponseTone::Diplomatic,
                 morale_effect: 0,
                 media_reaction: MediaReaction::Neutral,
@@ -554,13 +572,15 @@ fn generate_performance_response(context: &PressContext) -> PressResponse {
 fn generate_prospects_response(context: &PressContext) -> PressResponse {
     match context.form {
         Form::Excellent | Form::Good => PressResponse {
-            text: "We're optimistic about what we can achieve. The squad has great potential.".into(),
+            text: "We're optimistic about what we can achieve. The squad has great potential."
+                .into(),
             tone: ResponseTone::Confident,
             morale_effect: 2,
             media_reaction: MediaReaction::Positive,
         },
         _ => PressResponse {
-            text: "We take it game by game. The most important match is always the next one.".into(),
+            text: "We take it game by game. The most important match is always the next one."
+                .into(),
             tone: ResponseTone::Diplomatic,
             morale_effect: 0,
             media_reaction: MediaReaction::Neutral,
@@ -572,7 +592,8 @@ fn generate_prospects_response(context: &PressContext) -> PressResponse {
 pub fn generate_question(_context: &str) -> String {
     let ctx = PressContext::default();
     let questions = generate_questions(&ctx, 1);
-    questions.first()
+    questions
+        .first()
         .map(|q| q.text.clone())
         .unwrap_or_else(|| "How do you feel about the team's performance?".to_string())
 }
@@ -588,11 +609,13 @@ mod tests {
             upcoming_opponent: Some("Manchester United".into()),
             ..Default::default()
         };
-        
+
         let questions = generate_questions(&context, 3);
-        
+
         assert_eq!(questions.len(), 3);
-        assert!(questions.iter().any(|q| q.question_type == QuestionType::MatchPreview));
+        assert!(questions
+            .iter()
+            .any(|q| q.question_type == QuestionType::MatchPreview));
     }
 
     #[test]
@@ -606,12 +629,14 @@ mod tests {
             }),
             ..Default::default()
         };
-        
+
         let questions = generate_questions(&context, 2);
-        
+
         assert!(!questions.is_empty());
         // Winning should have friendly tone
-        assert!(questions.iter().any(|q| q.tone == Tone::Friendly || q.tone == Tone::Neutral));
+        assert!(questions
+            .iter()
+            .any(|q| q.tone == Tone::Friendly || q.tone == Tone::Neutral));
     }
 
     #[test]
@@ -625,12 +650,14 @@ mod tests {
             }),
             ..Default::default()
         };
-        
+
         let questions = generate_questions(&context, 2);
-        
+
         assert!(!questions.is_empty());
         // Losing should have challenging tone
-        assert!(questions.iter().any(|q| q.tone == Tone::Challenging || q.tone == Tone::Neutral));
+        assert!(questions
+            .iter()
+            .any(|q| q.tone == Tone::Challenging || q.tone == Tone::Neutral));
     }
 
     #[test]
@@ -640,16 +667,16 @@ mod tests {
             form: Form::Excellent,
             ..Default::default()
         };
-        
+
         let bad_context = PressContext {
             event_type: PressEventType::Weekly,
             form: Form::Terrible,
             ..Default::default()
         };
-        
+
         let good_question = generate_form_question(&good_context);
         let bad_question = generate_form_question(&bad_context);
-        
+
         assert_eq!(good_question.tone, Tone::Friendly);
         assert_eq!(bad_question.tone, Tone::Provocative);
     }
@@ -665,15 +692,15 @@ mod tests {
             }),
             ..Default::default()
         };
-        
+
         let question = PressQuestion {
             question_type: QuestionType::MatchReview,
             text: "Great result!".into(),
             tone: Tone::Friendly,
         };
-        
+
         let response = generate_response(&question, &context);
-        
+
         assert_eq!(response.tone, ResponseTone::Confident);
         assert!(response.morale_effect > 0);
     }
@@ -689,32 +716,44 @@ mod tests {
             }),
             ..Default::default()
         };
-        
+
         let question = PressQuestion {
             question_type: QuestionType::MatchReview,
             text: "Disappointing?".into(),
             tone: Tone::Challenging,
         };
-        
+
         let response = generate_response(&question, &context);
-        
+
         assert_eq!(response.tone, ResponseTone::Humble);
     }
 
     #[test]
     fn test_match_result_helpers() {
-        let win = MatchResult { own_score: 2, opponent_score: 1, is_home: true };
-        let draw = MatchResult { own_score: 1, opponent_score: 1, is_home: true };
-        let loss = MatchResult { own_score: 0, opponent_score: 2, is_home: false };
-        
+        let win = MatchResult {
+            own_score: 2,
+            opponent_score: 1,
+            is_home: true,
+        };
+        let draw = MatchResult {
+            own_score: 1,
+            opponent_score: 1,
+            is_home: true,
+        };
+        let loss = MatchResult {
+            own_score: 0,
+            opponent_score: 2,
+            is_home: false,
+        };
+
         assert!(win.is_win());
         assert!(!win.is_draw());
         assert!(!win.is_loss());
-        
+
         assert!(!draw.is_win());
         assert!(draw.is_draw());
         assert!(!draw.is_loss());
-        
+
         assert!(!loss.is_win());
         assert!(!loss.is_draw());
         assert!(loss.is_loss());
@@ -728,17 +767,17 @@ mod tests {
             league_position: 1,
             ..Default::default()
         };
-        
+
         let top_q = generate_league_position_question(&top_context);
         assert_eq!(top_q.tone, Tone::Friendly);
-        
+
         // Relegation zone
         let bottom_context = PressContext {
             event_type: PressEventType::Weekly,
             league_position: 20,
             ..Default::default()
         };
-        
+
         let bottom_q = generate_league_position_question(&bottom_context);
         assert_eq!(bottom_q.tone, Tone::Provocative);
     }
@@ -747,17 +786,15 @@ mod tests {
     fn test_transfer_question_with_news() {
         let context = PressContext {
             event_type: PressEventType::TransferWindow,
-            recent_transfers: vec![
-                TransferNews {
-                    player_name: "John Smith".into(),
-                    is_incoming: true,
-                }
-            ],
+            recent_transfers: vec![TransferNews {
+                player_name: "John Smith".into(),
+                is_incoming: true,
+            }],
             ..Default::default()
         };
-        
+
         let question = generate_transfer_question(&context);
-        
+
         assert!(question.text.contains("John Smith"));
         assert_eq!(question.question_type, QuestionType::TransferQuestion);
     }
@@ -768,9 +805,9 @@ mod tests {
             form: Form::Terrible,
             ..Default::default()
         };
-        
+
         let response = generate_form_response(&context);
-        
+
         assert_eq!(response.tone, ResponseTone::Defiant);
         assert!(response.morale_effect > 0); // Defiant boosts morale
     }

@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod ticketing_tests {
-    use cm_core::economy::Money;
     use crate::ticketing::*;
+    use cm_core::economy::Money;
 
     #[test]
     fn test_matchday_revenue() {
@@ -26,8 +26,8 @@ mod ticketing_tests {
 
 #[cfg(test)]
 mod sponsorship_tests {
-    use cm_core::economy::Money;
     use crate::sponsorship::*;
+    use cm_core::economy::Money;
 
     #[test]
     fn test_sponsorship_high_reputation() {
@@ -52,8 +52,8 @@ mod sponsorship_tests {
 
 #[cfg(test)]
 mod prize_tests {
-    use cm_core::economy::Money;
     use crate::prizes::*;
+    use cm_core::economy::Money;
 
     #[test]
     fn test_league_prize_first_place() {
@@ -79,7 +79,7 @@ mod prize_tests {
         let first = league_prize(1, 1);
         let fifth = league_prize(5, 1);
         let tenth = league_prize(10, 1);
-        
+
         assert!(first.major() > fifth.major());
         assert!(fifth.major() > tenth.major());
     }
@@ -87,8 +87,8 @@ mod prize_tests {
 
 #[cfg(test)]
 mod wage_tests {
-    use cm_core::economy::Money;
     use crate::wage::*;
+    use cm_core::economy::Money;
 
     #[test]
     fn test_total_wages() {
@@ -97,7 +97,7 @@ mod wage_tests {
             Money::from_major(80_000),
             Money::from_major(50_000),
         ];
-        
+
         let total = calculate_weekly_wages(&wages);
         assert_eq!(total.major(), 230_000);
     }
@@ -119,8 +119,8 @@ mod wage_tests {
 
 #[cfg(test)]
 mod debt_tests {
-    use cm_core::economy::Money;
     use crate::debt::*;
+    use cm_core::economy::Money;
 
     #[test]
     fn test_interest_calculation() {
@@ -152,9 +152,73 @@ mod debt_tests {
 }
 
 #[cfg(test)]
-mod ffp_tests {
+mod bank_loan_tests {
+    use crate::debt::BankLoan;
     use cm_core::economy::Money;
+
+    #[test]
+    fn test_loan_payment_reduces_balance() {
+        let mut loan = BankLoan::new(Money::from_major(1_000_000), 0.05, 24, "2026-01-01".into());
+        let initial = loan.remaining;
+        let paid = loan.make_payment();
+        assert!(paid > Money::ZERO);
+        assert!(loan.remaining < initial);
+    }
+
+    #[test]
+    fn test_loan_with_interest_pays_more_than_principal() {
+        let loan = BankLoan::new(Money::from_major(1_000_000), 0.10, 12, "2026-01-01".into());
+        let total = loan.monthly_payment.multiply(loan.term_months as f64);
+        assert!(total > loan.amount);
+    }
+
+    #[test]
+    fn test_loan_paid_off_after_all_payments() {
+        let mut loan = BankLoan::new(Money::from_major(500_000), 0.05, 6, "2026-01-01".into());
+        for _ in 0..6 {
+            loan.make_payment();
+        }
+        // Due to rounding, remaining should be zero or very close
+        assert!(loan.remaining.minor().abs() <= 1 || loan.is_paid_off());
+    }
+
+    #[test]
+    fn test_budget_take_loan() {
+        use cm_core::economy::Budget;
+        let mut budget = Budget::new(
+            Money::from_major(10_000_000),
+            Money::from_major(5_000_000),
+            Money::from_major(200_000),
+        );
+        let loan = BankLoan::new(Money::from_major(5_000_000), 0.06, 24, "2026-01-01".into());
+        budget.take_loan(loan);
+        assert_eq!(budget.balance.major(), 15_000_000);
+        assert!(budget.has_active_loans());
+        assert_eq!(budget.total_loan_debt().major(), 5_000_000);
+    }
+
+    #[test]
+    fn test_budget_process_loan_payments() {
+        use cm_core::economy::Budget;
+        let mut budget = Budget::new(
+            Money::from_major(10_000_000),
+            Money::from_major(5_000_000),
+            Money::from_major(200_000),
+        );
+        let loan = BankLoan::new(Money::from_major(1_200_000), 0.0, 12, "2026-01-01".into());
+        budget.take_loan(loan);
+        // Balance after taking loan: 11_200_000
+        let paid = budget.process_loan_payments();
+        assert_eq!(paid.major(), 100_000);
+        // Balance: 11_200_000 - 100_000 = 11_100_000
+        assert_eq!(budget.balance.major(), 11_100_000);
+    }
+}
+
+#[cfg(test)]
+mod ffp_tests {
     use crate::ffp::*;
+    use cm_core::economy::Money;
 
     #[test]
     fn test_ffp_compliant() {
@@ -187,8 +251,8 @@ mod ffp_tests {
 
 #[cfg(test)]
 mod model_tests {
-    use cm_core::economy::Money;
     use crate::model::*;
+    use cm_core::economy::Money;
 
     #[test]
     fn test_income_total() {
@@ -200,7 +264,7 @@ mod model_tests {
             prize_money: Money::from_major(3_000_000),
             transfers: Money::from_major(10_000_000),
         };
-        
+
         assert_eq!(income.total().major(), 21_500_000);
     }
 
@@ -212,7 +276,7 @@ mod model_tests {
             stadium: Money::from_major(500_000),
             other: Money::from_major(200_000),
         };
-        
+
         assert_eq!(expenses.total().major(), 13_700_000);
     }
 
@@ -234,7 +298,7 @@ mod model_tests {
                 other: Money::from_major(500_000),
             },
         };
-        
+
         let net = statement.net();
         assert!(net.major() > 0); // Profitable
     }
@@ -257,7 +321,7 @@ mod model_tests {
                 other: Money::from_major(200_000),
             },
         };
-        
+
         let net = statement.net();
         assert!(net.is_negative()); // Loss
     }
@@ -463,21 +527,22 @@ mod budget_transfer_tests {
 
 #[cfg(test)]
 mod integration_tests {
-    use cm_core::economy::Money;
     use crate::*;
+    use cm_core::economy::Money;
 
     #[test]
     fn test_season_financial_flow() {
         // Simulate a season's finances for a mid-table club
-        
+
         // Income
-        let matchday_per_game = ticketing::calculate_matchday_revenue(30_000, Money::from_major(25));
+        let matchday_per_game =
+            ticketing::calculate_matchday_revenue(30_000, Money::from_major(25));
         let home_games = 19; // Half the season
         let total_matchday = matchday_per_game.multiply(home_games as f64);
-        
+
         let sponsorship = sponsorship::calculate_sponsorship(60);
         let prize = prizes::league_prize(10, 1);
-        
+
         // Expenses
         let weekly_wages = vec![
             Money::from_major(50_000),
@@ -486,14 +551,16 @@ mod integration_tests {
         ];
         let total_weekly = wage::calculate_weekly_wages(&weekly_wages);
         let annual_wages = total_weekly.multiply(52.0);
-        
+
         // Check FFP
         let total_income = total_matchday + sponsorship + prize;
         let total_expenses = annual_wages;
-        
+
         // Mid-table club should be able to stay FFP compliant
-        assert!(ffp::check_ffp_compliance(total_income, total_expenses) || 
-                total_income.major() > total_expenses.major() / 2);
+        assert!(
+            ffp::check_ffp_compliance(total_income, total_expenses)
+                || total_income.major() > total_expenses.major() / 2
+        );
     }
 
     #[test]
@@ -501,7 +568,7 @@ mod integration_tests {
         // Club with debt
         let debt = Money::from_major(50_000_000);
         let annual_interest = debt::calculate_interest(debt, 0.05);
-        
+
         // They need enough income to cover interest
         let income = Money::from_major(100_000_000);
         assert!(income.major() > annual_interest.major());

@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod match_tests {
-    use crate::model::{MatchInput, MatchResult, TeamStrength};
+    use crate::model::{MatchInput, MatchResult, TeamSide, TeamStrength};
     use crate::probabilistic::{simulate_match, simulate_with_extra_time};
     use cm_core::ids::ClubId;
 
@@ -72,6 +72,7 @@ mod match_tests {
             highlights: vec![],
             stats: Default::default(),
             events: vec![],
+            player_ratings: vec![],
         };
 
         assert!(result.is_home_win());
@@ -90,6 +91,7 @@ mod match_tests {
             highlights: vec![],
             stats: Default::default(),
             events: vec![],
+            player_ratings: vec![],
         };
 
         assert!(!result.is_home_win());
@@ -139,6 +141,122 @@ mod match_tests {
 
         // Just verify it doesn't panic
         let _ = simulate_with_extra_time(&input);
+    }
+
+    #[test]
+    fn test_player_ratings_generated() {
+        let input = MatchInput {
+            home_id: ClubId::new("LIV"),
+            away_id: ClubId::new("ARS"),
+            home: TeamStrength {
+                attack: 80,
+                midfield: 75,
+                defense: 78,
+                finishing: 82,
+                morale: 70,
+                fitness: 85,
+            },
+            away: TeamStrength {
+                attack: 75,
+                midfield: 72,
+                defense: 76,
+                finishing: 78,
+                morale: 65,
+                fitness: 80,
+            },
+            minutes: 90,
+            seed: Some(42),
+        };
+
+        let result = simulate_match(&input);
+
+        // Deve ter 22 ratings (11 por time)
+        assert_eq!(result.player_ratings.len(), 22);
+
+        // 11 home, 11 away
+        let home_count = result
+            .player_ratings
+            .iter()
+            .filter(|r| r.team == TeamSide::Home)
+            .count();
+        let away_count = result
+            .player_ratings
+            .iter()
+            .filter(|r| r.team == TeamSide::Away)
+            .count();
+        assert_eq!(home_count, 11);
+        assert_eq!(away_count, 11);
+
+        // Todos os ratings devem estar entre 1.0 e 10.0
+        for r in &result.player_ratings {
+            assert!(r.rating >= 1.0, "Rating {} abaixo de 1.0", r.rating);
+            assert!(r.rating <= 10.0, "Rating {} acima de 10.0", r.rating);
+        }
+
+        // Exatamente um man_of_the_match
+        let motm_count = result
+            .player_ratings
+            .iter()
+            .filter(|r| r.man_of_the_match)
+            .count();
+        assert_eq!(motm_count, 1);
+
+        // Total de gols nos ratings deve bater com o resultado
+        let home_goals_in_ratings: u8 = result
+            .player_ratings
+            .iter()
+            .filter(|r| r.team == TeamSide::Home)
+            .map(|r| r.goals)
+            .sum();
+        let away_goals_in_ratings: u8 = result
+            .player_ratings
+            .iter()
+            .filter(|r| r.team == TeamSide::Away)
+            .map(|r| r.goals)
+            .sum();
+        assert_eq!(home_goals_in_ratings, result.home_goals);
+        assert_eq!(away_goals_in_ratings, result.away_goals);
+    }
+
+    #[test]
+    fn test_player_ratings_deterministic() {
+        let input = MatchInput {
+            home_id: ClubId::new("LIV"),
+            away_id: ClubId::new("ARS"),
+            home: TeamStrength {
+                attack: 80,
+                midfield: 75,
+                defense: 78,
+                finishing: 82,
+                morale: 70,
+                fitness: 85,
+            },
+            away: TeamStrength {
+                attack: 75,
+                midfield: 72,
+                defense: 76,
+                finishing: 78,
+                morale: 65,
+                fitness: 80,
+            },
+            minutes: 90,
+            seed: Some(99),
+        };
+
+        let result1 = simulate_match(&input);
+        let result2 = simulate_match(&input);
+
+        assert_eq!(result1.player_ratings.len(), result2.player_ratings.len());
+        for (r1, r2) in result1
+            .player_ratings
+            .iter()
+            .zip(result2.player_ratings.iter())
+        {
+            assert_eq!(r1.player_id, r2.player_id);
+            assert!((r1.rating - r2.rating).abs() < 0.001);
+            assert_eq!(r1.goals, r2.goals);
+            assert_eq!(r1.man_of_the_match, r2.man_of_the_match);
+        }
     }
 }
 
@@ -203,7 +321,9 @@ mod ratings_tests {
 #[cfg(test)]
 mod tactics_tests {
     use crate::model::TeamStrength;
-    use crate::tactics::{apply_tactics_modifiers, formation_attack_bonus, formation_defense_bonus};
+    use crate::tactics::{
+        apply_tactics_modifiers, formation_attack_bonus, formation_defense_bonus,
+    };
     use cm_core::world::{Formation, Mentality, Tactics, Tempo};
 
     fn default_tactics() -> Tactics {
@@ -345,13 +465,13 @@ mod commentary_tests {
 
     #[test]
     fn test_goal_commentary() {
-        let home_goal = goal_commentary(45, "Gerrard", true);
+        let home_goal = goal_commentary(45, "Gerrard", "Liverpool");
         assert!(home_goal.contains("45"));
         assert!(home_goal.contains("Gerrard"));
-        assert!(home_goal.contains("mandante"));
+        assert!(home_goal.contains("Liverpool"));
 
-        let away_goal = goal_commentary(67, "Henry", false);
-        assert!(away_goal.contains("visitante"));
+        let away_goal = goal_commentary(67, "Henry", "Arsenal");
+        assert!(away_goal.contains("Arsenal"));
     }
 
     #[test]
@@ -364,34 +484,35 @@ mod commentary_tests {
     #[test]
     fn test_card_commentary() {
         let yellow = card_commentary(55, "Keane", true);
-        assert!(yellow.contains("amarelo"));
+        assert!(yellow.contains("AMARELO"));
 
         let red = card_commentary(88, "Vieira", false);
-        assert!(red.contains("vermelho"));
+        assert!(red.contains("VERMELHO"));
     }
 
     #[test]
     fn test_halftime_commentary() {
-        let ht = halftime_commentary(2, 1);
+        let ht = halftime_commentary(2, 1, "Liverpool", "Arsenal");
         assert!(ht.contains("2"));
         assert!(ht.contains("1"));
+        assert!(ht.contains("Liverpool"));
     }
 
     #[test]
     fn test_fulltime_commentary_home_win() {
         let ft = fulltime_commentary(3, 1, "Liverpool", "Arsenal");
-        assert!(ft.contains("Liverpool vence"));
+        assert!(ft.contains("VITORIA do Liverpool"));
     }
 
     #[test]
     fn test_fulltime_commentary_away_win() {
         let ft = fulltime_commentary(1, 2, "Liverpool", "Arsenal");
-        assert!(ft.contains("Arsenal vence"));
+        assert!(ft.contains("VITORIA do Arsenal"));
     }
 
     #[test]
     fn test_fulltime_commentary_draw() {
         let ft = fulltime_commentary(1, 1, "Liverpool", "Arsenal");
-        assert!(ft.contains("Empate"));
+        assert!(ft.contains("EMPATE"));
     }
 }

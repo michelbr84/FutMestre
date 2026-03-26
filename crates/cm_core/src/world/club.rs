@@ -1,9 +1,9 @@
 //! Club entity.
 
-use serde::{Deserialize, Serialize};
+use super::{Board, ClubHistory, Tactics};
 use crate::economy::{Budget, Money};
 use crate::ids::{ClubId, NationId, PlayerId, StadiumId, StaffId};
-use super::{Board, Tactics};
+use serde::{Deserialize, Serialize};
 
 /// A football club.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,6 +21,8 @@ pub struct Club {
     pub staff_ids: Vec<StaffId>,
     pub primary_color: String,
     pub secondary_color: String,
+    #[serde(default)]
+    pub history: ClubHistory,
 }
 
 impl Club {
@@ -40,6 +42,7 @@ impl Club {
             staff_ids: Vec::new(),
             primary_color: "#FF0000".into(),
             secondary_color: "#FFFFFF".into(),
+            history: ClubHistory::default(),
         }
     }
 

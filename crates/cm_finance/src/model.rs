@@ -23,7 +23,12 @@ pub struct Income {
 
 impl Income {
     pub fn total(&self) -> Money {
-        self.matchday + self.tv_rights + self.sponsorship + self.merchandise + self.prize_money + self.transfers
+        self.matchday
+            + self.tv_rights
+            + self.sponsorship
+            + self.merchandise
+            + self.prize_money
+            + self.transfers
     }
 }
 

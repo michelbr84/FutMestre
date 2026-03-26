@@ -4,9 +4,9 @@ use rand::Rng;
 
 use crate::config::GameConfig;
 use crate::state::GameState;
-use cm_core::ids::{ClubId, CompetitionId};
-use cm_core::world::World;
-use cm_match::{simulate_match, MatchInput, TeamStrength};
+use cm_core::ids::{ClubId, CompetitionId, PlayerId};
+use cm_core::world::{TopScorer, World};
+use cm_match::{simulate_match, MatchEventType, MatchInput, MatchResult, TeamStrength};
 
 /// Match system.
 pub struct MatchSystem;
@@ -94,6 +94,9 @@ impl MatchSystem {
                         1, // draw points
                     );
                 }
+
+                // Atualizar artilharia da competicao
+                update_top_scorers_from_result(comp_id, &result, &mut comp.top_scorers);
             }
 
             // Generate match report for user's team
@@ -125,4 +128,75 @@ impl MatchSystem {
 
         state.flags.match_day = false;
     }
+}
+
+/// Atualizar artilharia da competicao com base no resultado de uma partida.
+///
+/// Como o motor de partida atual usa "Jogador" generico sem PlayerId,
+/// criamos entradas por clube com um ID sintetico baseado no clube.
+/// Quando o motor evoluir para rastrear jogadores individuais, esta funcao
+/// sera atualizada para usar os IDs reais.
+fn update_top_scorers_from_result(
+    _comp_id: &CompetitionId,
+    result: &MatchResult,
+    top_scorers: &mut Vec<TopScorer>,
+) {
+    // Contar gols de cada time pelos eventos
+    let mut home_goals_from_events: u16 = 0;
+    let mut away_goals_from_events: u16 = 0;
+
+    for event in &result.events {
+        if matches!(event.event_type, MatchEventType::Goal) {
+            if event.description.contains("mandante") {
+                home_goals_from_events += 1;
+            } else if event.description.contains("visitante") {
+                away_goals_from_events += 1;
+            }
+        }
+    }
+
+    // Se nao conseguimos extrair dos eventos, usar o placar
+    if home_goals_from_events == 0 && away_goals_from_events == 0 {
+        home_goals_from_events = result.home_goals as u16;
+        away_goals_from_events = result.away_goals as u16;
+    }
+
+    // Atualizar ou criar entrada para o "artilheiro" do clube mandante
+    if home_goals_from_events > 0 {
+        let synthetic_id = PlayerId::new(format!("SCORER-{}", result.home_id));
+        if let Some(entry) = top_scorers
+            .iter_mut()
+            .find(|s| s.club_id == result.home_id && s.player_id == synthetic_id)
+        {
+            entry.goals += home_goals_from_events;
+        } else {
+            top_scorers.push(TopScorer {
+                player_id: synthetic_id,
+                club_id: result.home_id.clone(),
+                goals: home_goals_from_events,
+                assists: 0,
+            });
+        }
+    }
+
+    // Atualizar ou criar entrada para o "artilheiro" do clube visitante
+    if away_goals_from_events > 0 {
+        let synthetic_id = PlayerId::new(format!("SCORER-{}", result.away_id));
+        if let Some(entry) = top_scorers
+            .iter_mut()
+            .find(|s| s.club_id == result.away_id && s.player_id == synthetic_id)
+        {
+            entry.goals += away_goals_from_events;
+        } else {
+            top_scorers.push(TopScorer {
+                player_id: synthetic_id,
+                club_id: result.away_id.clone(),
+                goals: away_goals_from_events,
+                assists: 0,
+            });
+        }
+    }
+
+    // Ordenar por gols (decrescente)
+    top_scorers.sort_by(|a, b| b.goals.cmp(&a.goals));
 }

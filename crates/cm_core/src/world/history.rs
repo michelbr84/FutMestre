@@ -1,7 +1,7 @@
 //! Historical records.
 
-use serde::{Deserialize, Serialize};
 use crate::ids::{ClubId, CompetitionId};
+use serde::{Deserialize, Serialize};
 
 /// Season record for a club.
 #[derive(Debug, Clone, Serialize, Deserialize)]

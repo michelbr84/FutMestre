@@ -25,13 +25,13 @@ pub struct ImportDataArgs {
 
 pub fn run(args: ImportDataArgs) -> anyhow::Result<()> {
     info!("Importing world data from: {}", args.data_dir);
-    
+
     let importer = JsonWorldImporter::new(&args.data_dir);
-    
+
     if args.verbose {
         println!("Reading data files from: {}", args.data_dir);
     }
-    
+
     // Load the world data
     let world = match importer.load_world() {
         Ok(w) => w,
@@ -40,7 +40,7 @@ pub fn run(args: ImportDataArgs) -> anyhow::Result<()> {
             return Err(e.into());
         }
     };
-    
+
     // Generate statistics
     let stats = ImportStats {
         nations: world.nations.len(),
@@ -51,7 +51,7 @@ pub fn run(args: ImportDataArgs) -> anyhow::Result<()> {
         stadiums: world.stadiums.len(),
         referees: world.referees.len(),
     };
-    
+
     // Output results
     println!("\n=== Import Summary ===");
     println!("Nations:      {}", stats.nations);
@@ -61,10 +61,10 @@ pub fn run(args: ImportDataArgs) -> anyhow::Result<()> {
     println!("Competitions: {}", stats.competitions);
     println!("Stadiums:     {}", stats.stadiums);
     println!("Referees:     {}", stats.referees);
-    
+
     if args.verbose {
         println!("\n=== Detailed Information ===");
-        
+
         println!("\nNations:");
         for (id, nation) in world.nations.iter().take(10) {
             println!("  {} - {}", id, nation.name);
@@ -72,15 +72,20 @@ pub fn run(args: ImportDataArgs) -> anyhow::Result<()> {
         if world.nations.len() > 10 {
             println!("  ... and {} more", world.nations.len() - 10);
         }
-        
+
         println!("\nClubs:");
         for (id, club) in world.clubs.iter().take(10) {
-            println!("  {} - {} ({} players)", id, club.name, club.player_ids.len());
+            println!(
+                "  {} - {} ({} players)",
+                id,
+                club.name,
+                club.player_ids.len()
+            );
         }
         if world.clubs.len() > 10 {
             println!("  ... and {} more", world.clubs.len() - 10);
         }
-        
+
         println!("\nCompetitions:");
         for (id, comp) in world.competitions.iter().take(10) {
             println!("  {} - {}", id, comp.name);
@@ -89,33 +94,38 @@ pub fn run(args: ImportDataArgs) -> anyhow::Result<()> {
             println!("  ... and {} more", world.competitions.len() - 10);
         }
     }
-    
+
     // Validation checks
     let mut warnings = Vec::new();
     let errors: Vec<String> = Vec::new();
-    
+
     // Check for clubs with no players
     for (id, club) in &world.clubs {
         if club.player_ids.is_empty() {
             warnings.push(format!("Club {} ({}) has no players", id, club.name));
         }
     }
-    
+
     // Check for players without clubs
-    let orphan_players: Vec<_> = world.players.values()
+    let orphan_players: Vec<_> = world
+        .players
+        .values()
         .filter(|p| p.club_id.is_none())
         .collect();
     if !orphan_players.is_empty() {
-        warnings.push(format!("{} players have no club assignment", orphan_players.len()));
+        warnings.push(format!(
+            "{} players have no club assignment",
+            orphan_players.len()
+        ));
     }
-    
+
     // Check for competitions without teams
     for (id, comp) in &world.competitions {
         if comp.teams.is_empty() {
             warnings.push(format!("Competition {} ({}) has no teams", id, comp.name));
         }
     }
-    
+
     // Output validation results
     if !warnings.is_empty() {
         println!("\n=== Warnings ===");
@@ -123,27 +133,30 @@ pub fn run(args: ImportDataArgs) -> anyhow::Result<()> {
             println!("⚠ {}", warning);
         }
     }
-    
+
     if !errors.is_empty() {
         println!("\n=== Errors ===");
         for error in &errors {
             println!("✗ {}", error);
         }
-        return Err(anyhow::anyhow!("Validation failed with {} errors", errors.len()));
+        return Err(anyhow::anyhow!(
+            "Validation failed with {} errors",
+            errors.len()
+        ));
     }
-    
+
     // Write report if requested
     if let Some(report_path) = args.report {
         write_report(&report_path, &stats, &warnings, &errors)?;
         println!("\nReport written to: {}", report_path);
     }
-    
+
     if args.validate_only {
         println!("\n✓ Validation complete (data not saved)");
     } else {
         println!("\n✓ Import complete");
     }
-    
+
     Ok(())
 }
 
@@ -165,9 +178,9 @@ fn write_report(
 ) -> anyhow::Result<()> {
     use std::fs::File;
     use std::io::Write;
-    
+
     let mut file = File::create(path)?;
-    
+
     writeln!(file, "CM Data Import Report")?;
     writeln!(file, "=====================")?;
     writeln!(file)?;
@@ -180,7 +193,7 @@ fn write_report(
     writeln!(file, "  Stadiums:     {}", stats.stadiums)?;
     writeln!(file, "  Referees:     {}", stats.referees)?;
     writeln!(file)?;
-    
+
     if !warnings.is_empty() {
         writeln!(file, "Warnings ({}):", warnings.len())?;
         for warning in warnings {
@@ -188,7 +201,7 @@ fn write_report(
         }
         writeln!(file)?;
     }
-    
+
     if !errors.is_empty() {
         writeln!(file, "Errors ({}):", errors.len())?;
         for error in errors {
@@ -196,8 +209,12 @@ fn write_report(
         }
         writeln!(file)?;
     }
-    
-    writeln!(file, "Status: {}", if errors.is_empty() { "PASS" } else { "FAIL" })?;
-    
+
+    writeln!(
+        file,
+        "Status: {}",
+        if errors.is_empty() { "PASS" } else { "FAIL" }
+    )?;
+
     Ok(())
 }

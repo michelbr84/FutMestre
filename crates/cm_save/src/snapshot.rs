@@ -44,7 +44,11 @@ pub struct SaveSnapshot {
 
 impl SaveSnapshot {
     /// Create a new snapshot.
-    pub fn new(world: World, config: GameConfigData, state: GameStateData) -> Result<Self, SaveError> {
+    pub fn new(
+        world: World,
+        config: GameConfigData,
+        state: GameStateData,
+    ) -> Result<Self, SaveError> {
         let payload = SavePayload {
             world,
             game_config: config,

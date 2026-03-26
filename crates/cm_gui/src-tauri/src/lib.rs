@@ -9,8 +9,8 @@ use cm_data::import::JsonWorldImporter;
 use cm_engine::config::GameMode;
 use cm_engine::{Game, GameConfig, GameState};
 use cm_match::model::{MatchInput, TeamStrength};
-use cm_save::snapshot::{GameConfigData, GameStateData, SaveSnapshot};
 use cm_save::list_saves;
+use cm_save::snapshot::{GameConfigData, GameStateData, SaveSnapshot};
 use models::*;
 use tauri::State;
 
@@ -85,7 +85,8 @@ fn generate_random_events(game: &mut Game) {
                 "Relatorio de treino: treino tatico focado na proxima partida.",
                 "Relatorio de treino: sessao leve de recuperacao hoje.",
             ];
-            game.state_mut().add_message(messages[rng.gen_range(0..messages.len())].to_string());
+            game.state_mut()
+                .add_message(messages[rng.gen_range(0..messages.len())].to_string());
         }
         1 => {
             // Scout report
@@ -94,7 +95,8 @@ fn generate_random_events(game: &mut Game) {
                 "Olheiro: um jovem talento foi identificado em uma equipe rival.",
                 "Olheiro: relatorio de scouting da proxima rodada esta pronto.",
             ];
-            game.state_mut().add_message(messages[rng.gen_range(0..messages.len())].to_string());
+            game.state_mut()
+                .add_message(messages[rng.gen_range(0..messages.len())].to_string());
         }
         2 => {
             // Board message
@@ -103,7 +105,8 @@ fn generate_random_events(game: &mut Game) {
                 "Diretoria: o conselho revisou o orcamento. Sem alteracoes no momento.",
                 "Diretoria: a diretoria espera melhorias nos proximos jogos.",
             ];
-            game.state_mut().add_message(messages[rng.gen_range(0..messages.len())].to_string());
+            game.state_mut()
+                .add_message(messages[rng.gen_range(0..messages.len())].to_string());
         }
         3 => {
             // Transfer rumor (involving other clubs)
@@ -112,14 +115,20 @@ fn generate_random_events(game: &mut Game) {
                 "Mercado: um clube rival contratou um reforco de peso.",
                 "Mercado: a janela de transferencias esta gerando interesse de clubes europeus em jogadores da liga.",
             ];
-            game.state_mut().add_message(messages[rng.gen_range(0..messages.len())].to_string());
+            game.state_mut()
+                .add_message(messages[rng.gen_range(0..messages.len())].to_string());
         }
         4 => {
             // Training injury (~10% when this fires)
             if rng.gen::<f64>() < 0.10 {
                 let world = game.world();
-                let player_name = world.clubs.get(&user_club_id)
-                    .and_then(|c| c.player_ids.get(rng.gen_range(0..c.player_ids.len().max(1))))
+                let player_name = world
+                    .clubs
+                    .get(&user_club_id)
+                    .and_then(|c| {
+                        c.player_ids
+                            .get(rng.gen_range(0..c.player_ids.len().max(1)))
+                    })
                     .and_then(|pid| world.players.get(pid))
                     .map(|p| p.full_name());
 
@@ -130,7 +139,10 @@ fn generate_random_events(game: &mut Game) {
                     ));
                 }
             } else {
-                game.state_mut().add_message("Departamento medico: nenhuma nova lesao reportada no treino de hoje.".to_string());
+                game.state_mut().add_message(
+                    "Departamento medico: nenhuma nova lesao reportada no treino de hoje."
+                        .to_string(),
+                );
             }
         }
         5 => {
@@ -141,7 +153,8 @@ fn generate_random_events(game: &mut Game) {
                 );
             } else {
                 game.state_mut().add_message(
-                    "Base: o centro de formacao esta desenvolvendo bons talentos para o futuro.".to_string()
+                    "Base: o centro de formacao esta desenvolvendo bons talentos para o futuro."
+                        .to_string(),
                 );
             }
         }
@@ -165,7 +178,10 @@ fn saves_dir() -> std::path::PathBuf {
 // ─── Commands: Game Lifecycle ────────────────────────────────────────────────
 
 #[tauri::command]
-fn get_available_clubs(game_mode: Option<String>, _state: State<AppState>) -> Vec<DisplayClubOption> {
+fn get_available_clubs(
+    game_mode: Option<String>,
+    _state: State<AppState>,
+) -> Vec<DisplayClubOption> {
     let importer = JsonWorldImporter::new(resolve_data_dir());
     let world = match importer.load_world() {
         Ok(w) => w,
@@ -299,7 +315,9 @@ fn build_game_state(game: &Game) -> DisplayGameState {
 
     let c = world.clubs.get(cid);
     let cname = c.map(|c| c.name.clone()).unwrap_or_default();
-    let balance = c.map(|c| format_money(c.budget.balance)).unwrap_or_default();
+    let balance = c
+        .map(|c| format_money(c.budget.balance))
+        .unwrap_or_default();
     let transfer_budget = c
         .map(|c| format_money(c.budget.transfer_budget))
         .unwrap_or_default();
@@ -454,7 +472,8 @@ fn advance_day(state: State<AppState>) -> Option<AdvanceDayResult> {
                     if let Some(ref r) = fixture.result {
                         let hn = club_name(world, &fixture.home_id);
                         let an = club_name(world, &fixture.away_id);
-                        result_lines.push(format!("{} {} x {} {}", hn, r.home_goals, r.away_goals, an));
+                        result_lines
+                            .push(format!("{} {} x {} {}", hn, r.home_goals, r.away_goals, an));
                         round_results.push(RoundResult {
                             home_name: hn,
                             away_name: an,
@@ -541,7 +560,11 @@ fn check_match_today(state: State<AppState>) -> Option<DisplayFixturePreview> {
 // ─── Commands: Match ─────────────────────────────────────────────────────────
 
 #[tauri::command]
-fn start_match(home_id: String, away_id: String, state: State<AppState>) -> Option<DisplayMatchResult> {
+fn start_match(
+    home_id: String,
+    away_id: String,
+    state: State<AppState>,
+) -> Option<DisplayMatchResult> {
     let mut lock = state.game.lock().unwrap();
     let game = lock.as_mut()?;
 
@@ -675,26 +698,24 @@ fn get_fixtures(state: State<AppState>) -> Vec<DisplayFixture> {
         .competitions
         .values()
         .flat_map(|comp| {
-            comp.fixtures
-                .for_team(user_club)
-                .into_iter()
-                .map(move |f| {
-                    let result_str = f.result.as_ref().map(|r| {
-                        format!("{} x {}", r.home_goals, r.away_goals)
-                    });
-                    DisplayFixture {
-                        id: f.id.to_string(),
-                        competition: comp.name.clone(),
-                        round: f.round,
-                        date: f.date.format("%d %b %Y").to_string(),
-                        home_name: club_name(world, &f.home_id),
-                        away_name: club_name(world, &f.away_id),
-                        home_id: f.home_id.to_string(),
-                        away_id: f.away_id.to_string(),
-                        result: result_str,
-                        played: f.is_played(),
-                    }
-                })
+            comp.fixtures.for_team(user_club).into_iter().map(move |f| {
+                let result_str = f
+                    .result
+                    .as_ref()
+                    .map(|r| format!("{} x {}", r.home_goals, r.away_goals));
+                DisplayFixture {
+                    id: f.id.to_string(),
+                    competition: comp.name.clone(),
+                    round: f.round,
+                    date: f.date.format("%d %b %Y").to_string(),
+                    home_name: club_name(world, &f.home_id),
+                    away_name: club_name(world, &f.away_id),
+                    home_id: f.home_id.to_string(),
+                    away_id: f.away_id.to_string(),
+                    result: result_str,
+                    played: f.is_played(),
+                }
+            })
         })
         .collect();
 
@@ -805,11 +826,7 @@ fn offer_transfer(player_id: String, amount: u64, state: State<AppState>) -> Str
     let (player_name, player_value, player_club) = {
         let world = game.world();
         match world.players.get(&pid) {
-            Some(p) => (
-                p.full_name(),
-                p.value.major() as u64,
-                p.club_id.clone(),
-            ),
+            Some(p) => (p.full_name(), p.value.major() as u64, p.club_id.clone()),
             None => return "Jogador nao encontrado.".into(),
         }
     };
@@ -821,7 +838,10 @@ fn offer_transfer(player_id: String, amount: u64, state: State<AppState>) -> Str
             Some(c) => c,
             None => return "Clube nao encontrado.".into(),
         };
-        if !club.budget.can_afford_transfer(cm_core::economy::Money::from_major(amount as i64)) {
+        if !club
+            .budget
+            .can_afford_transfer(cm_core::economy::Money::from_major(amount as i64))
+        {
             return "Orcamento insuficiente para esta transferencia.".into();
         }
     }
@@ -1009,6 +1029,7 @@ fn load_game(slot_id: u32, state: State<AppState>) -> Result<DisplayGameState, S
         flags: cm_engine::state::GameFlags::default(),
         days_played: 0,
         last_match_result: None,
+        career_objectives: Vec::new(),
     };
 
     let cfg = GameConfig {
@@ -1082,16 +1103,21 @@ fn get_all_fixtures(state: State<AppState>) -> Vec<DisplayFixture> {
         .competitions
         .values()
         .flat_map(|comp| {
-            comp.fixtures.matches.iter()
+            comp.fixtures
+                .matches
+                .iter()
                 .filter(|f| {
                     // Show: played today, or upcoming within 7 days
                     (f.is_played() && f.date == today)
-                        || (!f.is_played() && f.date >= today && f.date <= today + chrono::Duration::days(14))
+                        || (!f.is_played()
+                            && f.date >= today
+                            && f.date <= today + chrono::Duration::days(14))
                 })
                 .map(move |f| {
-                    let result_str = f.result.as_ref().map(|r| {
-                        format!("{} x {}", r.home_goals, r.away_goals)
-                    });
+                    let result_str = f
+                        .result
+                        .as_ref()
+                        .map(|r| format!("{} x {}", r.home_goals, r.away_goals));
                     DisplayFixture {
                         id: f.id.to_string(),
                         competition: comp.name.clone(),

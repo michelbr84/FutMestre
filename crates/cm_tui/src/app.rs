@@ -3,17 +3,16 @@
 use chrono::NaiveDate;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Cell, Clear, List, ListItem, Paragraph, Row, Table, Tabs, Wrap};
+use ratatui::widgets::{
+    Block, Borders, Cell, Clear, List, ListItem, Paragraph, Row, Table, Tabs, Wrap,
+};
 
 use cm_core::ids::{ClubId, CompetitionId, PlayerId};
-use cm_core::world::{
-    CompetitionType, Formation, Mentality, Player, Position, Tempo,
-    World,
-};
+use cm_core::world::{CompetitionType, Formation, Mentality, Player, Position, Tempo, World};
 use cm_data::import::JsonWorldImporter;
 use cm_engine::{Game, GameConfig, GameState};
-use cm_save::SaveSnapshot;
 use cm_save::snapshot::{GameConfigData, GameStateData};
+use cm_save::SaveSnapshot;
 
 // ─── App State ──────────────────────────────────────────────────────────────
 
@@ -50,6 +49,8 @@ pub struct SaveFileEntry {
     pub manager_name: String,
     pub club_name: String,
     pub game_date: String,
+    pub file_size: u64,
+    pub created_at: String,
 }
 
 pub struct InGameState {
@@ -65,6 +66,8 @@ pub struct InGameState {
     pub show_popup: Option<String>,
     pub transfer_selected: usize,
     pub transfer_confirm: Option<TransferConfirmState>,
+    /// Contra-proposta ativa do clube vendedor.
+    pub transfer_counter: Option<TransferCounterState>,
 }
 
 pub struct TransferConfirmState {
@@ -75,25 +78,79 @@ pub struct TransferConfirmState {
     pub value_minor: i64,
 }
 
+/// Estado de contra-proposta recebida.
+pub struct TransferCounterState {
+    pub player_name: String,
+    pub player_id: PlayerId,
+    pub from_club_id: Option<ClubId>,
+    /// Valor da contra-proposta (em minor).
+    pub counter_value_minor: i64,
+    pub counter_value_display: String,
+}
+
+/// Fase da partida ao vivo.
+#[derive(Clone, Copy, PartialEq)]
+pub enum MatchPhase {
+    PreMatch,
+    FirstHalf,
+    HalfTime,
+    SecondHalf,
+    FullTime,
+}
+
 pub struct MatchLiveState {
-    pub events: Vec<String>,
-    pub event_index: usize,
+    /// Narracoes acumuladas para exibicao (texto colorido).
+    pub narration: Vec<(String, NarrationStyle)>,
+    /// Indice do proximo evento de MatchEvent a revelar.
+    pub next_event_idx: usize,
+    /// Minuto atual exibido.
+    pub minute: u8,
+    /// Fase atual.
+    pub phase: MatchPhase,
+    /// Nomes dos times.
     pub home_name: String,
     pub away_name: String,
+    /// Gols acumulados ate o minuto atual.
     pub home_goals: u8,
     pub away_goals: u8,
-    pub minute: u8,
-    pub finished: bool,
+    /// Dados ricos da partida (resultado completo do motor).
+    pub match_events: Vec<cm_match::MatchEvent>,
+    pub match_stats: cm_match::MatchStats,
+    /// Total de gols final (para revelar progressivamente).
+    pub final_home_goals: u8,
+    pub final_away_goals: u8,
+    /// Substituicoes.
     pub subs_made: u8,
-    pub subs_available: Vec<(String, String)>, // (player_out_name, player_in_name)
+    pub subs_available: Vec<(String, String)>,
     pub showing_subs: bool,
     pub sub_selected: usize,
+    /// Scroll da narração (para ver eventos antigos).
+    pub narration_scroll: u16,
+}
+
+/// Estilo de narração para colorização.
+#[derive(Clone, Copy, PartialEq)]
+pub enum NarrationStyle {
+    Goal,
+    YellowCard,
+    RedCard,
+    Injury,
+    Substitution,
+    Atmosphere,
+    HalfTime,
+    FullTime,
+    Corner,
+    Penalty,
+    Normal,
 }
 
 pub struct SettingsState {
     pub selected: usize,
     pub language: String,
     pub currency: String,
+    pub wage_display: usize,     // 0=Weekly, 1=Monthly, 2=Yearly
+    pub match_speed: u8,         // 1-5
+    pub auto_save_interval: u16, // days
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -185,11 +242,15 @@ fn handle_main_menu(key: KeyCode, st: &mut MainMenuState) -> AppScreen {
     match key {
         KeyCode::Up => {
             st.selected = st.selected.saturating_sub(1);
-            AppScreen::MainMenu(MainMenuState { selected: st.selected })
+            AppScreen::MainMenu(MainMenuState {
+                selected: st.selected,
+            })
         }
         KeyCode::Down => {
             st.selected = (st.selected + 1).min(3);
-            AppScreen::MainMenu(MainMenuState { selected: st.selected })
+            AppScreen::MainMenu(MainMenuState {
+                selected: st.selected,
+            })
         }
         KeyCode::Enter => match st.selected {
             0 => {
@@ -203,12 +264,7 @@ fn handle_main_menu(key: KeyCode, st: &mut MainMenuState) -> AppScreen {
 
                 for club in sorted {
                     let div = find_club_division(&world, &club.id);
-                    clubs.push((
-                        club.id.clone(),
-                        club.name.clone(),
-                        div,
-                        club.reputation,
-                    ));
+                    clubs.push((club.id.clone(), club.name.clone(), div, club.reputation));
                 }
 
                 AppScreen::NewGame(NewGameState {
@@ -241,13 +297,20 @@ fn handle_main_menu(key: KeyCode, st: &mut MainMenuState) -> AppScreen {
                     selected: 0,
                     language: "Portugues".into(),
                     currency: "R$ (Real)".into(),
+                    wage_display: 0,
+                    match_speed: 3,
+                    auto_save_interval: 7,
                 })
             }
             3 => AppScreen::Quit,
-            _ => AppScreen::MainMenu(MainMenuState { selected: st.selected }),
+            _ => AppScreen::MainMenu(MainMenuState {
+                selected: st.selected,
+            }),
         },
         KeyCode::Char('q') => AppScreen::Quit,
-        _ => AppScreen::MainMenu(MainMenuState { selected: st.selected }),
+        _ => AppScreen::MainMenu(MainMenuState {
+            selected: st.selected,
+        }),
     }
 }
 
@@ -259,40 +322,52 @@ fn handle_new_game(key: KeyCode, st: &mut NewGameState) -> AppScreen {
                     st.manager_name = "Tecnico".into();
                 }
                 st.editing_name = false;
-                return AppScreen::NewGame(std::mem::replace(st, NewGameState {
-                    club_index: 0,
-                    manager_name: String::new(),
-                    editing_name: true,
-                    available_clubs: Vec::new(),
-                }));
+                return AppScreen::NewGame(std::mem::replace(
+                    st,
+                    NewGameState {
+                        club_index: 0,
+                        manager_name: String::new(),
+                        editing_name: true,
+                        available_clubs: Vec::new(),
+                    },
+                ));
             }
             KeyCode::Char(c) => {
                 st.manager_name.push(c);
-                return AppScreen::NewGame(std::mem::replace(st, NewGameState {
-                    club_index: 0,
-                    manager_name: String::new(),
-                    editing_name: true,
-                    available_clubs: Vec::new(),
-                }));
+                return AppScreen::NewGame(std::mem::replace(
+                    st,
+                    NewGameState {
+                        club_index: 0,
+                        manager_name: String::new(),
+                        editing_name: true,
+                        available_clubs: Vec::new(),
+                    },
+                ));
             }
             KeyCode::Backspace => {
                 st.manager_name.pop();
-                return AppScreen::NewGame(std::mem::replace(st, NewGameState {
-                    club_index: 0,
-                    manager_name: String::new(),
-                    editing_name: true,
-                    available_clubs: Vec::new(),
-                }));
+                return AppScreen::NewGame(std::mem::replace(
+                    st,
+                    NewGameState {
+                        club_index: 0,
+                        manager_name: String::new(),
+                        editing_name: true,
+                        available_clubs: Vec::new(),
+                    },
+                ));
             }
             KeyCode::Esc => return AppScreen::MainMenu(MainMenuState { selected: 0 }),
             _ => {}
         }
-        return AppScreen::NewGame(std::mem::replace(st, NewGameState {
-            club_index: 0,
-            manager_name: String::new(),
-            editing_name: true,
-            available_clubs: Vec::new(),
-        }));
+        return AppScreen::NewGame(std::mem::replace(
+            st,
+            NewGameState {
+                club_index: 0,
+                manager_name: String::new(),
+                editing_name: true,
+                available_clubs: Vec::new(),
+            },
+        ));
     }
 
     match key {
@@ -319,12 +394,15 @@ fn handle_new_game(key: KeyCode, st: &mut NewGameState) -> AppScreen {
         _ => {}
     }
 
-    AppScreen::NewGame(std::mem::replace(st, NewGameState {
-        club_index: 0,
-        manager_name: String::new(),
-        editing_name: true,
-        available_clubs: Vec::new(),
-    }))
+    AppScreen::NewGame(std::mem::replace(
+        st,
+        NewGameState {
+            club_index: 0,
+            manager_name: String::new(),
+            editing_name: true,
+            available_clubs: Vec::new(),
+        },
+    ))
 }
 
 fn handle_load_game(key: KeyCode, st: &mut LoadGameState) -> AppScreen {
@@ -358,6 +436,25 @@ fn handle_load_game(key: KeyCode, st: &mut LoadGameState) -> AppScreen {
                 }
             }
         }
+        KeyCode::Char('d') | KeyCode::Char('D') => {
+            if let Some(save_entry) = st.saves.get(st.selected) {
+                let path = save_entry.file_path.clone();
+                match cm_save::delete_save(&path) {
+                    Ok(()) => {
+                        st.saves.remove(st.selected);
+                        if st.selected > 0 && st.selected >= st.saves.len() {
+                            st.selected = st.saves.len().saturating_sub(1);
+                        }
+                        if st.saves.is_empty() {
+                            st.error_msg = Some("Nenhum save restante".to_string());
+                        }
+                    }
+                    Err(_) => {
+                        st.error_msg = Some("Erro ao excluir o save".to_string());
+                    }
+                }
+            }
+        }
         KeyCode::Esc => return AppScreen::MainMenu(MainMenuState { selected: 0 }),
         _ => {}
     }
@@ -378,11 +475,38 @@ fn handle_in_game(key: KeyCode, mods: KeyModifiers, st: &mut InGameState) -> App
         return AppScreen::InGame(std::mem::replace(st, dummy_in_game()));
     }
 
+    // Handle counter-proposal popup
+    if st.transfer_counter.is_some() {
+        match key {
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                // Aceitar contra-proposta -> executar transferencia pelo valor da contra
+                let counter = st.transfer_counter.take().unwrap();
+                execute_transfer(
+                    st,
+                    &counter.player_id,
+                    &counter.from_club_id,
+                    counter.counter_value_minor,
+                    &counter.player_name,
+                );
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                // Recusar contra-proposta -> volta para lista de transferencias
+                let counter = st.transfer_counter.take().unwrap();
+                st.show_popup = Some(format!(
+                    "Contra-proposta recusada. Voce pode fazer nova oferta por {}.",
+                    counter.player_name
+                ));
+            }
+            _ => {}
+        }
+        return AppScreen::InGame(std::mem::replace(st, dummy_in_game()));
+    }
+
     // Handle transfer confirmation popup
     if st.transfer_confirm.is_some() {
         match key {
             KeyCode::Char('s') | KeyCode::Char('S') => {
-                // Accept transfer
+                // Tentar fazer oferta - usar sistema de negociacao
                 let confirm = st.transfer_confirm.take().unwrap();
                 let can_afford = {
                     let club = st.game.world().clubs.get(&st.game.state().club_id);
@@ -391,40 +515,95 @@ fn handle_in_game(key: KeyCode, mods: KeyModifiers, st: &mut InGameState) -> App
                 };
 
                 if can_afford {
-                    let user_club_id = st.game.state().club_id.clone();
-                    let player_id = confirm.player_id.clone();
-                    let from_club = confirm.from_club_id.clone();
-                    let value_minor = confirm.value_minor;
-                    let player_name = confirm.player_name.clone();
+                    // Avaliar oferta usando o sistema de negociacao
+                    let negotiation_result = {
+                        let user_club_id = st.game.state().club_id.clone();
+                        let game_date = st.game.state().date.date();
+                        let user_rep = st
+                            .game
+                            .world()
+                            .clubs
+                            .get(&user_club_id)
+                            .map(|c| c.reputation)
+                            .unwrap_or(50);
+                        let selling_rep = confirm
+                            .from_club_id
+                            .as_ref()
+                            .and_then(|cid| st.game.world().clubs.get(cid))
+                            .map(|c| c.reputation)
+                            .unwrap_or(50);
+                        let player = st.game.world().players.get(&confirm.player_id);
+                        let (player_value, contract_years) = player
+                            .map(|p| {
+                                (
+                                    p.value,
+                                    p.contract
+                                        .as_ref()
+                                        .map(|c| c.years_remaining(game_date))
+                                        .unwrap_or(2.0),
+                                )
+                            })
+                            .unwrap_or((
+                                cm_core::economy::Money::from_minor(confirm.value_minor),
+                                2.0,
+                            ));
 
-                    // Deduct from user budget
-                    if let Some(club) = st.game.world_mut().clubs.get_mut(&user_club_id) {
-                        let amount = cm_core::economy::Money::from_minor(value_minor);
-                        club.budget.spend_transfer(amount);
-                        club.player_ids.push(player_id.clone());
-                    }
+                        let asking_price = cm_transfers::negotiation::calculate_asking_price(
+                            player_value,
+                            contract_years as f32,
+                            50,
+                            false,
+                        );
+                        let context = cm_transfers::negotiation::NegotiationContext {
+                            player_value,
+                            asking_price,
+                            selling_club_reputation: selling_rep,
+                            buying_club_reputation: user_rep,
+                            player_wants_to_leave: false,
+                            contract_remaining_years: contract_years as f32,
+                            selling_desperation: 0,
+                        };
+                        let bid = cm_transfers::negotiation::TransferBid::new(
+                            cm_core::economy::Money::from_minor(confirm.value_minor),
+                        );
+                        cm_transfers::negotiation::evaluate_bid(&bid, &context)
+                    };
 
-                    // Remove from old club and add transfer income
-                    if let Some(ref old_club_id) = from_club {
-                        if let Some(old_club) = st.game.world_mut().clubs.get_mut(old_club_id) {
-                            old_club.player_ids.retain(|pid| pid != &player_id);
-                            let amount = cm_core::economy::Money::from_minor(value_minor);
-                            old_club.budget.receive_transfer(amount);
+                    match negotiation_result {
+                        cm_transfers::negotiation::NegotiationResponse::Accept => {
+                            execute_transfer(
+                                st,
+                                &confirm.player_id,
+                                &confirm.from_club_id,
+                                confirm.value_minor,
+                                &confirm.player_name,
+                            );
+                        }
+                        cm_transfers::negotiation::NegotiationResponse::Counter(counter_amount) => {
+                            st.transfer_counter = Some(TransferCounterState {
+                                player_name: confirm.player_name,
+                                player_id: confirm.player_id,
+                                from_club_id: confirm.from_club_id,
+                                counter_value_minor: counter_amount.minor(),
+                                counter_value_display: format!("{}", counter_amount),
+                            });
+                        }
+                        cm_transfers::negotiation::NegotiationResponse::Reject => {
+                            st.show_popup = Some(format!(
+                                "Oferta rejeitada!\nO clube vendedor nao aceita esse valor por {}.",
+                                confirm.player_name
+                            ));
+                        }
+                        cm_transfers::negotiation::NegotiationResponse::WaitingForPlayer => {
+                            st.show_popup = Some(format!(
+                                "Aguardando resposta do jogador {}...",
+                                confirm.player_name
+                            ));
                         }
                     }
-
-                    // Update player's club_id
-                    if let Some(player) = st.game.world_mut().players.get_mut(&player_id) {
-                        player.club_id = Some(user_club_id.clone());
-                    }
-
-                    st.game.state_mut().add_message(format!(
-                        "Transferencia concluida! {} chegou ao clube.",
-                        player_name
-                    ));
-                    st.show_popup = Some(format!("Transferencia concluida!\n{} e seu novo jogador!", player_name));
                 } else {
-                    st.show_popup = Some("Orcamento insuficiente para esta transferencia!".to_string());
+                    st.show_popup =
+                        Some("Orcamento insuficiente para esta transferencia!".to_string());
                 }
             }
             KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
@@ -443,18 +622,25 @@ fn handle_in_game(key: KeyCode, mods: KeyModifiers, st: &mut InGameState) -> App
                     live.sub_selected = live.sub_selected.saturating_sub(1);
                 }
                 KeyCode::Down => {
-                    let max = if live.subs_available.is_empty() { 0 } else { live.subs_available.len() - 1 };
+                    let max = if live.subs_available.is_empty() {
+                        0
+                    } else {
+                        live.subs_available.len() - 1
+                    };
                     live.sub_selected = (live.sub_selected + 1).min(max);
                 }
                 KeyCode::Enter => {
                     if live.subs_made < 3 && !live.subs_available.is_empty() {
-                        let sub_idx = live.sub_selected.min(live.subs_available.len().saturating_sub(1));
+                        let sub_idx = live
+                            .sub_selected
+                            .min(live.subs_available.len().saturating_sub(1));
                         let (out_name, in_name) = live.subs_available[sub_idx].clone();
                         live.subs_made += 1;
-                        live.events.push(format!(
-                            "  {}' SUBSTITUICAO: {} sai, {} entra ({}/3)",
+                        let text = format!(
+                            "{}' SUBSTITUICAO: {} sai, {} entra ({}/3)",
                             live.minute, out_name, in_name, live.subs_made
-                        ));
+                        );
+                        live.narration.push((text, NarrationStyle::Substitution));
                         live.subs_available.remove(sub_idx);
                         if live.sub_selected > 0 && live.sub_selected >= live.subs_available.len() {
                             live.sub_selected = live.subs_available.len().saturating_sub(1);
@@ -470,7 +656,7 @@ fn handle_in_game(key: KeyCode, mods: KeyModifiers, st: &mut InGameState) -> App
             return AppScreen::InGame(std::mem::replace(st, dummy_in_game()));
         }
 
-        if live.finished {
+        if live.phase == MatchPhase::FullTime {
             if matches!(key, KeyCode::Enter | KeyCode::Esc) {
                 st.match_live = None;
             }
@@ -479,34 +665,23 @@ fn handle_in_game(key: KeyCode, mods: KeyModifiers, st: &mut InGameState) -> App
 
         match key {
             KeyCode::Char(' ') => {
-                // Advance through events
-                if live.event_index < live.events.len() {
-                    live.event_index += 1;
-                    // Update minute based on event progress
-                    let progress = if live.events.is_empty() {
-                        90
-                    } else {
-                        ((live.event_index as u16 * 90) / live.events.len() as u16).min(90) as u8
-                    };
-                    live.minute = progress;
-                }
-                if live.event_index >= live.events.len() {
-                    live.finished = true;
-                    live.minute = 90;
-                }
+                advance_match_live(live);
             }
             KeyCode::Char('s') | KeyCode::Char('S') => {
-                // Open substitution menu
-                if live.subs_made < 3 && !live.subs_available.is_empty() {
+                if live.subs_made < 3
+                    && !live.subs_available.is_empty()
+                    && live.phase != MatchPhase::PreMatch
+                    && live.phase != MatchPhase::FullTime
+                {
                     live.showing_subs = true;
                     live.sub_selected = 0;
                 }
             }
             KeyCode::Enter | KeyCode::Esc => {
-                // Skip to end
-                live.event_index = live.events.len();
-                live.finished = true;
-                live.minute = 90;
+                // Pular para o fim - revelar todos eventos restantes
+                while live.phase != MatchPhase::FullTime {
+                    advance_match_live(live);
+                }
             }
             _ => {}
         }
@@ -594,14 +769,27 @@ fn handle_tab_input(st: &mut InGameState, key: KeyCode) {
                             0 => {
                                 // Formation
                                 let formations = [
-                                    Formation::F442, Formation::F433, Formation::F352,
-                                    Formation::F451, Formation::F4231, Formation::F3412,
-                                    Formation::F532, Formation::F4141, Formation::F4411,
+                                    Formation::F442,
+                                    Formation::F433,
+                                    Formation::F352,
+                                    Formation::F451,
+                                    Formation::F4231,
+                                    Formation::F3412,
+                                    Formation::F532,
+                                    Formation::F4141,
+                                    Formation::F4411,
                                     Formation::F343,
                                 ];
-                                let cur = formations.iter().position(|f| *f == club.tactics.formation).unwrap_or(0);
+                                let cur = formations
+                                    .iter()
+                                    .position(|f| *f == club.tactics.formation)
+                                    .unwrap_or(0);
                                 let next = if left {
-                                    if cur == 0 { formations.len() - 1 } else { cur - 1 }
+                                    if cur == 0 {
+                                        formations.len() - 1
+                                    } else {
+                                        cur - 1
+                                    }
                                 } else {
                                     (cur + 1) % formations.len()
                                 };
@@ -610,13 +798,22 @@ fn handle_tab_input(st: &mut InGameState, key: KeyCode) {
                             1 => {
                                 // Mentality
                                 let mentalities = [
-                                    Mentality::Defensive, Mentality::Cautious,
-                                    Mentality::Balanced, Mentality::Attacking,
+                                    Mentality::Defensive,
+                                    Mentality::Cautious,
+                                    Mentality::Balanced,
+                                    Mentality::Attacking,
                                     Mentality::AllOutAttack,
                                 ];
-                                let cur = mentalities.iter().position(|m| *m == club.tactics.mentality).unwrap_or(2);
+                                let cur = mentalities
+                                    .iter()
+                                    .position(|m| *m == club.tactics.mentality)
+                                    .unwrap_or(2);
                                 let next = if left {
-                                    if cur == 0 { mentalities.len() - 1 } else { cur - 1 }
+                                    if cur == 0 {
+                                        mentalities.len() - 1
+                                    } else {
+                                        cur - 1
+                                    }
                                 } else {
                                     (cur + 1) % mentalities.len()
                                 };
@@ -625,9 +822,16 @@ fn handle_tab_input(st: &mut InGameState, key: KeyCode) {
                             2 => {
                                 // Tempo
                                 let tempos = [Tempo::Slow, Tempo::Normal, Tempo::Fast];
-                                let cur = tempos.iter().position(|t| *t == club.tactics.tempo).unwrap_or(1);
+                                let cur = tempos
+                                    .iter()
+                                    .position(|t| *t == club.tactics.tempo)
+                                    .unwrap_or(1);
                                 let next = if left {
-                                    if cur == 0 { tempos.len() - 1 } else { cur - 1 }
+                                    if cur == 0 {
+                                        tempos.len() - 1
+                                    } else {
+                                        cur - 1
+                                    }
                                 } else {
                                     (cur + 1) % tempos.len()
                                 };
@@ -635,23 +839,40 @@ fn handle_tab_input(st: &mut InGameState, key: KeyCode) {
                             }
                             3 => {
                                 // Pressing
-                                if left { club.tactics.pressing = club.tactics.pressing.saturating_sub(10); }
-                                else { club.tactics.pressing = (club.tactics.pressing + 10).min(100); }
+                                if left {
+                                    club.tactics.pressing =
+                                        club.tactics.pressing.saturating_sub(10);
+                                } else {
+                                    club.tactics.pressing = (club.tactics.pressing + 10).min(100);
+                                }
                             }
                             4 => {
                                 // Defensive line
-                                if left { club.tactics.defensive_line = club.tactics.defensive_line.saturating_sub(10); }
-                                else { club.tactics.defensive_line = (club.tactics.defensive_line + 10).min(100); }
+                                if left {
+                                    club.tactics.defensive_line =
+                                        club.tactics.defensive_line.saturating_sub(10);
+                                } else {
+                                    club.tactics.defensive_line =
+                                        (club.tactics.defensive_line + 10).min(100);
+                                }
                             }
                             5 => {
                                 // Width
-                                if left { club.tactics.width = club.tactics.width.saturating_sub(10); }
-                                else { club.tactics.width = (club.tactics.width + 10).min(100); }
+                                if left {
+                                    club.tactics.width = club.tactics.width.saturating_sub(10);
+                                } else {
+                                    club.tactics.width = (club.tactics.width + 10).min(100);
+                                }
                             }
                             6 => {
                                 // Direct passing
-                                if left { club.tactics.direct_passing = club.tactics.direct_passing.saturating_sub(10); }
-                                else { club.tactics.direct_passing = (club.tactics.direct_passing + 10).min(100); }
+                                if left {
+                                    club.tactics.direct_passing =
+                                        club.tactics.direct_passing.saturating_sub(10);
+                                } else {
+                                    club.tactics.direct_passing =
+                                        (club.tactics.direct_passing + 10).min(100);
+                                }
                             }
                             _ => {}
                         }
@@ -670,13 +891,11 @@ fn handle_tab_input(st: &mut InGameState, key: KeyCode) {
                 _ => {}
             }
         }
-        GameTab::Standings => {
-            match key {
-                KeyCode::Left => st.standings_division = st.standings_division.saturating_sub(1),
-                KeyCode::Right => st.standings_division = (st.standings_division + 1).min(3),
-                _ => {}
-            }
-        }
+        GameTab::Standings => match key {
+            KeyCode::Left => st.standings_division = st.standings_division.saturating_sub(1),
+            KeyCode::Right => st.standings_division = (st.standings_division + 1).min(3),
+            _ => {}
+        },
         GameTab::Inbox => {
             let max = st.game.state().inbox.len().saturating_sub(1);
             match key {
@@ -695,10 +914,54 @@ fn handle_tab_input(st: &mut InGameState, key: KeyCode) {
     }
 }
 
+/// Executa a transferencia: deduz orcamento, move jogador, atualiza clubes.
+fn execute_transfer(
+    st: &mut InGameState,
+    player_id: &PlayerId,
+    from_club_id: &Option<ClubId>,
+    value_minor: i64,
+    player_name: &str,
+) {
+    let user_club_id = st.game.state().club_id.clone();
+    let amount = cm_core::economy::Money::from_minor(value_minor);
+
+    // Deduct from user budget
+    if let Some(club) = st.game.world_mut().clubs.get_mut(&user_club_id) {
+        club.budget.spend_transfer(amount);
+        club.player_ids.push(player_id.clone());
+    }
+
+    // Remove from old club and add transfer income
+    if let Some(ref old_club_id) = from_club_id {
+        if let Some(old_club) = st.game.world_mut().clubs.get_mut(old_club_id) {
+            old_club.player_ids.retain(|pid| pid != player_id);
+            old_club.budget.receive_transfer(amount);
+        }
+    }
+
+    // Update player's club_id
+    if let Some(player) = st.game.world_mut().players.get_mut(player_id) {
+        player.club_id = Some(user_club_id.clone());
+    }
+
+    st.game.state_mut().add_message(format!(
+        "Transferencia concluida! {} chegou ao clube.",
+        player_name
+    ));
+    st.show_popup = Some(format!(
+        "Transferencia concluida!\n{} e seu novo jogador!",
+        player_name
+    ));
+}
+
 fn handle_transfers_input(st: &mut InGameState, key: KeyCode) {
     // Build target list to get count
     let user_club = st.game.state().club_id.clone();
-    let target_count = st.game.world().players.iter()
+    let target_count = st
+        .game
+        .world()
+        .players
+        .iter()
         .filter(|(_, player)| {
             player.club_id.as_ref() != Some(&user_club) && player.overall_rating() >= 60
         })
@@ -725,7 +988,9 @@ fn handle_transfers_input(st: &mut InGameState, key: KeyCode) {
             let mut targets: Vec<(PlayerId, String, Option<ClubId>, String, i64)> = Vec::new();
             for (pid, player) in &st.game.world().players {
                 if player.club_id.as_ref() != Some(&user_club_id) && player.overall_rating() >= 60 {
-                    let club_name = player.club_id.as_ref()
+                    let club_name = player
+                        .club_id
+                        .as_ref()
                         .and_then(|cid| st.game.world().clubs.get(cid))
                         .map(|c| c.short_name.clone())
                         .unwrap_or_else(|| "Livre".to_string());
@@ -736,7 +1001,9 @@ fn handle_transfers_input(st: &mut InGameState, key: KeyCode) {
                         format!("{}", player.value),
                         player.value.minor(),
                     ));
-                    if targets.len() >= 30 { break; }
+                    if targets.len() >= 30 {
+                        break;
+                    }
                 }
             }
 
@@ -755,31 +1022,75 @@ fn handle_transfers_input(st: &mut InGameState, key: KeyCode) {
 }
 
 fn handle_settings(key: KeyCode, st: &mut SettingsState) -> AppScreen {
+    const MAX_SETTING: usize = 4; // 0..=4 (5 items)
     match key {
         KeyCode::Up => st.selected = st.selected.saturating_sub(1),
-        KeyCode::Down => st.selected = (st.selected + 1).min(1),
-        KeyCode::Left | KeyCode::Right => {
-            match st.selected {
-                0 => {
-                    st.language = if st.language == "Portugues" {
-                        "English".into()
-                    } else {
-                        "Portugues".into()
-                    };
-                }
-                1 => {
-                    let currencies = ["R$ (Real)", "$ (Dollar)", "EUR (Euro)", "GBP (Libra)"];
-                    let cur = currencies.iter().position(|c| *c == st.currency.as_str()).unwrap_or(0);
-                    let next = if matches!(key, KeyCode::Left) {
-                        if cur == 0 { currencies.len() - 1 } else { cur - 1 }
-                    } else {
-                        (cur + 1) % currencies.len()
-                    };
-                    st.currency = currencies[next].into();
-                }
-                _ => {}
+        KeyCode::Down => st.selected = (st.selected + 1).min(MAX_SETTING),
+        KeyCode::Left | KeyCode::Right => match st.selected {
+            0 => {
+                st.language = if st.language == "Portugues" {
+                    "English".into()
+                } else {
+                    "Portugues".into()
+                };
             }
-        }
+            1 => {
+                let currencies = ["R$ (Real)", "$ (Dollar)", "EUR (Euro)", "GBP (Libra)"];
+                let cur = currencies
+                    .iter()
+                    .position(|c| *c == st.currency.as_str())
+                    .unwrap_or(0);
+                let next = if matches!(key, KeyCode::Left) {
+                    if cur == 0 {
+                        currencies.len() - 1
+                    } else {
+                        cur - 1
+                    }
+                } else {
+                    (cur + 1) % currencies.len()
+                };
+                st.currency = currencies[next].into();
+            }
+            2 => {
+                // Wage display: 0=Semanal, 1=Mensal, 2=Anual
+                if matches!(key, KeyCode::Left) {
+                    st.wage_display = if st.wage_display == 0 {
+                        2
+                    } else {
+                        st.wage_display - 1
+                    };
+                } else {
+                    st.wage_display = (st.wage_display + 1) % 3;
+                }
+            }
+            3 => {
+                // Match speed: 1-5
+                if matches!(key, KeyCode::Left) {
+                    st.match_speed = st.match_speed.saturating_sub(1).max(1);
+                } else {
+                    st.match_speed = (st.match_speed + 1).min(5);
+                }
+            }
+            4 => {
+                // Auto save interval: cycle through common values
+                let intervals: [u16; 5] = [1, 3, 7, 14, 30];
+                let cur = intervals
+                    .iter()
+                    .position(|&v| v == st.auto_save_interval)
+                    .unwrap_or(2);
+                let next = if matches!(key, KeyCode::Left) {
+                    if cur == 0 {
+                        intervals.len() - 1
+                    } else {
+                        cur - 1
+                    }
+                } else {
+                    (cur + 1) % intervals.len()
+                };
+                st.auto_save_interval = intervals[next];
+            }
+            _ => {}
+        },
         KeyCode::Esc => return AppScreen::MainMenu(MainMenuState { selected: 0 }),
         _ => {}
     }
@@ -787,6 +1098,9 @@ fn handle_settings(key: KeyCode, st: &mut SettingsState) -> AppScreen {
         selected: st.selected,
         language: st.language.clone(),
         currency: st.currency.clone(),
+        wage_display: st.wage_display,
+        match_speed: st.match_speed,
+        auto_save_interval: st.auto_save_interval,
     })
 }
 
@@ -825,7 +1139,7 @@ fn render_main_menu(f: &mut Frame, area: Rect, st: &MainMenuState) {
          ║    Football Manager Simulator            ║\n\
          ║                                          ║\n\
          ║    Inspirado em CM 01/02 & Elifoot 98    ║\n\
-         ╚══════════════════════════════════════════╝"
+         ╚══════════════════════════════════════════╝",
     )
     .alignment(Alignment::Center)
     .style(Style::default().fg(Color::Cyan));
@@ -833,18 +1147,23 @@ fn render_main_menu(f: &mut Frame, area: Rect, st: &MainMenuState) {
 
     // Menu items
     let items = vec!["Novo Jogo", "Carregar Jogo", "Configuracoes", "Sair"];
-    let menu_items: Vec<ListItem> = items.iter().enumerate().map(|(i, item)| {
-        let style = if i == st.selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        let prefix = if i == st.selected { ">> " } else { "   " };
-        ListItem::new(format!("{}{}", prefix, item)).style(style)
-    }).collect();
+    let menu_items: Vec<ListItem> = items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            let style = if i == st.selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            let prefix = if i == st.selected { ">> " } else { "   " };
+            ListItem::new(format!("{}{}", prefix, item)).style(style)
+        })
+        .collect();
 
-    let menu = List::new(menu_items)
-        .block(Block::default().borders(Borders::ALL).title(" Menu "));
+    let menu = List::new(menu_items).block(Block::default().borders(Borders::ALL).title(" Menu "));
     f.render_widget(menu, chunks[1]);
 
     // Help
@@ -867,13 +1186,21 @@ fn render_new_game(f: &mut Frame, area: Rect, st: &NewGameState) {
         .split(area);
 
     let title = Paragraph::new(" Novo Jogo ")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .alignment(Alignment::Center);
     f.render_widget(title, chunks[0]);
 
     if st.editing_name {
         let input = Paragraph::new(format!("Nome do Tecnico: {}|", st.manager_name))
-            .block(Block::default().borders(Borders::ALL).title(" Digite seu nome "))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Digite seu nome "),
+            )
             .style(Style::default().fg(Color::Yellow));
         f.render_widget(input, chunks[1]);
 
@@ -903,7 +1230,9 @@ fn render_new_game(f: &mut Frame, area: Rect, st: &NewGameState) {
             .map(|(i, (_, name, div, rep))| {
                 let actual_idx = visible_start + i;
                 let style = if actual_idx == st.club_index {
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(Color::White)
                 };
@@ -911,15 +1240,19 @@ fn render_new_game(f: &mut Frame, area: Rect, st: &NewGameState) {
                     Cell::from(name.as_str()),
                     Cell::from(div.as_str()),
                     Cell::from(format!("{}", rep)),
-                ]).style(style)
+                ])
+                .style(style)
             })
             .collect();
 
-        let table = Table::new(rows, [
-            Constraint::Percentage(50),
-            Constraint::Percentage(30),
-            Constraint::Percentage(20),
-        ])
+        let table = Table::new(
+            rows,
+            [
+                Constraint::Percentage(50),
+                Constraint::Percentage(30),
+                Constraint::Percentage(20),
+            ],
+        )
         .header(header)
         .block(Block::default().borders(Borders::ALL).title(format!(
             " Escolha seu clube ({}/{}) ",
@@ -928,9 +1261,11 @@ fn render_new_game(f: &mut Frame, area: Rect, st: &NewGameState) {
         )));
         f.render_widget(table, chunks[2]);
 
-        let hint = Paragraph::new("[Up/Down] Navegar  [PgUp/PgDn] Pagina  [Enter] Selecionar  [Esc] Voltar")
-            .alignment(Alignment::Center)
-            .style(Style::default().fg(Color::DarkGray));
+        let hint = Paragraph::new(
+            "[Up/Down] Navegar  [PgUp/PgDn] Pagina  [Enter] Selecionar  [Esc] Voltar",
+        )
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::DarkGray));
         f.render_widget(hint, chunks[3]);
     }
 }
@@ -947,7 +1282,11 @@ fn render_load_game(f: &mut Frame, area: Rect, st: &LoadGameState) {
         .split(area);
 
     let title = Paragraph::new(" Carregar Jogo ")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .alignment(Alignment::Center);
     f.render_widget(title, chunks[0]);
 
@@ -974,27 +1313,47 @@ fn render_load_game(f: &mut Frame, area: Rect, st: &LoadGameState) {
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(hint, chunks[2]);
     } else {
-        let items: Vec<ListItem> = st.saves.iter().enumerate().map(|(i, save)| {
-            let style = if i == st.selected {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(Color::White)
-            };
-            let prefix = if i == st.selected { ">> " } else { "   " };
-            ListItem::new(format!(
-                "{}{} | {} | {} | {}",
-                prefix, save.save_name, save.manager_name, save.club_name, save.game_date
-            )).style(style)
-        }).collect();
+        let items: Vec<ListItem> = st
+            .saves
+            .iter()
+            .enumerate()
+            .map(|(i, save)| {
+                let style = if i == st.selected {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::White)
+                };
+                let prefix = if i == st.selected { ">> " } else { "   " };
+                let size_kb = save.file_size / 1024;
+                let size_display = if size_kb > 1024 {
+                    format!("{:.1} MB", size_kb as f64 / 1024.0)
+                } else {
+                    format!("{} KB", size_kb)
+                };
+                ListItem::new(format!(
+                    "{}{} | {} | {} | {} | {} | {}",
+                    prefix,
+                    save.save_name,
+                    save.manager_name,
+                    save.club_name,
+                    save.game_date,
+                    save.created_at,
+                    size_display,
+                ))
+                .style(style)
+            })
+            .collect();
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title(format!(
-                " Saves Encontrados ({}) ",
-                st.saves.len()
-            )));
+        let list = List::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!(" Saves Encontrados ({}) ", st.saves.len())),
+        );
         f.render_widget(list, chunks[1]);
 
-        let hint = Paragraph::new("[Up/Down] Navegar  [Enter] Carregar  [Esc] Voltar")
+        let hint = Paragraph::new("[Up/Down] Navegar  [Enter] Carregar  [D] Excluir  [Esc] Voltar")
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(hint, chunks[2]);
@@ -1013,16 +1372,24 @@ fn render_in_game(f: &mut Frame, area: Rect, st: &InGameState) {
         .constraints([
             Constraint::Length(3), // Header
             Constraint::Length(1), // Tabs
-            Constraint::Min(10),  // Content
+            Constraint::Min(10),   // Content
             Constraint::Length(2), // Footer
         ])
         .split(area);
 
     // Header - Club info
-    let club_name = st.game.world().clubs.get(&st.game.state().club_id)
+    let club_name = st
+        .game
+        .world()
+        .clubs
+        .get(&st.game.state().club_id)
         .map(|c| c.name.as_str())
         .unwrap_or("???");
-    let balance = st.game.world().clubs.get(&st.game.state().club_id)
+    let balance = st
+        .game
+        .world()
+        .clubs
+        .get(&st.game.state().club_id)
         .map(|c| format!("{}", c.budget.balance))
         .unwrap_or_default();
     let date = st.game.state().date.to_string();
@@ -1031,21 +1398,35 @@ fn render_in_game(f: &mut Frame, area: Rect, st: &InGameState) {
 
     let header = Paragraph::new(format!(
         " {} | {} | {} | {} | Tecnico: {}",
-        club_name, div, date, balance, st.game.state().manager_name
+        club_name,
+        div,
+        date,
+        balance,
+        st.game.state().manager_name
     ))
-    .block(Block::default().borders(Borders::ALL).title(format!(" FutMestre - Temporada {} ", season)))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!(" FutMestre - Temporada {} ", season)),
+    )
     .style(Style::default().fg(Color::Cyan));
     f.render_widget(header, chunks[0]);
 
     // Tabs
-    let tab_titles: Vec<Line> = GameTab::all().iter().enumerate().map(|(i, t)| {
-        let style = if *t == st.tab {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        Line::from(format!(" {}.{} ", i + 1, t.name())).style(style)
-    }).collect();
+    let tab_titles: Vec<Line> = GameTab::all()
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let style = if *t == st.tab {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            Line::from(format!(" {}.{} ", i + 1, t.name())).style(style)
+        })
+        .collect();
 
     let tabs = Tabs::new(tab_titles)
         .select(st.tab.index())
@@ -1068,9 +1449,15 @@ fn render_in_game(f: &mut Frame, area: Rect, st: &InGameState) {
 
     // Footer
     let footer_text = match st.tab {
-        GameTab::Squad => "[Up/Down] Selecionar  [Enter] TIT/RES  [Tab] Aba  [Espaco] Avancar dia  [S] Salvar",
-        GameTab::Tactics => "[Up/Down] Campo  [Left/Right] Alterar  [Tab] Aba  [Espaco] Avancar dia",
-        GameTab::Training => "[Up/Down] Campo  [Left/Right] Alterar  [Tab] Aba  [Espaco] Avancar dia",
+        GameTab::Squad => {
+            "[Up/Down] Selecionar  [Enter] TIT/RES  [Tab] Aba  [Espaco] Avancar dia  [S] Salvar"
+        }
+        GameTab::Tactics => {
+            "[Up/Down] Campo  [Left/Right] Alterar  [Tab] Aba  [Espaco] Avancar dia"
+        }
+        GameTab::Training => {
+            "[Up/Down] Campo  [Left/Right] Alterar  [Tab] Aba  [Espaco] Avancar dia"
+        }
         GameTab::Standings => "[Left/Right] Divisao  [Tab] Aba  [Espaco] Avancar dia",
         GameTab::Inbox => "[Up/Down] Navegar  [Tab] Aba  [Espaco] Avancar dia",
         GameTab::Transfers => "[Up/Down] Navegar  [Enter] Oferta  [Tab] Aba  [Espaco] Avancar dia",
@@ -1081,6 +1468,15 @@ fn render_in_game(f: &mut Frame, area: Rect, st: &InGameState) {
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::DarkGray));
     f.render_widget(footer, chunks[3]);
+
+    // Render counter-proposal popup if active
+    if let Some(ref counter) = st.transfer_counter {
+        let msg = format!(
+            "Contra-proposta!\n\nO clube pede {} por {}.\n\nAceitar? [S]im / [N]ao",
+            counter.counter_value_display, counter.player_name
+        );
+        render_popup(f, area, &msg);
+    }
 
     // Render transfer confirmation popup if active
     if let Some(ref confirm) = st.transfer_confirm {
@@ -1097,75 +1493,393 @@ fn render_in_game(f: &mut Frame, area: Rect, st: &InGameState) {
     }
 }
 
-fn render_match_live(f: &mut Frame, area: Rect, live: &MatchLiveState) {
-    let popup_area = centered_rect(70, 80, area);
-    f.render_widget(Clear, popup_area);
+/// Avanca a partida ao vivo por um "tick" — revela proximo evento ou transicao de fase.
+fn advance_match_live(live: &mut MatchLiveState) {
+    use cm_match::MatchEventType;
 
-    let chunks = Layout::default()
+    match live.phase {
+        MatchPhase::PreMatch => {
+            // Apito inicial
+            let text = cm_match::commentary::kickoff_commentary(&live.home_name, &live.away_name);
+            live.narration.push((text, NarrationStyle::Atmosphere));
+            live.minute = 1;
+            live.phase = MatchPhase::FirstHalf;
+        }
+        MatchPhase::FirstHalf | MatchPhase::SecondHalf => {
+            // Revelar proximo evento ou avancar minuto
+            if live.next_event_idx < live.match_events.len() {
+                let event = live.match_events[live.next_event_idx].clone();
+                live.minute = (event.minute as u8).min(90);
+
+                // Adicionar atmosfera antes do evento se houver
+                if let Some(atm) = cm_match::commentary::atmosphere_commentary(
+                    live.minute,
+                    &live.home_name,
+                    &live.away_name,
+                ) {
+                    live.narration.push((atm, NarrationStyle::Atmosphere));
+                }
+
+                // Determinar estilo e atualizar gols
+                let style = match event.event_type {
+                    MatchEventType::Goal => {
+                        // Contar gols ate este minuto
+                        let goals_so_far: (u8, u8) =
+                            count_goals_until(&live.match_events, live.next_event_idx + 1);
+                        live.home_goals = goals_so_far.0;
+                        live.away_goals = goals_so_far.1;
+                        NarrationStyle::Goal
+                    }
+                    MatchEventType::YellowCard => NarrationStyle::YellowCard,
+                    MatchEventType::RedCard => NarrationStyle::RedCard,
+                    MatchEventType::Injury => NarrationStyle::Injury,
+                    MatchEventType::Substitution => NarrationStyle::Substitution,
+                    MatchEventType::Corner => NarrationStyle::Corner,
+                    MatchEventType::Penalty => {
+                        let goals_so_far =
+                            count_goals_until(&live.match_events, live.next_event_idx + 1);
+                        live.home_goals = goals_so_far.0;
+                        live.away_goals = goals_so_far.1;
+                        NarrationStyle::Penalty
+                    }
+                    MatchEventType::PenaltyMiss => NarrationStyle::Penalty,
+                    MatchEventType::FreeKick => {
+                        let goals_so_far =
+                            count_goals_until(&live.match_events, live.next_event_idx + 1);
+                        live.home_goals = goals_so_far.0;
+                        live.away_goals = goals_so_far.1;
+                        NarrationStyle::Goal
+                    }
+                    MatchEventType::HalfTime => {
+                        live.phase = MatchPhase::HalfTime;
+                        NarrationStyle::HalfTime
+                    }
+                    MatchEventType::FullTime => {
+                        live.home_goals = live.final_home_goals;
+                        live.away_goals = live.final_away_goals;
+                        live.phase = MatchPhase::FullTime;
+                        NarrationStyle::FullTime
+                    }
+                    MatchEventType::ExtraTime => NarrationStyle::Atmosphere,
+                };
+
+                live.narration.push((event.description.clone(), style));
+                live.next_event_idx += 1;
+            } else {
+                // Sem mais eventos, avançar para fim
+                live.home_goals = live.final_home_goals;
+                live.away_goals = live.final_away_goals;
+                live.minute = 90;
+                live.phase = MatchPhase::FullTime;
+                let ft = cm_match::commentary::fulltime_commentary(
+                    live.final_home_goals,
+                    live.final_away_goals,
+                    &live.home_name,
+                    &live.away_name,
+                );
+                live.narration.push((ft, NarrationStyle::FullTime));
+            }
+        }
+        MatchPhase::HalfTime => {
+            // Avancar do intervalo para segundo tempo
+            live.phase = MatchPhase::SecondHalf;
+            live.narration.push((
+                "O segundo tempo comeca! A bola rola novamente!".into(),
+                NarrationStyle::Atmosphere,
+            ));
+        }
+        MatchPhase::FullTime => {
+            // Nada a fazer
+        }
+    }
+}
+
+/// Conta gols home/away ate um indice de eventos.
+fn count_goals_until(events: &[cm_match::MatchEvent], until: usize) -> (u8, u8) {
+    use cm_match::MatchEventType;
+    let mut h: u8 = 0;
+    let mut a: u8 = 0;
+    for (i, ev) in events.iter().enumerate() {
+        if i >= until {
+            break;
+        }
+        let is_goal = matches!(
+            ev.event_type,
+            MatchEventType::Goal | MatchEventType::Penalty | MatchEventType::FreeKick
+        );
+        if !is_goal {
+            continue;
+        }
+        // Determinar se e gol do mandante ou visitante pela descricao
+        if ev.description.contains("mandante") || ev.description.contains("Jogador") {
+            // Heuristica: se descricao diz "mandante" ou primeiro scorer generico
+            // Para corner/freekick goals temos "mandante"/"visitante" explicito
+            if ev.description.contains("visitante") {
+                a += 1;
+            } else {
+                h += 1;
+            }
+        } else if ev.description.contains("visitante") {
+            a += 1;
+        } else if ev.description.contains("penalti") || ev.description.contains("PENALTI") {
+            // Penaltis - olhar posicao no fluxo (par = home, impar = away, heuristica)
+            // Melhor: contar pela ordem dos eventos no loop original
+            h += 1; // fallback
+        } else {
+            h += 1; // fallback
+        }
+    }
+    (h, a)
+}
+
+fn render_match_live(f: &mut Frame, area: Rect, live: &MatchLiveState) {
+    // Usar area inteira (tela cheia) para imersao
+    f.render_widget(Clear, area);
+
+    let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Scoreboard
-            Constraint::Min(5),    // Events
-            Constraint::Length(2), // Controls
+            Constraint::Length(5), // Placar grande
+            Constraint::Min(8),    // Area principal (narração + stats)
+            Constraint::Length(2), // Controles
         ])
-        .split(popup_area);
+        .split(area);
 
-    // Scoreboard
-    let score_text = format!(
-        "  {}  {} x {}  {}   |   Minuto: {}'",
-        live.home_name, live.home_goals, live.away_goals, live.away_name, live.minute
+    // ── Placar ──
+    let phase_label = match live.phase {
+        MatchPhase::PreMatch => "PRE-JOGO",
+        MatchPhase::FirstHalf => "1o TEMPO",
+        MatchPhase::HalfTime => "INTERVALO",
+        MatchPhase::SecondHalf => "2o TEMPO",
+        MatchPhase::FullTime => "FIM DE JOGO",
+    };
+
+    let minute_display = if live.phase == MatchPhase::PreMatch {
+        String::new()
+    } else if live.phase == MatchPhase::FullTime {
+        "90'".into()
+    } else {
+        format!("{}'", live.minute)
+    };
+
+    let score_line1 = format!(
+        "{}  {}  x  {}  {}",
+        live.home_name, live.home_goals, live.away_goals, live.away_name
     );
-    let scoreboard = Paragraph::new(score_text)
-        .block(Block::default().borders(Borders::ALL).title(" Partida ao Vivo "))
-        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
-        .alignment(Alignment::Center);
-    f.render_widget(scoreboard, chunks[0]);
+    let score_line2 = format!("{} {}", phase_label, minute_display);
 
-    // Events list - show events up to current event_index
-    let visible_events: Vec<ListItem> = live.events.iter()
-        .take(live.event_index)
-        .map(|evt| {
-            let style = if evt.contains("GOL") {
-                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-            } else if evt.contains("Cartao") || evt.contains("CARTAO") {
-                Style::default().fg(Color::Yellow)
-            } else if evt.contains("Lesao") || evt.contains("LESAO") {
-                Style::default().fg(Color::Red)
-            } else if evt.contains("Intervalo") || evt.contains("INTERVALO") {
-                Style::default().fg(Color::Cyan)
-            } else if evt.contains("SUBSTITUICAO") {
-                Style::default().fg(Color::Magenta)
-            } else {
-                Style::default().fg(Color::White)
+    let score_text = format!("{}\n{}", score_line1, score_line2);
+
+    let score_style = match live.phase {
+        MatchPhase::FullTime => Style::default()
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD),
+        MatchPhase::HalfTime => Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+        _ => Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    };
+
+    let scoreboard = Paragraph::new(score_text)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" PARTIDA AO VIVO ")
+                .border_style(Style::default().fg(Color::Green)),
+        )
+        .style(score_style)
+        .alignment(Alignment::Center);
+    f.render_widget(scoreboard, main_chunks[0]);
+
+    // ── Area principal: Narração (esquerda) + Estatísticas (direita) ──
+    let content_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(65), // Narracao
+            Constraint::Percentage(35), // Estatísticas
+        ])
+        .split(main_chunks[1]);
+
+    // Narração
+    let narration_title = match live.phase {
+        MatchPhase::PreMatch => " Aguardando apito inicial... ",
+        MatchPhase::FullTime => " Narracao - PARTIDA ENCERRADA ",
+        _ => " Narracao ",
+    };
+
+    let items: Vec<ListItem> = live
+        .narration
+        .iter()
+        .map(|(text, style)| {
+            let color = match style {
+                NarrationStyle::Goal => Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+                NarrationStyle::YellowCard => Style::default().fg(Color::Yellow),
+                NarrationStyle::RedCard => {
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+                }
+                NarrationStyle::Injury => Style::default().fg(Color::Red),
+                NarrationStyle::Substitution => Style::default().fg(Color::Magenta),
+                NarrationStyle::Atmosphere => Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+                NarrationStyle::HalfTime => Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+                NarrationStyle::FullTime => Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+                NarrationStyle::Corner => Style::default().fg(Color::Blue),
+                NarrationStyle::Penalty => Style::default()
+                    .fg(Color::Rgb(255, 165, 0))
+                    .add_modifier(Modifier::BOLD),
+                NarrationStyle::Normal => Style::default().fg(Color::White),
             };
-            ListItem::new(evt.as_str()).style(style)
+            ListItem::new(format!("  {}", text)).style(color)
         })
         .collect();
 
-    let events_block = if live.finished {
-        Block::default().borders(Borders::ALL).title(" Eventos - PARTIDA ENCERRADA ")
+    let narration_list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(narration_title)
+            .border_style(Style::default().fg(Color::DarkGray)),
+    );
+    f.render_widget(narration_list, content_chunks[0]);
+
+    // Estatísticas (lado direito)
+    let stats = &live.match_stats;
+    let show_stats = live.phase != MatchPhase::PreMatch;
+
+    let stats_lines = if show_stats {
+        vec![
+            Line::from(""),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:>6.0}%", stats.home_possession),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled("  Posse  ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("{:.0}%", stats.away_possession),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:>6}", stats.home_shots),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled("  Chutes ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("{}", stats.away_shots),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:>6}", stats.home_shots_on_target),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled("  No gol ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("{}", stats.away_shots_on_target),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:>6}", stats.home_fouls),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled("  Faltas ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("{}", stats.away_fouls),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:>6}", stats.home_corners),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled("  Escant.", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("{}", stats.away_corners),
+                    Style::default().fg(Color::White),
+                ),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:>6}", stats.home_yellow_cards),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled("  Amarel.", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("{}", stats.away_yellow_cards),
+                    Style::default().fg(Color::Yellow),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled(
+                    format!("{:>6}", stats.home_red_cards),
+                    Style::default().fg(Color::Red),
+                ),
+                Span::styled("  Vermel.", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("{}", stats.away_red_cards),
+                    Style::default().fg(Color::Red),
+                ),
+            ]),
+        ]
     } else {
-        Block::default().borders(Borders::ALL).title(" Eventos ")
+        vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "  Aguardando...",
+                Style::default().fg(Color::DarkGray),
+            )),
+        ]
     };
 
-    let events_list = List::new(visible_events).block(events_block);
-    f.render_widget(events_list, chunks[1]);
+    let stats_widget = Paragraph::new(stats_lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Estatisticas ")
+            .border_style(Style::default().fg(Color::DarkGray)),
+    );
+    f.render_widget(stats_widget, content_chunks[1]);
 
-    // Controls
+    // ── Controles ──
     let controls_text = if live.showing_subs {
-        "[Up/Down] Selecionar  [Enter] Confirmar Sub  [Esc] Cancelar".to_string()
-    } else if live.finished {
-        "[Enter/Esc] Continuar".to_string()
+        "[Up/Down] Selecionar  [Enter] Confirmar  [Esc] Cancelar".to_string()
+    } else if live.phase == MatchPhase::FullTime {
+        "[Enter/Esc] Voltar ao jogo".to_string()
+    } else if live.phase == MatchPhase::PreMatch {
+        "[Espaco] Iniciar partida!".to_string()
     } else {
-        let subs_info = if live.subs_made < 3 { " [S] Substituicao" } else { "" };
-        format!("[Espaco] Continuar  [Enter/Esc] Pular{}", subs_info)
+        let subs_info = if live.subs_made < 3 {
+            "  [S] Substituicao"
+        } else {
+            ""
+        };
+        format!(
+            "[Espaco] Avancar  [Enter/Esc] Pular para o fim{}",
+            subs_info
+        )
     };
     let controls = Paragraph::new(controls_text)
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::DarkGray));
-    f.render_widget(controls, chunks[2]);
+    f.render_widget(controls, main_chunks[2]);
 
-    // Render substitution overlay if showing
+    // Overlay de substituições
     if live.showing_subs {
         render_subs_overlay(f, area, live);
     }
@@ -1177,28 +1891,38 @@ fn render_subs_overlay(f: &mut Frame, area: Rect, live: &MatchLiveState) {
 
     if live.subs_available.is_empty() {
         let msg = Paragraph::new("Nenhuma substituicao disponivel")
-            .block(Block::default().borders(Borders::ALL).title(" Substituicoes "))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Substituicoes "),
+            )
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::Yellow));
         f.render_widget(msg, sub_area);
         return;
     }
 
-    let items: Vec<ListItem> = live.subs_available.iter().enumerate().map(|(i, (out_name, in_name))| {
-        let style = if i == live.sub_selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        let prefix = if i == live.sub_selected { ">> " } else { "   " };
-        ListItem::new(format!("{}{} -> {}", prefix, out_name, in_name)).style(style)
-    }).collect();
+    let items: Vec<ListItem> = live
+        .subs_available
+        .iter()
+        .enumerate()
+        .map(|(i, (out_name, in_name))| {
+            let style = if i == live.sub_selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            let prefix = if i == live.sub_selected { ">> " } else { "   " };
+            ListItem::new(format!("{}{} -> {}", prefix, out_name, in_name)).style(style)
+        })
+        .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(format!(
-            " Substituicoes ({}/3) - Selecione ",
-            live.subs_made
-        )));
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title(format!(
+        " Substituicoes ({}/3) - Selecione ",
+        live.subs_made
+    )));
     f.render_widget(list, sub_area);
 }
 
@@ -1206,7 +1930,8 @@ fn render_squad(f: &mut Frame, area: Rect, st: &InGameState) {
     let players = st.game.world().club_players(&st.game.state().club_id);
     let mut sorted_players: Vec<&Player> = players;
     sorted_players.sort_by(|a, b| {
-        position_order(&a.position).cmp(&position_order(&b.position))
+        position_order(&a.position)
+            .cmp(&position_order(&b.position))
             .then_with(|| b.overall_rating().cmp(&a.overall_rating()))
     });
 
@@ -1224,49 +1949,59 @@ fn render_squad(f: &mut Frame, area: Rect, st: &InGameState) {
     ]);
 
     let game_date = st.game.state().date.date();
-    let rows: Vec<Row> = sorted_players.iter().enumerate().map(|(i, p)| {
-        let is_starter = i < 11;
-        let status = if is_starter { "TIT" } else { "RES" };
-        let style = if i == st.squad_selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else if p.is_injured() {
-            Style::default().fg(Color::Red)
-        } else if is_starter {
-            Style::default().fg(Color::Green)
-        } else {
-            Style::default().fg(Color::White)
-        };
+    let rows: Vec<Row> = sorted_players
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let is_starter = i < 11;
+            let status = if is_starter { "TIT" } else { "RES" };
+            let style = if i == st.squad_selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else if p.is_injured() {
+                Style::default().fg(Color::Red)
+            } else if is_starter {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default().fg(Color::White)
+            };
 
-        let age = p.age_on(game_date);
-        let morale_str = format!("{}", p.morale.level());
-        let injury_mark = if p.is_injured() { " [L]" } else { "" };
+            let age = p.age_on(game_date);
+            let morale_str = format!("{}", p.morale.level());
+            let injury_mark = if p.is_injured() { " [L]" } else { "" };
 
-        Row::new(vec![
-            Cell::from(format!("{}", i + 1)),
-            Cell::from(format!("{}{}", p.full_name(), injury_mark)),
-            Cell::from(p.position.short_name()),
-            Cell::from(status),
-            Cell::from(format!("{}", age)),
-            Cell::from(format!("{}", p.overall_rating())),
-            Cell::from(format!("{}%", p.fitness)),
-            Cell::from(format!("{}", p.form)),
-            Cell::from(morale_str),
-            Cell::from(format!("{}", p.value)),
-        ]).style(style)
-    }).collect();
+            Row::new(vec![
+                Cell::from(format!("{}", i + 1)),
+                Cell::from(format!("{}{}", p.full_name(), injury_mark)),
+                Cell::from(p.position.short_name()),
+                Cell::from(status),
+                Cell::from(format!("{}", age)),
+                Cell::from(format!("{}", p.overall_rating())),
+                Cell::from(format!("{}%", p.fitness)),
+                Cell::from(format!("{}", p.form)),
+                Cell::from(morale_str),
+                Cell::from(format!("{}", p.value)),
+            ])
+            .style(style)
+        })
+        .collect();
 
-    let table = Table::new(rows, [
-        Constraint::Length(3),
-        Constraint::Min(18),
-        Constraint::Length(4),
-        Constraint::Length(6),
-        Constraint::Length(5),
-        Constraint::Length(4),
-        Constraint::Length(5),
-        Constraint::Length(5),
-        Constraint::Length(8),
-        Constraint::Length(10),
-    ])
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(3),
+            Constraint::Min(18),
+            Constraint::Length(4),
+            Constraint::Length(6),
+            Constraint::Length(5),
+            Constraint::Length(4),
+            Constraint::Length(5),
+            Constraint::Length(5),
+            Constraint::Length(8),
+            Constraint::Length(10),
+        ],
+    )
     .header(header)
     .block(Block::default().borders(Borders::ALL).title(format!(
         " Elenco ({} jogadores) - TIT=Titular RES=Reserva [Enter] Trocar ",
@@ -1277,7 +2012,11 @@ fn render_squad(f: &mut Frame, area: Rect, st: &InGameState) {
 
 fn render_tactics(f: &mut Frame, area: Rect, st: &InGameState) {
     let club_id = &st.game.state().club_id;
-    let tactics = st.game.world().clubs.get(club_id)
+    let tactics = st
+        .game
+        .world()
+        .clubs
+        .get(club_id)
         .map(|c| c.tactics.clone())
         .unwrap_or_default();
 
@@ -1297,18 +2036,27 @@ fn render_tactics(f: &mut Frame, area: Rect, st: &InGameState) {
         ("Passe Direto", format!("{}%", tactics.direct_passing)),
     ];
 
-    let items: Vec<ListItem> = fields.iter().enumerate().map(|(i, (label, value))| {
-        let style = if i == st.tactics_field {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        let prefix = if i == st.tactics_field { ">> " } else { "   " };
-        ListItem::new(format!("{}{}: < {} >", prefix, label, value)).style(style)
-    }).collect();
+    let items: Vec<ListItem> = fields
+        .iter()
+        .enumerate()
+        .map(|(i, (label, value))| {
+            let style = if i == st.tactics_field {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            let prefix = if i == st.tactics_field { ">> " } else { "   " };
+            ListItem::new(format!("{}{}: < {} >", prefix, label, value)).style(style)
+        })
+        .collect();
 
-    let tactics_list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" Taticas [Left/Right para alterar] "));
+    let tactics_list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Taticas [Left/Right para alterar] "),
+    );
     f.render_widget(tactics_list, chunks[0]);
 
     // Formation visualization
@@ -1323,10 +2071,7 @@ fn render_tactics(f: &mut Frame, area: Rect, st: &InGameState) {
 fn render_training(f: &mut Frame, area: Rect, st: &InGameState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(12),
-            Constraint::Min(5),
-        ])
+        .constraints([Constraint::Length(12), Constraint::Min(5)])
         .split(area);
 
     let focuses = [
@@ -1340,32 +2085,49 @@ fn render_training(f: &mut Frame, area: Rect, st: &InGameState) {
         ("Bola Parada", "Escanteios, faltas, penaltis"),
     ];
 
-    let items: Vec<ListItem> = focuses.iter().enumerate().map(|(i, (name, desc))| {
-        let style = if i == st.training_field {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        let prefix = if i == st.training_field { ">> " } else { "   " };
-        ListItem::new(format!("{}{} - {}", prefix, name, desc)).style(style)
-    }).collect();
+    let items: Vec<ListItem> = focuses
+        .iter()
+        .enumerate()
+        .map(|(i, (name, desc))| {
+            let style = if i == st.training_field {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            let prefix = if i == st.training_field { ">> " } else { "   " };
+            ListItem::new(format!("{}{} - {}", prefix, name, desc)).style(style)
+        })
+        .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" Foco do Treino [Up/Down para selecionar] "));
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Foco do Treino [Up/Down para selecionar] "),
+    );
     f.render_widget(list, chunks[0]);
 
     // Squad fitness overview
     let players = st.game.world().club_players(&st.game.state().club_id);
-    let avg_fitness: f32 = if players.is_empty() { 0.0 } else {
+    let avg_fitness: f32 = if players.is_empty() {
+        0.0
+    } else {
         players.iter().map(|p| p.fitness as f32).sum::<f32>() / players.len() as f32
     };
     let injured_count = players.iter().filter(|p| p.is_injured()).count();
 
     let info = Paragraph::new(format!(
         "Fitness Medio: {:.0}%  |  Jogadores Lesionados: {}  |  Elenco Total: {}",
-        avg_fitness, injured_count, players.len()
+        avg_fitness,
+        injured_count,
+        players.len()
     ))
-    .block(Block::default().borders(Borders::ALL).title(" Status do Elenco "))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Status do Elenco "),
+    )
     .style(Style::default().fg(Color::Cyan));
     f.render_widget(info, chunks[1]);
 }
@@ -1385,10 +2147,18 @@ fn render_fixtures(f: &mut Frame, area: Rect, st: &InGameState) {
         user_fixtures.push(format!("--- {} ---", comp.name));
 
         for fixture in comp.fixtures.for_team(club_id) {
-            let home_name = st.game.world().clubs.get(&fixture.home_id)
+            let home_name = st
+                .game
+                .world()
+                .clubs
+                .get(&fixture.home_id)
                 .map(|c| c.short_name.as_str())
                 .unwrap_or("???");
-            let away_name = st.game.world().clubs.get(&fixture.away_id)
+            let away_name = st
+                .game
+                .world()
+                .clubs
+                .get(&fixture.away_id)
                 .map(|c| c.short_name.as_str())
                 .unwrap_or("???");
 
@@ -1396,7 +2166,10 @@ fn render_fixtures(f: &mut Frame, area: Rect, st: &InGameState) {
                 format!("{} x {}", res.home_goals, res.away_goals)
             } else {
                 if next_match.is_none() {
-                    next_match = Some(format!("{} vs {} em {}", home_name, away_name, fixture.date));
+                    next_match = Some(format!(
+                        "{} vs {} em {}",
+                        home_name, away_name, fixture.date
+                    ));
                 }
                 "vs".to_string()
             };
@@ -1415,24 +2188,28 @@ fn render_fixtures(f: &mut Frame, area: Rect, st: &InGameState) {
         user_fixtures.push("Nenhum jogo agendado. Aguarde o inicio da temporada.".into());
     }
 
-    let items: Vec<ListItem> = user_fixtures.iter().map(|line| {
-        let style = if line.starts_with("---") {
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
-        } else if line.contains(" vs ") {
-            Style::default().fg(Color::Yellow) // upcoming
-        } else {
-            Style::default().fg(Color::White)
-        };
-        ListItem::new(line.as_str()).style(style)
-    }).collect();
+    let items: Vec<ListItem> = user_fixtures
+        .iter()
+        .map(|line| {
+            let style = if line.starts_with("---") {
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD)
+            } else if line.contains(" vs ") {
+                Style::default().fg(Color::Yellow) // upcoming
+            } else {
+                Style::default().fg(Color::White)
+            };
+            ListItem::new(line.as_str()).style(style)
+        })
+        .collect();
 
     let title = match next_match {
         Some(ref m) => format!(" Jogos | Proximo: {} ", m),
         None => " Jogos ".to_string(),
     };
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(title));
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title(title));
     f.render_widget(list, area);
 }
 
@@ -1442,11 +2219,17 @@ fn render_standings(f: &mut Frame, area: Rect, st: &InGameState) {
     let div_idx = st.standings_division.min(3);
 
     // Find user's division and highlight it
-    let user_div = divisions.iter().position(|d| {
-        st.game.world().competitions.get(&CompetitionId::new(*d))
-            .map(|c| c.teams.contains(&st.game.state().club_id))
-            .unwrap_or(false)
-    }).unwrap_or(0);
+    let user_div = divisions
+        .iter()
+        .position(|d| {
+            st.game
+                .world()
+                .competitions
+                .get(&CompetitionId::new(*d))
+                .map(|c| c.teams.contains(&st.game.state().club_id))
+                .unwrap_or(false)
+        })
+        .unwrap_or(0);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -1454,16 +2237,22 @@ fn render_standings(f: &mut Frame, area: Rect, st: &InGameState) {
         .split(area);
 
     // Division tabs
-    let div_tabs: Vec<Line> = div_names.iter().enumerate().map(|(i, name)| {
-        let style = if i == div_idx {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else if i == user_div {
-            Style::default().fg(Color::Green)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        Line::from(format!(" {} ", name)).style(style)
-    }).collect();
+    let div_tabs: Vec<Line> = div_names
+        .iter()
+        .enumerate()
+        .map(|(i, name)| {
+            let style = if i == div_idx {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else if i == user_div {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            Line::from(format!(" {} ", name)).style(style)
+        })
+        .collect();
 
     let tabs = Tabs::new(div_tabs)
         .select(div_idx)
@@ -1486,48 +2275,68 @@ fn render_standings(f: &mut Frame, area: Rect, st: &InGameState) {
             Cell::from("Pts").style(Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        let rows: Vec<Row> = comp.table.rows.iter().enumerate().map(|(i, row)| {
-            let club_name = st.game.world().clubs.get(&row.club_id)
-                .map(|c| c.name.as_str())
-                .unwrap_or("???");
+        let rows: Vec<Row> = comp
+            .table
+            .rows
+            .iter()
+            .enumerate()
+            .map(|(i, row)| {
+                let club_name = st
+                    .game
+                    .world()
+                    .clubs
+                    .get(&row.club_id)
+                    .map(|c| c.name.as_str())
+                    .unwrap_or("???");
 
-            let is_user = row.club_id == st.game.state().club_id;
-            let style = if is_user {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-            } else if i < 3 {
-                Style::default().fg(Color::Green) // Promotion zone
-            } else if i >= comp.table.rows.len().saturating_sub(3) {
-                Style::default().fg(Color::Red) // Relegation zone
-            } else {
-                Style::default().fg(Color::White)
-            };
+                let is_user = row.club_id == st.game.state().club_id;
+                let style = if is_user {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else if i < 3 {
+                    Style::default().fg(Color::Green) // Promotion zone
+                } else if i >= comp.table.rows.len().saturating_sub(3) {
+                    Style::default().fg(Color::Red) // Relegation zone
+                } else {
+                    Style::default().fg(Color::White)
+                };
 
-            Row::new(vec![
-                Cell::from(format!("{}", i + 1)),
-                Cell::from(if is_user { format!(">> {} <<", club_name) } else { club_name.to_string() }),
-                Cell::from(format!("{}", row.played)),
-                Cell::from(format!("{}", row.won)),
-                Cell::from(format!("{}", row.drawn)),
-                Cell::from(format!("{}", row.lost)),
-                Cell::from(format!("{}", row.goals_for)),
-                Cell::from(format!("{}", row.goals_against)),
-                Cell::from(format!("{}", row.goal_difference())),
-                Cell::from(format!("{}", row.points)),
-            ]).style(style)
-        }).collect();
+                Row::new(vec![
+                    Cell::from(format!("{}", i + 1)),
+                    Cell::from(if is_user {
+                        format!(">> {} <<", club_name)
+                    } else {
+                        club_name.to_string()
+                    }),
+                    Cell::from(format!("{}", row.played)),
+                    Cell::from(format!("{}", row.won)),
+                    Cell::from(format!("{}", row.drawn)),
+                    Cell::from(format!("{}", row.lost)),
+                    Cell::from(format!("{}", row.goals_for)),
+                    Cell::from(format!("{}", row.goals_against)),
+                    Cell::from(format!("{}", row.goal_difference())),
+                    Cell::from(format!("{}", row.points)),
+                ])
+                .style(style)
+            })
+            .collect();
 
-        let table = Table::new(rows, [
-            Constraint::Length(3),
-            Constraint::Min(20),
-            Constraint::Length(4),
-            Constraint::Length(4),
-            Constraint::Length(4),
-            Constraint::Length(4),
-            Constraint::Length(4),
-            Constraint::Length(4),
-            Constraint::Length(4),
-            Constraint::Length(5),
-        ])
+        let table = Table::new(
+            rows,
+            [
+                Constraint::Length(3),
+                Constraint::Min(20),
+                Constraint::Length(4),
+                Constraint::Length(4),
+                Constraint::Length(4),
+                Constraint::Length(4),
+                Constraint::Length(4),
+                Constraint::Length(4),
+                Constraint::Length(4),
+                Constraint::Length(5),
+            ],
+        )
         .header(header)
         .block(Block::default().borders(Borders::ALL).title(format!(
             " {} [Left/Right para trocar divisao] ",
@@ -1551,10 +2360,7 @@ fn render_finance(f: &mut Frame, area: Rect, st: &InGameState) {
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(10),
-                Constraint::Min(5),
-            ])
+            .constraints([Constraint::Length(10), Constraint::Min(5)])
             .split(area);
 
         let info = format!(
@@ -1589,13 +2395,24 @@ fn render_finance(f: &mut Frame, area: Rect, st: &InGameState) {
         }
         wage_list.sort_by(|a, b| b.0.weekly_wage().minor().cmp(&a.0.weekly_wage().minor()));
 
-        let items: Vec<ListItem> = wage_list.iter().map(|(p, wage)| {
-            ListItem::new(format!("  {} ({}) - {}", p.full_name(), p.position.short_name(), wage))
+        let items: Vec<ListItem> = wage_list
+            .iter()
+            .map(|(p, wage)| {
+                ListItem::new(format!(
+                    "  {} ({}) - {}",
+                    p.full_name(),
+                    p.position.short_name(),
+                    wage
+                ))
                 .style(Style::default().fg(Color::White))
-        }).collect();
+            })
+            .collect();
 
-        let list = List::new(items)
-            .block(Block::default().borders(Borders::ALL).title(" Salarios dos Jogadores "));
+        let list = List::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Salarios dos Jogadores "),
+        );
         f.render_widget(list, chunks[1]);
     }
 }
@@ -1609,10 +2426,7 @@ fn render_transfers(f: &mut Frame, area: Rect, st: &InGameState) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(5),
-            Constraint::Min(5),
-        ])
+        .constraints([Constraint::Length(5), Constraint::Min(5)])
         .split(area);
 
     let info = Paragraph::new(format!(
@@ -1620,12 +2434,25 @@ fn render_transfers(f: &mut Frame, area: Rect, st: &InGameState) {
          \n\
           Orcamento disponivel: {}",
         window_status,
-        st.game.world().clubs.get(&st.game.state().club_id)
+        st.game
+            .world()
+            .clubs
+            .get(&st.game.state().club_id)
             .map(|c| format!("{}", c.budget.available_for_transfers()))
             .unwrap_or_default()
     ))
-    .block(Block::default().borders(Borders::ALL).title(" Transferencias "))
-    .style(Style::default().fg(if st.game.state().flags.transfer_window_open { Color::Green } else { Color::Red }));
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Transferencias "),
+    )
+    .style(
+        Style::default().fg(if st.game.state().flags.transfer_window_open {
+            Color::Green
+        } else {
+            Color::Red
+        }),
+    );
     f.render_widget(info, chunks[0]);
 
     // Show other clubs' notable players as potential targets
@@ -1635,33 +2462,52 @@ fn render_transfers(f: &mut Frame, area: Rect, st: &InGameState) {
 
     for (_pid, player) in &st.game.world().players {
         if player.club_id.as_ref() != Some(&user_club) && player.overall_rating() >= 60 {
-            let club_name = player.club_id.as_ref()
+            let club_name = player
+                .club_id
+                .as_ref()
                 .and_then(|cid| st.game.world().clubs.get(cid))
                 .map(|c| c.short_name.as_str())
                 .unwrap_or("Livre");
             let is_selected = idx == st.transfer_selected;
             let prefix = if is_selected { ">> " } else { "   " };
-            targets.push((format!(
-                "{}{} ({}) - {} - OVR:{} - {}",
-                prefix, player.full_name(), player.position.short_name(),
-                club_name, player.overall_rating(), player.value
-            ), is_selected));
+            targets.push((
+                format!(
+                    "{}{} ({}) - {} - OVR:{} - {}",
+                    prefix,
+                    player.full_name(),
+                    player.position.short_name(),
+                    club_name,
+                    player.overall_rating(),
+                    player.value
+                ),
+                is_selected,
+            ));
             idx += 1;
         }
-        if targets.len() >= 30 { break; }
+        if targets.len() >= 30 {
+            break;
+        }
     }
 
-    let items: Vec<ListItem> = targets.iter().map(|(t, selected)| {
-        let style = if *selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        ListItem::new(t.as_str()).style(style)
-    }).collect();
+    let items: Vec<ListItem> = targets
+        .iter()
+        .map(|(t, selected)| {
+            let style = if *selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            ListItem::new(t.as_str()).style(style)
+        })
+        .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" Jogadores Disponiveis [Enter] Fazer Oferta "));
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Jogadores Disponiveis [Enter] Fazer Oferta "),
+    );
     f.render_widget(list, chunks[1]);
 }
 
@@ -1678,20 +2524,27 @@ fn render_inbox(f: &mut Frame, area: Rect, st: &InGameState) {
     }
 
     // Show messages in reverse order (newest first)
-    let items: Vec<ListItem> = messages.iter().rev().enumerate().map(|(i, msg)| {
-        let style = if i == st.inbox_scroll {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        ListItem::new(format!("  {}", msg)).style(style)
-    }).collect();
+    let items: Vec<ListItem> = messages
+        .iter()
+        .rev()
+        .enumerate()
+        .map(|(i, msg)| {
+            let style = if i == st.inbox_scroll {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            ListItem::new(format!("  {}", msg)).style(style)
+        })
+        .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(format!(
-            " Noticias ({} mensagens) ",
-            messages.len()
-        )));
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!(" Noticias ({} mensagens) ", messages.len())),
+    );
     f.render_widget(list, area);
 }
 
@@ -1701,10 +2554,7 @@ fn render_academy(f: &mut Frame, area: Rect, st: &InGameState) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(6),
-            Constraint::Min(5),
-        ])
+        .constraints([Constraint::Length(6), Constraint::Min(5)])
         .split(area);
 
     // Academy info
@@ -1729,20 +2579,29 @@ fn render_academy(f: &mut Frame, area: Rect, st: &InGameState) {
     );
 
     let info_widget = Paragraph::new(academy_info)
-        .block(Block::default().borders(Borders::ALL).title(" Academia de Base "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Academia de Base "),
+        )
         .style(Style::default().fg(Color::Cyan));
     f.render_widget(info_widget, chunks[0]);
 
     // Youth prospects (players under 21)
     let players = st.game.world().club_players(club_id);
-    let mut youth: Vec<&Player> = players.into_iter()
+    let mut youth: Vec<&Player> = players
+        .into_iter()
         .filter(|p| p.age_on(game_date) <= 20)
         .collect();
     youth.sort_by(|a, b| b.potential.cmp(&a.potential));
 
     if youth.is_empty() {
         let empty = Paragraph::new("Nenhum jogador sub-21 no elenco.")
-            .block(Block::default().borders(Borders::ALL).title(" Jovens da Base "))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Jovens da Base "),
+            )
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
         f.render_widget(empty, chunks[1]);
@@ -1758,42 +2617,56 @@ fn render_academy(f: &mut Frame, area: Rect, st: &InGameState) {
             Cell::from("Fit").style(Style::default().add_modifier(Modifier::BOLD)),
         ]);
 
-        let rows: Vec<Row> = youth.iter().enumerate().map(|(i, p)| {
-            let age = p.age_on(game_date);
-            let ovr = p.overall_rating();
-            let pot = p.potential;
-            let diff = pot as i16 - ovr as i16;
-            let diff_str = if diff > 0 { format!("+{}", diff) } else { format!("{}", diff) };
-            let style = if diff > 15 {
-                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD) // High potential
-            } else if diff > 5 {
-                Style::default().fg(Color::Yellow)
-            } else {
-                Style::default().fg(Color::White)
-            };
+        let rows: Vec<Row> = youth
+            .iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let age = p.age_on(game_date);
+                let ovr = p.overall_rating();
+                let pot = p.potential;
+                let diff = pot as i16 - ovr as i16;
+                let diff_str = if diff > 0 {
+                    format!("+{}", diff)
+                } else {
+                    format!("{}", diff)
+                };
+                let style = if diff > 15 {
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD) // High potential
+                } else if diff > 5 {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default().fg(Color::White)
+                };
 
-            Row::new(vec![
-                Cell::from(format!("{}", i + 1)),
-                Cell::from(p.full_name()),
-                Cell::from(p.position.short_name()),
-                Cell::from(format!("{}", age)),
-                Cell::from(format!("{}", ovr)),
-                Cell::from(format!("{}", pot)),
-                Cell::from(diff_str),
-                Cell::from(format!("{}%", p.fitness)),
-            ]).style(style)
-        }).collect();
+                Row::new(vec![
+                    Cell::from(format!("{}", i + 1)),
+                    Cell::from(p.full_name()),
+                    Cell::from(p.position.short_name()),
+                    Cell::from(format!("{}", age)),
+                    Cell::from(format!("{}", ovr)),
+                    Cell::from(format!("{}", pot)),
+                    Cell::from(diff_str),
+                    Cell::from(format!("{}%", p.fitness)),
+                ])
+                .style(style)
+            })
+            .collect();
 
-        let table = Table::new(rows, [
-            Constraint::Length(3),
-            Constraint::Min(18),
-            Constraint::Length(4),
-            Constraint::Length(5),
-            Constraint::Length(4),
-            Constraint::Length(4),
-            Constraint::Length(10),
-            Constraint::Length(5),
-        ])
+        let table = Table::new(
+            rows,
+            [
+                Constraint::Length(3),
+                Constraint::Min(18),
+                Constraint::Length(4),
+                Constraint::Length(5),
+                Constraint::Length(4),
+                Constraint::Length(4),
+                Constraint::Length(10),
+                Constraint::Length(5),
+            ],
+        )
         .header(header)
         .block(Block::default().borders(Borders::ALL).title(format!(
             " Jovens da Base ({} jogadores sub-21) - Verde=Alto Potencial ",
@@ -1815,27 +2688,47 @@ fn render_settings(f: &mut Frame, area: Rect, st: &SettingsState) {
         .split(area);
 
     let title = Paragraph::new(" Configuracoes ")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .alignment(Alignment::Center);
     f.render_widget(title, chunks[0]);
 
-    let settings = vec![
-        ("Idioma", st.language.as_str()),
-        ("Moeda", st.currency.as_str()),
+    let wage_display_str = match st.wage_display {
+        0 => "Semanal",
+        1 => "Mensal",
+        _ => "Anual",
+    };
+    let match_speed_str = format!("{}", st.match_speed);
+    let auto_save_str = format!("{} dias", st.auto_save_interval);
+
+    let settings: Vec<(&str, String)> = vec![
+        ("Idioma", st.language.clone()),
+        ("Moeda", st.currency.clone()),
+        ("Exibicao Salario", wage_display_str.to_string()),
+        ("Velocidade Partida", match_speed_str),
+        ("Auto-Save Intervalo", auto_save_str),
     ];
 
-    let items: Vec<ListItem> = settings.iter().enumerate().map(|(i, (label, value))| {
-        let style = if i == st.selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(Color::White)
-        };
-        let prefix = if i == st.selected { ">> " } else { "   " };
-        ListItem::new(format!("{}{}: < {} >", prefix, label, value)).style(style)
-    }).collect();
+    let items: Vec<ListItem> = settings
+        .iter()
+        .enumerate()
+        .map(|(i, (label, value))| {
+            let style = if i == st.selected {
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::White)
+            };
+            let prefix = if i == st.selected { ">> " } else { "   " };
+            ListItem::new(format!("{}{}: < {} >", prefix, label, value)).style(style)
+        })
+        .collect();
 
-    let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" Opcoes "));
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title(" Opcoes "));
     f.render_widget(list, chunks[1]);
 
     let help = Paragraph::new("[Up/Down] Navegar  [Left/Right] Alterar  [Esc] Voltar")
@@ -1897,11 +2790,14 @@ fn start_game(manager_name: String, club_id: ClubId) -> AppScreen {
         show_popup: None,
         transfer_selected: 0,
         transfer_confirm: None,
+        transfer_counter: None,
     })
 }
 
 /// Workaround: we can't borrow game after moving it, so just default to 0.
-fn game_ref_workaround() -> usize { 0 }
+fn game_ref_workaround() -> usize {
+    0
+}
 
 fn generate_initial_fixtures(game: &mut Game) {
     let _start_date = game.state().date.date();
@@ -1911,11 +2807,17 @@ fn generate_initial_fixtures(game: &mut Game) {
     let comp_ids: Vec<CompetitionId> = game.world().competitions.keys().cloned().collect();
 
     for comp_id in &comp_ids {
-        let teams: Vec<ClubId> = game.world().competitions.get(comp_id)
+        let teams: Vec<ClubId> = game
+            .world()
+            .competitions
+            .get(comp_id)
             .map(|c| c.teams.clone())
             .unwrap_or_default();
 
-        let comp_type = game.world().competitions.get(comp_id)
+        let comp_type = game
+            .world()
+            .competitions
+            .get(comp_id)
             .map(|c| c.competition_type)
             .unwrap_or(CompetitionType::League);
 
@@ -1951,10 +2853,18 @@ fn advance_day_with_match_check(st: &mut InGameState) {
         for fixture in &comp.fixtures.matches {
             if fixture.date == current_date && !fixture.is_played() {
                 if fixture.home_id == club_id || fixture.away_id == club_id {
-                    let home_name = st.game.world().clubs.get(&fixture.home_id)
+                    let home_name = st
+                        .game
+                        .world()
+                        .clubs
+                        .get(&fixture.home_id)
                         .map(|c| c.name.clone())
                         .unwrap_or_else(|| "???".to_string());
-                    let away_name = st.game.world().clubs.get(&fixture.away_id)
+                    let away_name = st
+                        .game
+                        .world()
+                        .clubs
+                        .get(&fixture.away_id)
                         .map(|c| c.name.clone())
                         .unwrap_or_else(|| "???".to_string());
                     user_fixture_info = Some((
@@ -1967,105 +2877,65 @@ fn advance_day_with_match_check(st: &mut InGameState) {
                 }
             }
         }
-        if user_fixture_info.is_some() { break; }
+        if user_fixture_info.is_some() {
+            break;
+        }
     }
-
-    let inbox_before = st.game.state().inbox.len();
 
     // Process the day
     st.game.process_day();
 
     // If there was a fixture for the user, create live match state
-    if let Some((home_name, away_name, home_id, away_id)) = user_fixture_info {
-        // Collect new inbox messages as match events
-        let new_messages: Vec<String> = st.game.state().inbox[inbox_before..].to_vec();
+    if let Some((home_name, away_name, _home_id, _away_id)) = user_fixture_info {
+        // Usar o MatchResult rico armazenado pelo match_system
+        let match_result = st.game.state().last_match_result.clone();
 
-        // Try to find the match result
-        let mut home_goals: u8 = 0;
-        let mut away_goals: u8 = 0;
-
-        for comp in st.game.world().competitions.values() {
-            for fixture in &comp.fixtures.matches {
-                if fixture.home_id == home_id && fixture.away_id == away_id {
-                    if let Some(ref result) = fixture.result {
-                        home_goals = result.home_goals;
-                        away_goals = result.away_goals;
-                    }
+        if let Some(result) = match_result {
+            // Build substitution pairs from user's squad
+            let mut subs_available: Vec<(String, String)> = Vec::new();
+            let user_players = st.game.world().club_players(&st.game.state().club_id);
+            let mut starters: Vec<String> = Vec::new();
+            let mut reserves: Vec<String> = Vec::new();
+            for (i, p) in user_players.iter().enumerate() {
+                if i < 11 {
+                    starters.push(p.full_name());
+                } else if reserves.len() < 7 {
+                    reserves.push(p.full_name());
                 }
             }
-        }
-
-        // Build event list from match messages or generate synthetic events
-        let mut events: Vec<String> = Vec::new();
-        let match_related: Vec<&String> = new_messages.iter()
-            .filter(|m| m.contains(&home_name) || m.contains(&away_name) || m.contains("gol") || m.contains("Gol") || m.contains("GOL"))
-            .collect();
-
-        if !match_related.is_empty() {
-            for msg in &match_related {
-                events.push(format!("  {}", msg));
-            }
-        } else {
-            // Generate synthetic events based on scoreline
-            events.push(format!("  1' Apito inicial! {} x {}", home_name, away_name));
-            let total_goals = home_goals + away_goals;
-            if total_goals > 0 {
-                let mut h = 0u8;
-                let mut a = 0u8;
-                let interval = if total_goals > 0 { 80 / total_goals.max(1) } else { 45 };
-                let mut minute = 10;
-                for _g in 0..home_goals {
-                    h += 1;
-                    events.push(format!("  {}' GOL! {} marca! ({} x {})", minute, home_name, h, a));
-                    minute += interval;
-                    if minute > 85 { minute = 85; }
-                }
-                minute = 15;
-                for _g in 0..away_goals {
-                    a += 1;
-                    events.push(format!("  {}' GOL! {} marca! ({} x {})", minute, away_name, home_goals, a));
-                    minute += interval;
-                    if minute > 88 { minute = 88; }
+            let pair_count = starters.len().min(reserves.len()).min(5);
+            for i in 0..pair_count {
+                if i < starters.len() && i < reserves.len() {
+                    subs_available.push((
+                        starters[starters.len() - 1 - i].clone(),
+                        reserves[i].clone(),
+                    ));
                 }
             }
-            events.push("  45' --- Intervalo ---".to_string());
-            events.push(format!("  90' Fim de jogo! {} {} x {} {}", home_name, home_goals, away_goals, away_name));
-        }
 
-        // Build substitution pairs from user's squad
-        let mut subs_available: Vec<(String, String)> = Vec::new();
-        let user_players = st.game.world().club_players(&st.game.state().club_id);
-        let mut starters: Vec<String> = Vec::new();
-        let mut reserves: Vec<String> = Vec::new();
-        for (i, p) in user_players.iter().enumerate() {
-            if i < 11 {
-                starters.push(p.full_name());
-            } else if reserves.len() < 7 {
-                reserves.push(p.full_name());
-            }
-        }
-        // Create starter-reserve pairs for subs
-        let pair_count = starters.len().min(reserves.len()).min(5);
-        for i in 0..pair_count {
-            if i < starters.len() && i < reserves.len() {
-                subs_available.push((starters[starters.len() - 1 - i].clone(), reserves[i].clone()));
-            }
-        }
+            st.match_live = Some(MatchLiveState {
+                narration: Vec::new(),
+                next_event_idx: 0,
+                minute: 0,
+                phase: MatchPhase::PreMatch,
+                home_name,
+                away_name,
+                home_goals: 0,
+                away_goals: 0,
+                match_events: result.events.clone(),
+                match_stats: result.stats.clone(),
+                final_home_goals: result.home_goals,
+                final_away_goals: result.away_goals,
+                subs_made: 0,
+                subs_available,
+                showing_subs: false,
+                sub_selected: 0,
+                narration_scroll: 0,
+            });
 
-        st.match_live = Some(MatchLiveState {
-            events,
-            event_index: 0,
-            home_name,
-            away_name,
-            home_goals,
-            away_goals,
-            minute: 0,
-            finished: false,
-            subs_made: 0,
-            subs_available,
-            showing_subs: false,
-            sub_selected: 0,
-        });
+            // Limpar o resultado armazenado
+            st.game.state_mut().last_match_result = None;
+        }
     }
 }
 
@@ -2076,12 +2946,15 @@ fn swap_starter_reserve(st: &mut InGameState) {
     let players = st.game.world().club_players(&club_id);
     let mut sorted_players: Vec<&Player> = players;
     sorted_players.sort_by(|a, b| {
-        position_order(&a.position).cmp(&position_order(&b.position))
+        position_order(&a.position)
+            .cmp(&position_order(&b.position))
             .then_with(|| b.overall_rating().cmp(&a.overall_rating()))
     });
 
     let selected_idx = st.squad_selected;
-    if sorted_players.is_empty() { return; }
+    if sorted_players.is_empty() {
+        return;
+    }
     let selected_idx = selected_idx.min(sorted_players.len() - 1);
 
     let selected_player_id = sorted_players[selected_idx].id.clone();
@@ -2089,7 +2962,11 @@ fn swap_starter_reserve(st: &mut InGameState) {
     // Get the club's player_ids list
     if let Some(club) = st.game.world_mut().clubs.get_mut(&club_id) {
         // Find the player in the club's list
-        if let Some(pos_in_list) = club.player_ids.iter().position(|pid| pid == &selected_player_id) {
+        if let Some(pos_in_list) = club
+            .player_ids
+            .iter()
+            .position(|pid| pid == &selected_player_id)
+        {
             if selected_idx < 11 {
                 // Currently a starter (in sorted view), move to reserve position
                 // Move to position 11+ in the player_ids list
@@ -2131,16 +3008,14 @@ fn save_current_game(st: &mut InGameState) {
     );
 
     match SaveSnapshot::new(world, config_data, state_data) {
-        Ok(snapshot) => {
-            match snapshot.write_to_file(&save_name) {
-                Ok(_) => {
-                    st.show_popup = Some("Jogo salvo com sucesso!".to_string());
-                }
-                Err(e) => {
-                    st.show_popup = Some(format!("Erro ao salvar: {}", e));
-                }
+        Ok(snapshot) => match snapshot.write_to_file(&save_name) {
+            Ok(_) => {
+                st.show_popup = Some("Jogo salvo com sucesso!".to_string());
             }
-        }
+            Err(e) => {
+                st.show_popup = Some(format!("Erro ao salvar: {}", e));
+            }
+        },
         Err(e) => {
             st.show_popup = Some(format!("Erro ao criar save: {}", e));
         }
@@ -2151,16 +3026,26 @@ fn scan_save_files() -> Vec<SaveFileEntry> {
     let save_dir = std::path::Path::new("saves");
     let saves_meta = cm_save::list_saves(save_dir);
 
-    saves_meta.into_iter().map(|meta| {
-        let file_path = format!("saves/{}.cmsave", meta.save_name);
-        SaveFileEntry {
-            file_path,
-            save_name: meta.save_name,
-            manager_name: meta.manager_name,
-            club_name: meta.club_name,
-            game_date: meta.game_date,
-        }
-    }).collect()
+    saves_meta
+        .into_iter()
+        .map(|meta| {
+            let file_path = if meta.file_path.is_empty() {
+                format!("saves/{}.cmsave", meta.save_name)
+            } else {
+                meta.file_path
+            };
+            let created_at = meta.created_at.format("%d/%m/%Y %H:%M").to_string();
+            SaveFileEntry {
+                file_path,
+                save_name: meta.save_name,
+                manager_name: meta.manager_name,
+                club_name: meta.club_name,
+                game_date: meta.game_date,
+                file_size: meta.file_size,
+                created_at,
+            }
+        })
+        .collect()
 }
 
 fn load_game_from_file(path: &str) -> Option<AppScreen> {
@@ -2197,6 +3082,7 @@ fn load_game_from_file(path: &str) -> Option<AppScreen> {
         show_popup: Some("Jogo carregado com sucesso!".to_string()),
         transfer_selected: 0,
         transfer_confirm: None,
+        transfer_counter: None,
     }))
 }
 
@@ -2289,7 +3175,8 @@ fn render_formation_ascii(formation: &Formation) -> String {
                 formation.forwards()
             );
         }
-    }.to_string()
+    }
+    .to_string()
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
@@ -2332,5 +3219,6 @@ fn dummy_in_game() -> InGameState {
         show_popup: None,
         transfer_selected: 0,
         transfer_confirm: None,
+        transfer_counter: None,
     }
 }

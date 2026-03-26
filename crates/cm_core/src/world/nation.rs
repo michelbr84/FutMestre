@@ -1,7 +1,7 @@
 //! Nation entity.
 
-use serde::{Deserialize, Serialize};
 use crate::ids::NationId;
+use serde::{Deserialize, Serialize};
 
 /// A country/nation.
 #[derive(Debug, Clone, Serialize, Deserialize)]

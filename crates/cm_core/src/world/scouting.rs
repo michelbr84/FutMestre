@@ -1,7 +1,7 @@
 //! Scouting system.
 
-use serde::{Deserialize, Serialize};
 use crate::ids::PlayerId;
+use serde::{Deserialize, Serialize};
 
 /// Scout report on a player.
 #[derive(Debug, Clone, Serialize, Deserialize)]

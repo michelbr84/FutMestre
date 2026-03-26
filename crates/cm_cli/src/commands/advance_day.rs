@@ -65,7 +65,11 @@ pub fn run(args: AdvanceDayArgs) -> anyhow::Result<()> {
     let new_snap = SaveSnapshot::new(game.world().clone(), config_data, state_data)?;
     new_snap.write_to_file(&args.save)?;
 
-    println!("✓ Advanced {} day(s). Current date: {}", args.days, game.state().date);
+    println!(
+        "✓ Advanced {} day(s). Current date: {}",
+        args.days,
+        game.state().date
+    );
     println!("  {} messages in inbox", game.state().inbox.len());
 
     Ok(())

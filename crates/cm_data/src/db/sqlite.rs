@@ -1,11 +1,11 @@
 //! SQLite database connection and operations.
 
-use rusqlite::{params, Connection, Row, Transaction};
 use crate::errors::DataError;
-use cm_core::ids::{ClubId, NationId, PlayerId, StadiumId};
-use cm_core::economy::{Budget, Money};
-use cm_core::world::{Club, Nation, Player, Position};
 use chrono::NaiveDate;
+use cm_core::economy::{Budget, Money};
+use cm_core::ids::{ClubId, NationId, PlayerId, StadiumId};
+use cm_core::world::{Club, Nation, Player, Position};
+use rusqlite::{params, Connection, Row, Transaction};
 
 /// SQLite database wrapper with full CRUD operations.
 pub struct SqliteDb {
@@ -163,7 +163,7 @@ impl SqliteDb {
                 transfer_date TEXT,
                 status TEXT
             );
-            "#
+            "#,
         )?;
         Ok(())
     }
@@ -179,7 +179,7 @@ impl SqliteDb {
             CREATE INDEX IF NOT EXISTS idx_staff_club ON staff(club_id);
             CREATE INDEX IF NOT EXISTS idx_fixtures_competition ON fixtures(competition_id);
             CREATE INDEX IF NOT EXISTS idx_fixtures_date ON fixtures(match_date);
-            "#
+            "#,
         )?;
         Ok(())
     }
@@ -199,7 +199,7 @@ impl SqliteDb {
                 data BLOB,
                 checksum TEXT
             );
-            "#
+            "#,
         )?;
         Ok(())
     }
@@ -207,7 +207,14 @@ impl SqliteDb {
     // ===== NATIONS =====
 
     /// Insert a nation.
-    pub fn insert_nation(&self, id: &str, name: &str, short_name: &str, continent: &str, reputation: u8) -> Result<(), DataError> {
+    pub fn insert_nation(
+        &self,
+        id: &str,
+        name: &str,
+        short_name: &str,
+        continent: &str,
+        reputation: u8,
+    ) -> Result<(), DataError> {
         self.conn.execute(
             "INSERT OR REPLACE INTO nations (id, name, short_name, continent, reputation) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![id, name, short_name, continent, reputation as i32],
@@ -218,9 +225,9 @@ impl SqliteDb {
     /// Get nation by ID.
     pub fn get_nation(&self, id: &str) -> Result<Option<Nation>, DataError> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, name, short_name, continent, reputation FROM nations WHERE id = ?1"
+            "SELECT id, name, short_name, continent, reputation FROM nations WHERE id = ?1",
         )?;
-        
+
         let result = stmt.query_row(params![id], |row| {
             Ok(Nation {
                 id: NationId::new(row.get::<_, String>(0)?),
@@ -241,22 +248,23 @@ impl SqliteDb {
 
     /// Get all nations.
     pub fn get_all_nations(&self) -> Result<Vec<Nation>, DataError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, short_name, continent, reputation FROM nations"
-        )?;
-        
-        let nations = stmt.query_map([], |row| {
-            Ok(Nation {
-                id: NationId::new(row.get::<_, String>(0)?),
-                name: row.get(1)?,
-                short_name: row.get(2)?,
-                continent: row.get(3)?,
-                reputation: row.get::<_, i32>(4)? as u8,
-                youth_rating: 50,
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-        
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name, short_name, continent, reputation FROM nations")?;
+
+        let nations = stmt
+            .query_map([], |row| {
+                Ok(Nation {
+                    id: NationId::new(row.get::<_, String>(0)?),
+                    name: row.get(1)?,
+                    short_name: row.get(2)?,
+                    continent: row.get(3)?,
+                    reputation: row.get::<_, i32>(4)? as u8,
+                    youth_rating: 50,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
         Ok(nations)
     }
 
@@ -291,10 +299,8 @@ impl SqliteDb {
             r#"SELECT id, name, short_name, nation_id, stadium_id, reputation, balance, transfer_budget, wage_budget, primary_color, secondary_color 
                FROM clubs WHERE id = ?1"#
         )?;
-        
-        let result = stmt.query_row(params![id], |row| {
-            Self::row_to_club(row)
-        });
+
+        let result = stmt.query_row(params![id], |row| Self::row_to_club(row));
 
         match result {
             Ok(club) => Ok(Some(club)),
@@ -309,10 +315,11 @@ impl SqliteDb {
             r#"SELECT id, name, short_name, nation_id, stadium_id, reputation, balance, transfer_budget, wage_budget, primary_color, secondary_color 
                FROM clubs"#
         )?;
-        
-        let clubs = stmt.query_map([], |row| Self::row_to_club(row))?
+
+        let clubs = stmt
+            .query_map([], |row| Self::row_to_club(row))?
             .collect::<Result<Vec<_>, _>>()?;
-        
+
         Ok(clubs)
     }
 
@@ -322,10 +329,11 @@ impl SqliteDb {
             r#"SELECT id, name, short_name, nation_id, stadium_id, reputation, balance, transfer_budget, wage_budget, primary_color, secondary_color 
                FROM clubs WHERE nation_id = ?1"#
         )?;
-        
-        let clubs = stmt.query_map(params![nation_id], |row| Self::row_to_club(row))?
+
+        let clubs = stmt
+            .query_map(params![nation_id], |row| Self::row_to_club(row))?
             .collect::<Result<Vec<_>, _>>()?;
-        
+
         Ok(clubs)
     }
 
@@ -348,6 +356,7 @@ impl SqliteDb {
             staff_ids: Vec::new(),
             primary_color: row.get(9)?,
             secondary_color: row.get(10)?,
+            history: Default::default(),
         })
     }
 
@@ -396,7 +405,7 @@ impl SqliteDb {
                passing, finishing, dribbling, tackling, heading, pace, stamina, strength, decisions, positioning, handling, reflexes
                FROM players WHERE id = ?1"#
         )?;
-        
+
         let result = stmt.query_row(params![id], |row| Self::row_to_player(row));
 
         match result {
@@ -413,10 +422,11 @@ impl SqliteDb {
                passing, finishing, dribbling, tackling, heading, pace, stamina, strength, decisions, positioning, handling, reflexes
                FROM players"#
         )?;
-        
-        let players = stmt.query_map([], |row| Self::row_to_player(row))?
+
+        let players = stmt
+            .query_map([], |row| Self::row_to_player(row))?
             .collect::<Result<Vec<_>, _>>()?;
-        
+
         Ok(players)
     }
 
@@ -427,10 +437,11 @@ impl SqliteDb {
                passing, finishing, dribbling, tackling, heading, pace, stamina, strength, decisions, positioning, handling, reflexes
                FROM players WHERE club_id = ?1"#
         )?;
-        
-        let players = stmt.query_map(params![club_id], |row| Self::row_to_player(row))?
+
+        let players = stmt
+            .query_map(params![club_id], |row| Self::row_to_player(row))?
             .collect::<Result<Vec<_>, _>>()?;
-        
+
         Ok(players)
     }
 
@@ -441,20 +452,24 @@ impl SqliteDb {
                passing, finishing, dribbling, tackling, heading, pace, stamina, strength, decisions, positioning, handling, reflexes
                FROM players WHERE club_id IS NULL"#
         )?;
-        
-        let players = stmt.query_map([], |row| Self::row_to_player(row))?
+
+        let players = stmt
+            .query_map([], |row| Self::row_to_player(row))?
             .collect::<Result<Vec<_>, _>>()?;
-        
+
         Ok(players)
     }
 
     fn row_to_player(row: &Row) -> rusqlite::Result<Player> {
-        use cm_core::world::{Attributes, TechnicalAttributes, PhysicalAttributes, MentalAttributes, GoalkeeperAttributes, Morale};
-        
+        use cm_core::world::{
+            Attributes, GoalkeeperAttributes, MentalAttributes, Morale, PhysicalAttributes,
+            TechnicalAttributes,
+        };
+
         let birth_str: String = row.get(4)?;
         let birth_date = NaiveDate::parse_from_str(&birth_str, "%Y-%m-%d")
             .unwrap_or_else(|_| NaiveDate::from_ymd_opt(1990, 1, 1).unwrap());
-        
+
         Ok(Player {
             id: PlayerId::new(row.get::<_, String>(0)?),
             first_name: row.get(1)?,
@@ -498,13 +513,23 @@ impl SqliteDb {
             fitness: row.get::<_, i32>(9)? as u8,
             form: row.get::<_, i32>(10)? as u8,
             potential: row.get::<_, i32>(8)? as u8,
+            history: Default::default(),
         })
     }
 
     // ===== SAVES =====
 
     /// Save game state.
-    pub fn save_game(&self, id: &str, name: &str, game_date: &str, manager: &str, club_id: &str, data: &[u8], checksum: &str) -> Result<(), DataError> {
+    pub fn save_game(
+        &self,
+        id: &str,
+        name: &str,
+        game_date: &str,
+        manager: &str,
+        club_id: &str,
+        data: &[u8],
+        checksum: &str,
+    ) -> Result<(), DataError> {
         let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
         self.conn.execute(
             r#"INSERT OR REPLACE INTO saves 
@@ -517,10 +542,10 @@ impl SqliteDb {
 
     /// Load game state.
     pub fn load_game(&self, id: &str) -> Result<Option<(String, Vec<u8>, String)>, DataError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT name, data, checksum FROM saves WHERE id = ?1"
-        )?;
-        
+        let mut stmt = self
+            .conn
+            .prepare("SELECT name, data, checksum FROM saves WHERE id = ?1")?;
+
         let result = stmt.query_row(params![id], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -541,26 +566,29 @@ impl SqliteDb {
         let mut stmt = self.conn.prepare(
             "SELECT id, name, created_at, updated_at, game_date, manager_name, club_id FROM saves ORDER BY updated_at DESC"
         )?;
-        
-        let saves = stmt.query_map([], |row| {
-            Ok(SaveInfo {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                created_at: row.get(2)?,
-                updated_at: row.get(3)?,
-                game_date: row.get(4)?,
-                manager_name: row.get(5)?,
-                club_id: row.get(6)?,
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-        
+
+        let saves = stmt
+            .query_map([], |row| {
+                Ok(SaveInfo {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    created_at: row.get(2)?,
+                    updated_at: row.get(3)?,
+                    game_date: row.get(4)?,
+                    manager_name: row.get(5)?,
+                    club_id: row.get(6)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+
         Ok(saves)
     }
 
     /// Delete a save.
     pub fn delete_save(&self, id: &str) -> Result<bool, DataError> {
-        let affected = self.conn.execute("DELETE FROM saves WHERE id = ?1", params![id])?;
+        let affected = self
+            .conn
+            .execute("DELETE FROM saves WHERE id = ?1", params![id])?;
         Ok(affected > 0)
     }
 
@@ -569,12 +597,24 @@ impl SqliteDb {
     /// Count entities.
     pub fn count_entities(&self) -> Result<EntityCounts, DataError> {
         Ok(EntityCounts {
-            nations: self.conn.query_row("SELECT COUNT(*) FROM nations", [], |r| r.get(0))?,
-            clubs: self.conn.query_row("SELECT COUNT(*) FROM clubs", [], |r| r.get(0))?,
-            players: self.conn.query_row("SELECT COUNT(*) FROM players", [], |r| r.get(0))?,
-            staff: self.conn.query_row("SELECT COUNT(*) FROM staff", [], |r| r.get(0))?,
-            competitions: self.conn.query_row("SELECT COUNT(*) FROM competitions", [], |r| r.get(0))?,
-            saves: self.conn.query_row("SELECT COUNT(*) FROM saves", [], |r| r.get(0))?,
+            nations: self
+                .conn
+                .query_row("SELECT COUNT(*) FROM nations", [], |r| r.get(0))?,
+            clubs: self
+                .conn
+                .query_row("SELECT COUNT(*) FROM clubs", [], |r| r.get(0))?,
+            players: self
+                .conn
+                .query_row("SELECT COUNT(*) FROM players", [], |r| r.get(0))?,
+            staff: self
+                .conn
+                .query_row("SELECT COUNT(*) FROM staff", [], |r| r.get(0))?,
+            competitions: self
+                .conn
+                .query_row("SELECT COUNT(*) FROM competitions", [], |r| r.get(0))?,
+            saves: self
+                .conn
+                .query_row("SELECT COUNT(*) FROM saves", [], |r| r.get(0))?,
         })
     }
 }
@@ -659,8 +699,9 @@ mod tests {
     #[test]
     fn test_insert_and_get_nation() {
         let db = setup_db();
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+
         let nation = db.get_nation("ENG").unwrap();
         assert!(nation.is_some());
         let nation = nation.unwrap();
@@ -671,9 +712,11 @@ mod tests {
     #[test]
     fn test_get_all_nations() {
         let db = setup_db();
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        db.insert_nation("ESP", "Spain", "ESP", "Europe", 88).unwrap();
-        
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+        db.insert_nation("ESP", "Spain", "ESP", "Europe", 88)
+            .unwrap();
+
         let nations = db.get_all_nations().unwrap();
         assert_eq!(nations.len(), 2);
     }
@@ -681,11 +724,12 @@ mod tests {
     #[test]
     fn test_insert_and_get_club() {
         let db = setup_db();
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+
         let club = Club::new("LIV", "Liverpool", NationId::new("ENG"));
         db.insert_club(&club).unwrap();
-        
+
         let loaded = db.get_club("LIV").unwrap();
         assert!(loaded.is_some());
         let loaded = loaded.unwrap();
@@ -695,20 +739,22 @@ mod tests {
     #[test]
     fn test_get_clubs_by_nation() {
         let db = setup_db();
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        db.insert_nation("ESP", "Spain", "ESP", "Europe", 88).unwrap();
-        
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+        db.insert_nation("ESP", "Spain", "ESP", "Europe", 88)
+            .unwrap();
+
         let liv = Club::new("LIV", "Liverpool", NationId::new("ENG"));
         let man = Club::new("MAN", "Manchester United", NationId::new("ENG"));
         let bar = Club::new("BAR", "Barcelona", NationId::new("ESP"));
-        
+
         db.insert_club(&liv).unwrap();
         db.insert_club(&man).unwrap();
         db.insert_club(&bar).unwrap();
-        
+
         let eng_clubs = db.get_clubs_by_nation("ENG").unwrap();
         assert_eq!(eng_clubs.len(), 2);
-        
+
         let esp_clubs = db.get_clubs_by_nation("ESP").unwrap();
         assert_eq!(esp_clubs.len(), 1);
     }
@@ -716,8 +762,9 @@ mod tests {
     #[test]
     fn test_insert_and_get_player() {
         let db = setup_db();
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+
         let player = Player::new(
             "P001",
             "Steven",
@@ -727,7 +774,7 @@ mod tests {
             Position::MidfielderCenter,
         );
         db.insert_player(&player).unwrap();
-        
+
         let loaded = db.get_player("P001").unwrap();
         assert!(loaded.is_some());
         let loaded = loaded.unwrap();
@@ -738,30 +785,35 @@ mod tests {
     #[test]
     fn test_get_players_by_club() {
         let db = setup_db();
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+
         let club = Club::new("LIV", "Liverpool", NationId::new("ENG"));
         db.insert_club(&club).unwrap();
-        
+
         let mut player1 = Player::new(
-            "P001", "Steven", "Gerrard",
+            "P001",
+            "Steven",
+            "Gerrard",
             NationId::new("ENG"),
             NaiveDate::from_ymd_opt(1980, 5, 30).unwrap(),
             Position::MidfielderCenter,
         );
         player1.club_id = Some(ClubId::new("LIV"));
-        
+
         let mut player2 = Player::new(
-            "P002", "Jamie", "Carragher",
+            "P002",
+            "Jamie",
+            "Carragher",
             NationId::new("ENG"),
             NaiveDate::from_ymd_opt(1978, 1, 28).unwrap(),
             Position::DefenderCenter,
         );
         player2.club_id = Some(ClubId::new("LIV"));
-        
+
         db.insert_player(&player1).unwrap();
         db.insert_player(&player2).unwrap();
-        
+
         let players = db.get_players_by_club("LIV").unwrap();
         assert_eq!(players.len(), 2);
     }
@@ -769,31 +821,36 @@ mod tests {
     #[test]
     fn test_get_free_agents() {
         let db = setup_db();
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+
         // Create club first for the signed player
         let club = Club::new("LIV", "Liverpool", NationId::new("ENG"));
         db.insert_club(&club).unwrap();
-        
+
         let player1 = Player::new(
-            "P001", "Free", "Agent",
+            "P001",
+            "Free",
+            "Agent",
             NationId::new("ENG"),
             NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
             Position::ForwardCenter,
         );
         // No club_id means free agent
-        
+
         let mut player2 = Player::new(
-            "P002", "Signed", "Player",
+            "P002",
+            "Signed",
+            "Player",
             NationId::new("ENG"),
             NaiveDate::from_ymd_opt(1990, 1, 1).unwrap(),
             Position::MidfielderCenter,
         );
         player2.club_id = Some(ClubId::new("LIV"));
-        
+
         db.insert_player(&player1).unwrap();
         db.insert_player(&player2).unwrap();
-        
+
         let free_agents = db.get_free_agents().unwrap();
         assert_eq!(free_agents.len(), 1);
         assert_eq!(free_agents[0].first_name, "Free");
@@ -802,12 +859,21 @@ mod tests {
     #[test]
     fn test_save_and_load_game() {
         let db = setup_db();
-        
+
         let data = b"test game data";
         let checksum = "abc123";
-        
-        db.save_game("save1", "My Save", "2024-01-15", "Manager", "LIV", data, checksum).unwrap();
-        
+
+        db.save_game(
+            "save1",
+            "My Save",
+            "2024-01-15",
+            "Manager",
+            "LIV",
+            data,
+            checksum,
+        )
+        .unwrap();
+
         let loaded = db.load_game("save1").unwrap();
         assert!(loaded.is_some());
         let (name, loaded_data, loaded_checksum) = loaded.unwrap();
@@ -819,10 +885,28 @@ mod tests {
     #[test]
     fn test_list_saves() {
         let db = setup_db();
-        
-        db.save_game("save1", "Save 1", "2024-01-15", "Manager1", "LIV", b"data1", "check1").unwrap();
-        db.save_game("save2", "Save 2", "2024-02-20", "Manager2", "MAN", b"data2", "check2").unwrap();
-        
+
+        db.save_game(
+            "save1",
+            "Save 1",
+            "2024-01-15",
+            "Manager1",
+            "LIV",
+            b"data1",
+            "check1",
+        )
+        .unwrap();
+        db.save_game(
+            "save2",
+            "Save 2",
+            "2024-02-20",
+            "Manager2",
+            "MAN",
+            b"data2",
+            "check2",
+        )
+        .unwrap();
+
         let saves = db.list_saves().unwrap();
         assert_eq!(saves.len(), 2);
     }
@@ -830,15 +914,24 @@ mod tests {
     #[test]
     fn test_delete_save() {
         let db = setup_db();
-        
-        db.save_game("save1", "My Save", "2024-01-15", "Manager", "LIV", b"data", "check").unwrap();
-        
+
+        db.save_game(
+            "save1",
+            "My Save",
+            "2024-01-15",
+            "Manager",
+            "LIV",
+            b"data",
+            "check",
+        )
+        .unwrap();
+
         let deleted = db.delete_save("save1").unwrap();
         assert!(deleted);
-        
+
         let loaded = db.load_game("save1").unwrap();
         assert!(loaded.is_none());
-        
+
         // Delete non-existent
         let deleted = db.delete_save("nonexistent").unwrap();
         assert!(!deleted);
@@ -847,13 +940,15 @@ mod tests {
     #[test]
     fn test_count_entities() {
         let db = setup_db();
-        
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        db.insert_nation("ESP", "Spain", "ESP", "Europe", 88).unwrap();
-        
+
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+        db.insert_nation("ESP", "Spain", "ESP", "Europe", 88)
+            .unwrap();
+
         let club = Club::new("LIV", "Liverpool", NationId::new("ENG"));
         db.insert_club(&club).unwrap();
-        
+
         let counts = db.count_entities().unwrap();
         assert_eq!(counts.nations, 2);
         assert_eq!(counts.clubs, 1);
@@ -864,7 +959,7 @@ mod tests {
     fn test_position_conversion() {
         assert_eq!(position_to_string(&Position::Goalkeeper), "GK");
         assert_eq!(position_to_string(&Position::ForwardCenter), "FC");
-        
+
         assert_eq!(string_to_position("GK"), Position::Goalkeeper);
         assert_eq!(string_to_position("FC"), Position::ForwardCenter);
         assert_eq!(string_to_position("INVALID"), Position::MidfielderCenter);
@@ -873,16 +968,17 @@ mod tests {
     #[test]
     fn test_update_existing_club() {
         let db = setup_db();
-        db.insert_nation("ENG", "England", "ENG", "Europe", 90).unwrap();
-        
+        db.insert_nation("ENG", "England", "ENG", "Europe", 90)
+            .unwrap();
+
         let mut club = Club::new("LIV", "Liverpool", NationId::new("ENG"));
         club.reputation = 80;
         db.insert_club(&club).unwrap();
-        
+
         // Update reputation
         club.reputation = 90;
         db.insert_club(&club).unwrap();
-        
+
         let loaded = db.get_club("LIV").unwrap().unwrap();
         assert_eq!(loaded.reputation, 90);
     }

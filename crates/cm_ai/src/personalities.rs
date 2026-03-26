@@ -1,7 +1,7 @@
 //! AI personality types - Affects AI decision making across all systems.
 
-use serde::{Deserialize, Serialize};
 use cm_core::world::{Formation, Mentality, Tempo};
+use serde::{Deserialize, Serialize};
 
 /// Manager personality affects AI decisions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ impl ManagerPersonality {
             Self::Financial => "Financial Manager",
         }
     }
-    
+
     /// Get description.
     pub fn description(&self) -> &'static str {
         match self {
@@ -222,27 +222,27 @@ pub fn personality_modifier(personality: ManagerPersonality, factor: DecisionFac
         (ManagerPersonality::Defensive, DecisionFactor::AttackingStrength) => 0.8,
         (ManagerPersonality::Defensive, DecisionFactor::YouthPotential) => 0.9,
         (ManagerPersonality::Defensive, DecisionFactor::Experience) => 1.2,
-        
+
         // Attacking personality modifiers
         (ManagerPersonality::Attacking, DecisionFactor::DefensiveStrength) => 0.8,
         (ManagerPersonality::Attacking, DecisionFactor::AttackingStrength) => 1.3,
         (ManagerPersonality::Attacking, DecisionFactor::Creativity) => 1.2,
-        
+
         // Youth focused modifiers
         (ManagerPersonality::YouthFocused, DecisionFactor::YouthPotential) => 1.5,
         (ManagerPersonality::YouthFocused, DecisionFactor::Age) => 0.7,
         (ManagerPersonality::YouthFocused, DecisionFactor::Experience) => 0.8,
-        
+
         // Win at all costs modifiers
         (ManagerPersonality::WinAtAllCosts, DecisionFactor::CurrentAbility) => 1.3,
         (ManagerPersonality::WinAtAllCosts, DecisionFactor::YouthPotential) => 0.7,
         (ManagerPersonality::WinAtAllCosts, DecisionFactor::Value) => 0.8,
-        
+
         // Financial modifiers
         (ManagerPersonality::Financial, DecisionFactor::Value) => 1.4,
         (ManagerPersonality::Financial, DecisionFactor::WagesCost) => 1.3,
         (ManagerPersonality::Financial, DecisionFactor::ResaleValue) => 1.3,
-        
+
         // Default - no modifier
         _ => 1.0,
     }
@@ -274,8 +274,10 @@ mod tests {
 
     #[test]
     fn test_preferred_squad_size() {
-        assert!(preferred_squad_size(ManagerPersonality::YouthFocused) > 
-                preferred_squad_size(ManagerPersonality::Financial));
+        assert!(
+            preferred_squad_size(ManagerPersonality::YouthFocused)
+                > preferred_squad_size(ManagerPersonality::Financial)
+        );
     }
 
     #[test]
@@ -286,32 +288,48 @@ mod tests {
 
     #[test]
     fn test_preferred_formations() {
-        assert_eq!(preferred_formation(ManagerPersonality::Defensive), Formation::F532);
-        assert_eq!(preferred_formation(ManagerPersonality::Attacking), Formation::F433);
+        assert_eq!(
+            preferred_formation(ManagerPersonality::Defensive),
+            Formation::F532
+        );
+        assert_eq!(
+            preferred_formation(ManagerPersonality::Attacking),
+            Formation::F433
+        );
     }
 
     #[test]
     fn test_preferred_mentality() {
-        assert_eq!(preferred_mentality(ManagerPersonality::Defensive), Mentality::Cautious);
-        assert_eq!(preferred_mentality(ManagerPersonality::Attacking), Mentality::Attacking);
+        assert_eq!(
+            preferred_mentality(ManagerPersonality::Defensive),
+            Mentality::Cautious
+        );
+        assert_eq!(
+            preferred_mentality(ManagerPersonality::Attacking),
+            Mentality::Attacking
+        );
     }
 
     #[test]
     fn test_transfer_spending() {
         // Win at all costs should spend the most
-        assert!(transfer_spending_preference(ManagerPersonality::WinAtAllCosts) >
-                transfer_spending_preference(ManagerPersonality::Balanced));
-        
+        assert!(
+            transfer_spending_preference(ManagerPersonality::WinAtAllCosts)
+                > transfer_spending_preference(ManagerPersonality::Balanced)
+        );
+
         // Financial should spend the least
-        assert!(transfer_spending_preference(ManagerPersonality::Financial) <
-                transfer_spending_preference(ManagerPersonality::Balanced));
+        assert!(
+            transfer_spending_preference(ManagerPersonality::Financial)
+                < transfer_spending_preference(ManagerPersonality::Balanced)
+        );
     }
 
     #[test]
     fn test_risk_tolerance() {
         // Win at all costs = high risk
         assert!(risk_tolerance(ManagerPersonality::WinAtAllCosts) >= 80);
-        
+
         // Defensive = low risk
         assert!(risk_tolerance(ManagerPersonality::Defensive) <= 40);
     }
@@ -327,7 +345,7 @@ mod tests {
         // Youth focused wants young players
         assert!(max_signing_age(ManagerPersonality::YouthFocused) <= 25);
         assert!(min_signing_age(ManagerPersonality::YouthFocused) <= 18);
-        
+
         // Win at all costs accepts older players
         assert!(max_signing_age(ManagerPersonality::WinAtAllCosts) >= 30);
     }
@@ -335,28 +353,42 @@ mod tests {
     #[test]
     fn test_pressing_and_line() {
         // Attacking should press higher
-        assert!(preferred_pressing(ManagerPersonality::Attacking) >
-                preferred_pressing(ManagerPersonality::Defensive));
-        
+        assert!(
+            preferred_pressing(ManagerPersonality::Attacking)
+                > preferred_pressing(ManagerPersonality::Defensive)
+        );
+
         // Attacking should have higher line
-        assert!(preferred_defensive_line(ManagerPersonality::Attacking) >
-                preferred_defensive_line(ManagerPersonality::Defensive));
+        assert!(
+            preferred_defensive_line(ManagerPersonality::Attacking)
+                > preferred_defensive_line(ManagerPersonality::Defensive)
+        );
     }
 
     #[test]
     fn test_personality_modifier_defensive() {
-        let def_mod = personality_modifier(ManagerPersonality::Defensive, DecisionFactor::DefensiveStrength);
-        let att_mod = personality_modifier(ManagerPersonality::Defensive, DecisionFactor::AttackingStrength);
-        
+        let def_mod = personality_modifier(
+            ManagerPersonality::Defensive,
+            DecisionFactor::DefensiveStrength,
+        );
+        let att_mod = personality_modifier(
+            ManagerPersonality::Defensive,
+            DecisionFactor::AttackingStrength,
+        );
+
         assert!(def_mod > 1.0);
         assert!(att_mod < 1.0);
     }
 
     #[test]
     fn test_personality_modifier_youth() {
-        let youth_mod = personality_modifier(ManagerPersonality::YouthFocused, DecisionFactor::YouthPotential);
-        let exp_mod = personality_modifier(ManagerPersonality::YouthFocused, DecisionFactor::Experience);
-        
+        let youth_mod = personality_modifier(
+            ManagerPersonality::YouthFocused,
+            DecisionFactor::YouthPotential,
+        );
+        let exp_mod =
+            personality_modifier(ManagerPersonality::YouthFocused, DecisionFactor::Experience);
+
         assert!(youth_mod > 1.0);
         assert!(exp_mod < 1.0);
     }
@@ -370,14 +402,21 @@ mod tests {
     #[test]
     fn test_personality_modifier_default() {
         // Unknown combinations should return 1.0
-        let default_mod = personality_modifier(ManagerPersonality::Balanced, DecisionFactor::Creativity);
+        let default_mod =
+            personality_modifier(ManagerPersonality::Balanced, DecisionFactor::Creativity);
         assert_eq!(default_mod, 1.0);
     }
 
     #[test]
     fn test_display_name() {
-        assert_eq!(ManagerPersonality::Balanced.display_name(), "Balanced Manager");
-        assert_eq!(ManagerPersonality::YouthFocused.display_name(), "Youth Developer");
+        assert_eq!(
+            ManagerPersonality::Balanced.display_name(),
+            "Balanced Manager"
+        );
+        assert_eq!(
+            ManagerPersonality::YouthFocused.display_name(),
+            "Youth Developer"
+        );
     }
 
     #[test]
@@ -388,8 +427,14 @@ mod tests {
 
     #[test]
     fn test_press_style() {
-        assert_eq!(press_style(ManagerPersonality::Defensive), PressStyle::Cautious);
-        assert_eq!(press_style(ManagerPersonality::WinAtAllCosts), PressStyle::Aggressive);
+        assert_eq!(
+            press_style(ManagerPersonality::Defensive),
+            PressStyle::Cautious
+        );
+        assert_eq!(
+            press_style(ManagerPersonality::WinAtAllCosts),
+            PressStyle::Aggressive
+        );
     }
 
     #[test]
@@ -402,7 +447,7 @@ mod tests {
             ManagerPersonality::WinAtAllCosts,
             ManagerPersonality::Financial,
         ];
-        
+
         for p in personalities {
             // Ensure all functions return valid values
             assert!(preferred_squad_size(p) >= 20 && preferred_squad_size(p) <= 35);

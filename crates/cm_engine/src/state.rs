@@ -1,9 +1,18 @@
 //! Game state.
 
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
 use cm_core::ids::ClubId;
 use cm_core::sim::GameDate;
+use cm_match::MatchResult;
+use serde::{Deserialize, Serialize};
+
+/// Objetivo de carreira (modo Serie D).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CareerObjective {
+    pub description: String,
+    pub completed: bool,
+    pub season: String,
+}
 
 /// Game state flags.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -23,6 +32,12 @@ pub struct GameState {
     pub inbox: Vec<String>,
     pub flags: GameFlags,
     pub days_played: u32,
+    /// Resultado da ultima partida do usuario (preservado para exibicao na TUI).
+    #[serde(skip)]
+    pub last_match_result: Option<MatchResult>,
+    /// Objetivos de carreira (modo Serie D).
+    #[serde(default)]
+    pub career_objectives: Vec<CareerObjective>,
 }
 
 impl GameState {
@@ -35,6 +50,8 @@ impl GameState {
             inbox: Vec::new(),
             flags: GameFlags::default(),
             days_played: 0,
+            last_match_result: None,
+            career_objectives: Vec::new(),
         }
     }
 

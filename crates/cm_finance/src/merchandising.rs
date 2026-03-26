@@ -22,7 +22,11 @@ pub fn calculate_merchandising(reputation: u32, recent_wins: u32, recent_losses:
 
 /// Calculate merchandising revenue as Money type.
 pub fn merchandising_as_money(reputation: u32, recent_wins: u32, recent_losses: u32) -> Money {
-    Money::from_major(calculate_merchandising(reputation, recent_wins, recent_losses))
+    Money::from_major(calculate_merchandising(
+        reputation,
+        recent_wins,
+        recent_losses,
+    ))
 }
 
 #[cfg(test)]

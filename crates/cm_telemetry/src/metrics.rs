@@ -151,11 +151,7 @@ pub struct Histogram {
 
 impl Histogram {
     /// Create a new histogram with custom buckets.
-    pub fn new(
-        name: impl Into<String>,
-        description: impl Into<String>,
-        buckets: Vec<f64>,
-    ) -> Self {
+    pub fn new(name: impl Into<String>, description: impl Into<String>, buckets: Vec<f64>) -> Self {
         let bucket_count = buckets.len();
         let counts = (0..=bucket_count).map(|_| AtomicU64::new(0)).collect();
         Self {
@@ -173,7 +169,9 @@ impl Histogram {
         Self::new(
             name,
             description,
-            vec![1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 5000.0],
+            vec![
+                1.0, 5.0, 10.0, 25.0, 50.0, 100.0, 250.0, 500.0, 1000.0, 5000.0,
+            ],
         )
     }
 

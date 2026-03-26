@@ -1,11 +1,12 @@
 //! Competition system - manages fixtures, tables, and results.
 
-use crate::config::GameConfig;
-use crate::state::GameState;
+use crate::config::{GameConfig, GameMode};
+use crate::state::{CareerObjective, GameState};
 use chrono::NaiveDate;
 use cm_core::ids::{ClubId, CompetitionId};
 use cm_core::world::{
-    Competition, CompetitionType, DivisionLevel, Fixture, Fixtures, Table, TableRow, World,
+    Competition, CompetitionType, DivisionLevel, Fixture, Fixtures, PlayerSeasonStats,
+    SeasonRecord, Table, TableRow, World,
 };
 
 /// Number of teams promoted/relegated between divisions.
@@ -222,6 +223,174 @@ pub fn process_end_of_season(world: &mut World) -> Vec<CompetitionId> {
     completed
 }
 
+/// Registrar historico de temporada para todos os clubes nas ligas completadas.
+/// Grava SeasonRecord no ClubHistory de cada clube e PlayerSeasonStats no PlayerHistory.
+pub fn record_season_history(world: &mut World, season: &str) {
+    let system = CompetitionSystem;
+
+    // Coletar dados de todas as ligas completadas
+    let league_data: Vec<(CompetitionId, Vec<(ClubId, u8)>)> = world
+        .competitions
+        .values()
+        .filter(|c| c.is_league() && CompetitionSystem::is_season_complete(c))
+        .map(|c| {
+            let standings = system.get_standings(&c.table);
+            let club_positions: Vec<(ClubId, u8)> = standings
+                .iter()
+                .enumerate()
+                .map(|(i, row)| (row.club_id.clone(), (i + 1) as u8))
+                .collect();
+            (c.id.clone(), club_positions)
+        })
+        .collect();
+
+    // Registrar SeasonRecord para cada clube
+    for (comp_id, club_positions) in &league_data {
+        for (club_id, position) in club_positions {
+            // Buscar dados da tabela
+            let row_data = world
+                .competitions
+                .get(comp_id)
+                .and_then(|c| c.table.get_team(club_id))
+                .map(|row| {
+                    (
+                        row.played,
+                        row.won,
+                        row.drawn,
+                        row.lost,
+                        row.goals_for,
+                        row.goals_against,
+                        row.points,
+                    )
+                });
+
+            if let Some((played, won, drawn, lost, gf, ga, pts)) = row_data {
+                let record = SeasonRecord {
+                    season: season.to_string(),
+                    competition_id: comp_id.clone(),
+                    position: *position,
+                    played,
+                    won,
+                    drawn,
+                    lost,
+                    goals_for: gf,
+                    goals_against: ga,
+                    points: pts,
+                };
+
+                // Verificar se campeao
+                let is_champion = *position == 1;
+
+                if let Some(club) = world.clubs.get_mut(club_id) {
+                    club.history.add_season(record);
+                    if is_champion {
+                        club.history.league_titles += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // Registrar PlayerSeasonStats para todos os jogadores com clube
+    let player_entries: Vec<(cm_core::ids::PlayerId, ClubId)> = world
+        .players
+        .values()
+        .filter_map(|p| p.club_id.clone().map(|cid| (p.id.clone(), cid)))
+        .collect();
+
+    for (player_id, club_id) in player_entries {
+        let stats = PlayerSeasonStats {
+            season: season.to_string(),
+            club_id,
+            appearances: 0, // Placeholder - seria preenchido com dados reais de partidas
+            goals: 0,       // Placeholder - seria preenchido com dados reais
+            assists: 0,
+            yellow_cards: 0,
+            red_cards: 0,
+            average_rating: 0.0,
+        };
+
+        if let Some(player) = world.players.get_mut(&player_id) {
+            player.history.add_season(stats);
+        }
+    }
+}
+
+/// Verificar e registrar objetivos de carreira para o modo Serie D.
+/// Checa promocao, rebaixamento e conquista da Serie A.
+pub fn check_career_objectives(
+    world: &World,
+    state: &mut GameState,
+    cfg: &GameConfig,
+    promotion_moves: &[(ClubId, DivisionLevel, DivisionLevel)],
+) {
+    if cfg.game_mode != GameMode::CareerSerieD {
+        return;
+    }
+
+    let season = state.season();
+    let user_club = state.club_id.clone();
+
+    // Verificar se o clube do usuario foi promovido
+    for (club_id, from_div, to_div) in promotion_moves {
+        if *club_id != user_club {
+            continue;
+        }
+
+        // Promocao (to_div tem nivel menor = divisao superior)
+        if to_div < from_div {
+            let desc = format!("Promovido para {} na temporada {}", to_div.name(), season);
+            state.career_objectives.push(CareerObjective {
+                description: desc.clone(),
+                completed: true,
+                season: season.clone(),
+            });
+            state.add_message(format!("PARABENS! {}", desc));
+        }
+
+        // Rebaixamento
+        if to_div > from_div {
+            let desc = format!("Rebaixado para {} na temporada {}", to_div.name(), season);
+            state.career_objectives.push(CareerObjective {
+                description: desc,
+                completed: false,
+                season: season.clone(),
+            });
+            state.add_message(format!(
+                "Infelizmente, seu clube foi rebaixado para {}.",
+                to_div.name()
+            ));
+        }
+    }
+
+    // Verificar se o clube e campeao da Serie A
+    for comp in world.competitions.values() {
+        if comp.division_level != Some(DivisionLevel::SerieA) || !comp.is_league() {
+            continue;
+        }
+
+        if !CompetitionSystem::is_season_complete(comp) {
+            continue;
+        }
+
+        // Verificar posicao do clube do usuario
+        if let Some(pos) = comp.table.position(&user_club) {
+            if pos == 1 {
+                let desc = format!("CAMPEAO DA SERIE A! Temporada {}", season);
+                state.career_objectives.push(CareerObjective {
+                    description: desc.clone(),
+                    completed: true,
+                    season: season.clone(),
+                });
+                state.add_message(format!(
+                    "HISTORICO! Voce conquistou o titulo da Serie A na temporada {}!",
+                    season
+                ));
+            }
+        }
+    }
+}
+
 /// Apply promotion and relegation between divisions.
 ///
 /// Top 3 of each division promote (except Serie A, the top division).
@@ -303,6 +472,81 @@ pub fn apply_promotion_relegation(
     }
 
     moves
+}
+
+/// Generate promotion/relegation/champion news messages when a season ends.
+///
+/// - Champion: the 1st-placed team in each completed league.
+/// - Top 4 teams: promotion message (if a division above exists).
+/// - Bottom 4 teams: relegation message (if a division below exists).
+///
+/// Returns a list of news strings to be added to the inbox.
+pub fn generate_season_end_news(world: &World) -> Vec<String> {
+    let system = CompetitionSystem;
+    let mut news: Vec<String> = Vec::new();
+
+    for comp in world.competitions.values() {
+        if !comp.is_league() || comp.division_level.is_none() {
+            continue;
+        }
+        if !CompetitionSystem::is_season_complete(comp) {
+            continue;
+        }
+
+        let div_level = comp.division_level.unwrap();
+        let standings = system.get_standings(&comp.table);
+        let num_teams = standings.len();
+
+        if num_teams == 0 {
+            continue;
+        }
+
+        // Helper closure to resolve club name
+        let club_name = |club_id: &ClubId| -> String {
+            world
+                .clubs
+                .get(club_id)
+                .map(|c| c.name.clone())
+                .unwrap_or_else(|| club_id.to_string())
+        };
+
+        // Champion message (1st place)
+        let champion = &standings[0].club_id;
+        news.push(format!(
+            "CAMPEAO: {} e o campeao da {}!",
+            club_name(champion),
+            comp.name
+        ));
+
+        // Promotion: top 4 teams (if not top division)
+        if let Some(above) = div_level.division_above() {
+            let promote_count = 4.min(num_teams);
+            for i in 0..promote_count {
+                let club_id = &standings[i].club_id;
+                news.push(format!(
+                    "PROMOCAO: {} foi promovido para {}!",
+                    club_name(club_id),
+                    above.name()
+                ));
+            }
+        }
+
+        // Relegation: bottom 4 teams (if not bottom division)
+        if let Some(below) = div_level.division_below() {
+            let relegate_count = 4.min(num_teams);
+            for i in 0..relegate_count {
+                let idx = num_teams - 1 - i;
+                let club_id = &standings[idx].club_id;
+                news.push(format!(
+                    "REBAIXAMENTO: {} foi rebaixado para {}!",
+                    club_name(club_id),
+                    below.name()
+                ));
+            }
+        }
+    }
+
+    news
 }
 
 /// Generate new season fixtures for all league divisions and reset tables.

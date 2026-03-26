@@ -21,3 +21,4 @@ cm_engine = { path = "../cm_engine" }
 cm_data = { path = "../cm_data" }
 cm_save = { path = "../cm_save" }
 cm_match = { path = "../cm_match" }
+cm_transfers = { path = "../cm_transfers" }

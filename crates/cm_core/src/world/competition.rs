@@ -1,8 +1,8 @@
 //! Competition entity.
 
-use serde::{Deserialize, Serialize};
-use crate::ids::{CompetitionId, NationId, ClubId};
 use super::{Fixtures, Table};
+use crate::ids::{ClubId, CompetitionId, NationId, PlayerId};
+use serde::{Deserialize, Serialize};
 
 /// Competition type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -100,6 +100,15 @@ impl DivisionLevel {
     }
 }
 
+/// Artilheiro de uma competicao.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TopScorer {
+    pub player_id: PlayerId,
+    pub club_id: ClubId,
+    pub goals: u16,
+    pub assists: u16,
+}
+
 /// A football competition.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Competition {
@@ -115,6 +124,8 @@ pub struct Competition {
     pub table: Table,
     pub current_round: u8,
     pub total_rounds: u8,
+    #[serde(default)]
+    pub top_scorers: Vec<TopScorer>,
 }
 
 impl Competition {
@@ -137,6 +148,7 @@ impl Competition {
             table: Table::new(),
             current_round: 0,
             total_rounds: 0,
+            top_scorers: Vec::new(),
         }
     }
 

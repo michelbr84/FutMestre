@@ -70,11 +70,8 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] MatchSystem conectado ao cm_match (simulacao real, nao stub)
 - [x] Resultados atualizam tabela de classificacao automaticamente
 - [x] Relatorios de jogo enviados para inbox do usuario
-
 - [x] Substituicoes durante partida (max 3)
-
-## Pendente (Fase 1)
-- [ ] Ratings de desempenho individual por jogador
+- [x] Ratings de desempenho individual por jogador (1-10, craque da partida)
 
 ---
 
@@ -88,11 +85,11 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] 4 divisoes com 20 times cada (80 clubes brasileiros)
 - [x] Geracao automatica de fixtures ao iniciar novo jogo
 - [x] Exibicao de proximos jogos e resultados na aba Jogos
+- [x] Criterios de desempate avancados (confronto direto via head-to-head)
+- [x] Noticias de promocao/rebaixamento no fim de temporada
 
 ## Pendente (Fase 2)
 - [ ] Calendario completo com datas FIFA
-- [ ] Criterios de desempate avancados (confronto direto)
-- [ ] Noticias de promocao/rebaixamento no fim de temporada
 
 ---
 
@@ -105,9 +102,9 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] MonthlyReport com breakdown completo
 - [x] FFP compliance check
 - [x] Aba Financas no TUI com saldo, orcamentos e folha salarial
+- [x] Emprestimos bancarios com juros (BankLoan com pagamento mensal)
 
 ## Pendente (Fase 3)
-- [ ] Emprestimos bancarios com juros
 - [ ] Graficos financeiros na GUI
 
 ---
@@ -120,12 +117,12 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Emprestimos, clausulas, comissao de agentes
 - [x] Work permit
 - [x] Aba Transferencias no TUI com lista de jogadores disponiveis
+- [x] Jogadores livres (fim de contrato gera agentes livres)
+- [x] IA de mercado ativa (clubes IA fazem transferencias semanais)
+- [x] Rumores de transferencia (mensagens aleatorias durante janela)
 
 ## Pendente (Fase 4)
 - [ ] Leilao estilo Elifoot
-- [ ] Jogadores livres (fim de contrato)
-- [ ] IA de mercado ativa
-- [ ] Rumores de transferencia
 
 ---
 
@@ -134,10 +131,8 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] IA de transferencias, escalacao, taticas
 - [x] IA de diretoria, imprensa, staff, scouting
 - [x] 6 personalidades de IA
-
-## Pendente (Fase 5)
-- [ ] IA tatica adaptativa durante partida
-- [ ] IA de treinamento por posicao
+- [x] IA tatica adaptativa durante partida (ajusta mentalidade/tempo pelo placar)
+- [x] IA de treinamento por posicao (recomenda foco baseado na posicao do jogador)
 
 ---
 
@@ -148,10 +143,8 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Desenvolvimento por idade (Sub-21 bonus, 30+ declinio)
 - [x] Geracao de jovens procedural
 - [x] Aba Treino no TUI com selecao de foco e status do elenco
-
-## Pendente (Fase 6)
-- [ ] Categorias de base (academia)
-- [ ] Staff tecnico especializado afetando treino
+- [x] Categorias de base (academia gera 2-5 jovens/ano baseado em reputacao e divisao)
+- [x] Staff tecnico especializado afetando treino (bonus de coaching)
 
 ---
 
@@ -160,10 +153,8 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Salvamento comprimido (gzip) com SHA256
 - [x] SaveMetadata e auto-save
 - [x] Versionamento com migracao
-
-## Pendente (Fase 7)
-- [ ] UI de multiplos slots de save
-- [ ] Exportacao de estatisticas
+- [x] UI de multiplos slots de save (list_saves com file_size/created_at)
+- [x] Exportacao de estatisticas (tabela, elenco, financas em TXT)
 
 ---
 
@@ -186,7 +177,6 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Avancar dia (Espaco/N) e semana (A)
 - [x] Navegacao por Tab/BackTab e atalhos numericos (1-8)
 - [x] Tela de Configuracoes (idioma, moeda)
-
 - [x] Simulacao ao vivo de partida com eventos minuto-a-minuto
 - [x] Selecao de titulares/reservas na aba Elenco (Enter para trocar)
 - [x] Negociacao interativa de transferencias (selecionar + oferta)
@@ -195,9 +185,7 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Academia de jovens (aba dedicada com sub-21 e potencial)
 - [x] Salvar jogo (Ctrl+S)
 - [x] Estadios brasileiros reais e arbitros com perfis
-
-## Pendente (Fase 8)
-- [ ] Melhorar UI de negociacao com contra-propostas
+- [x] UI de negociacao com contra-propostas (exibe valor, aceitar/recusar)
 
 ---
 
@@ -228,9 +216,9 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Atributos proporcionais a reputacao do clube
 - [x] Estadios brasileiros com capacidades reais (80 estadios)
 - [x] 20 arbitros brasileiros com perfis de personalidade
+- [x] Staff tecnico completo (treinadores especializados afetando treino)
 
 ## Pendente (Fase 10)
-- [ ] Staff tecnico completo (treinadores especializados afetando treino)
 - [ ] Dados configuraveis via JSON
 
 ---
@@ -245,10 +233,10 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Mensagens aleatorias diarias (treino, olheiros, torcida, imprensa, diretoria)
 - [x] Resultados de rodada visiveis (todos os jogos, nao so do usuario)
 - [x] Settings acessivel durante o jogo (engrenagem na barra de tabs)
+- [x] Historico de temporadas anteriores (SeasonRecord por clube e PlayerSeasonStats)
+- [x] Artilharia e premiacoes (TopScorer por competicao)
 
 ## Pendente (Fase 11)
-- [ ] Historico de temporadas anteriores
-- [ ] Artilharia e premiacoes
 - [ ] Sons e musica
 - [ ] Flashing text para noticias urgentes
 - [ ] Background matches (placares ao vivo durante partida)
@@ -260,10 +248,10 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] GameMode enum (Sandbox, CareerSerieD)
 - [x] Tela de selecao de modo antes de criar carreira
 - [x] Filtro de clubes por modo (Serie D apenas no Desafio)
+- [x] Objetivo tracking para CareerSerieD (progresso de promocao)
+- [x] Tela de vitoria ao conquistar Serie A (mensagem e objetivo "CAMPEAO!")
 
 ## Pendente (Fase 12)
-- [ ] Objetivo tracking para CareerSerieD (progresso de promocao)
-- [ ] Tela de vitoria ao conquistar Serie A
 - [ ] Modo historia com cutscenes de texto
 - [ ] Modo desafio com restricoes (orcamento minimo, elenco fraco)
 
@@ -275,13 +263,14 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Moeda (4 opcoes)
 - [x] Zoom (100-150%)
 - [x] GameMode na config
+- [x] Exibicao de salarios: semanal / mensal / anual (WageDisplay no config)
+- [x] Auto-save por intervalo configuravel (auto_save_interval em dias)
+- [x] Velocidade de comentario (match speed 1-5)
+- [x] Background matches on/off (background_matches no config)
+- [x] Save compressed on/off (save_compressed no config)
+- [x] Settings expandidos na TUI (wage_display, match_speed, auto_save_interval editaveis)
 
 ## Pendente (Fase 13)
-- [ ] Exibicao de salarios: semanal / mensal / anual
-- [ ] Auto-save por intervalo configuravel (semanal, quinzenal, mensal, etc)
-- [ ] Velocidade de comentario (match speed 1-5)
-- [ ] Background matches on/off
-- [ ] Save compressed on/off
 - [ ] Flashing text on/off
 - [ ] Tamanho do banco de dados (min/normal/max)
 - [ ] Foreground/background leagues
@@ -295,13 +284,13 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 # Fase 14 — Testes e Qualidade
 
-- [x] 508+ testes passando em todo o workspace
+- [x] 551+ testes passando em todo o workspace
 - [x] Testes de motor de partida, financas, transferencias, IA, competicoes, treinamento
+- [x] CI/CD com GitHub Actions (check, fmt, clippy, test, build multi-OS)
 
 ## Pendente (Fase 14)
 - [ ] Cobertura > 70%
 - [ ] Testes de integracao para game loop completo
-- [ ] CI/CD com GitHub Actions
 
 ---
 
@@ -309,10 +298,10 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 - [x] README.md e documentacao
 - [x] Roadmap unificado
+- [x] Changelog (CHANGELOG.md)
 
 ## Pendente (Fase 15)
 - [ ] Guia do jogador
-- [ ] Changelog
 - [ ] Release v1.0 com binarios
 
 ---
@@ -328,14 +317,14 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [ ] 10+ idiomas (Danish, Dutch, German, Italian, Norwegian, Swedish)
 - [ ] Impressao de relatorios (TXT/PDF)
 - [ ] Fontes customizaveis na interface
+- [ ] Leilao estilo Elifoot
 
 ---
 
 ## Prioridades Atuais
 
-1. **Contra-propostas** — IA responde com valores alternativos nas negociacoes
-2. **Categorias de base** — geracao anual de jovens da academia
-3. **Staff tecnico** — treinadores especializados afetando treino
-4. **Substituicoes na GUI** — trocar jogadores durante partida ao vivo
-5. **Objetivo tracking** — progresso do Desafio Serie D
-6. **Settings expandidos** — salarios week/month/year, auto-save intervalos, match speed
+1. **GUI partida ao vivo** — animacoes melhoradas e substituicoes na GUI
+2. **Calendario FIFA** — datas de selecoes e janelas de transferencia corretas
+3. **Sons e musica** — efeitos sonoros para eventos de partida
+4. **Guia do jogador** — documentacao de como jogar
+5. **Release v1.0** — binarios para Windows/Linux

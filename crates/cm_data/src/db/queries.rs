@@ -132,13 +132,15 @@ impl QueryBuilder {
 
     /// Add JOIN.
     pub fn join(mut self, table: &str, condition: &str) -> Self {
-        self.query.push_str(&format!(" JOIN {} ON {}", table, condition));
+        self.query
+            .push_str(&format!(" JOIN {} ON {}", table, condition));
         self
     }
 
     /// Add LEFT JOIN.
     pub fn left_join(mut self, table: &str, condition: &str) -> Self {
-        self.query.push_str(&format!(" LEFT JOIN {} ON {}", table, condition));
+        self.query
+            .push_str(&format!(" LEFT JOIN {} ON {}", table, condition));
         self
     }
 
@@ -224,7 +226,10 @@ mod tests {
             .where_clause("club_id = ?1")
             .where_clause("position = ?2")
             .build();
-        assert_eq!(query, "SELECT * FROM players WHERE club_id = ?1 AND position = ?2");
+        assert_eq!(
+            query,
+            "SELECT * FROM players WHERE club_id = ?1 AND position = ?2"
+        );
     }
 
     #[test]
@@ -285,18 +290,13 @@ mod tests {
 
     #[test]
     fn test_limit() {
-        let query = QueryBuilder::select("players")
-            .limit(10)
-            .build();
+        let query = QueryBuilder::select("players").limit(10).build();
         assert_eq!(query, "SELECT * FROM players LIMIT 10");
     }
 
     #[test]
     fn test_offset() {
-        let query = QueryBuilder::select("players")
-            .limit(10)
-            .offset(20)
-            .build();
+        let query = QueryBuilder::select("players").limit(10).offset(20).build();
         assert_eq!(query, "SELECT * FROM players LIMIT 10 OFFSET 20");
     }
 
@@ -305,7 +305,10 @@ mod tests {
         let query = QueryBuilder::new("SELECT club_id, COUNT(*) FROM players")
             .group_by("club_id")
             .build();
-        assert_eq!(query, "SELECT club_id, COUNT(*) FROM players GROUP BY club_id");
+        assert_eq!(
+            query,
+            "SELECT club_id, COUNT(*) FROM players GROUP BY club_id"
+        );
     }
 
     #[test]
@@ -314,7 +317,10 @@ mod tests {
             .group_by("club_id")
             .having("cnt > 10")
             .build();
-        assert_eq!(query, "SELECT club_id, COUNT(*) as cnt FROM players GROUP BY club_id HAVING cnt > 10");
+        assert_eq!(
+            query,
+            "SELECT club_id, COUNT(*) as cnt FROM players GROUP BY club_id HAVING cnt > 10"
+        );
     }
 
     #[test]
@@ -322,7 +328,10 @@ mod tests {
         let query = QueryBuilder::select("players")
             .join("clubs", "players.club_id = clubs.id")
             .build();
-        assert_eq!(query, "SELECT * FROM players JOIN clubs ON players.club_id = clubs.id");
+        assert_eq!(
+            query,
+            "SELECT * FROM players JOIN clubs ON players.club_id = clubs.id"
+        );
     }
 
     #[test]
@@ -330,7 +339,10 @@ mod tests {
         let query = QueryBuilder::select("players")
             .left_join("clubs", "players.club_id = clubs.id")
             .build();
-        assert_eq!(query, "SELECT * FROM players LEFT JOIN clubs ON players.club_id = clubs.id");
+        assert_eq!(
+            query,
+            "SELECT * FROM players LEFT JOIN clubs ON players.club_id = clubs.id"
+        );
     }
 
     #[test]
@@ -342,7 +354,7 @@ mod tests {
             .limit(20)
             .offset(0)
             .build();
-        
+
         assert!(query.contains("SELECT * FROM players"));
         assert!(query.contains("WHERE club_id = ?1"));
         assert!(query.contains("AND value > 1000000"));

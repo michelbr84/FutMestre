@@ -1,8 +1,8 @@
 //! Calendar system.
 
+use crate::ids::{CompetitionId, MatchId};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
-use crate::ids::{CompetitionId, MatchId};
 
 /// Calendar entry type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +58,9 @@ pub struct Calendar {
 impl Calendar {
     /// Create a new calendar.
     pub fn new() -> Self {
-        Self { entries: Vec::new() }
+        Self {
+            entries: Vec::new(),
+        }
     }
 
     /// Add an entry.

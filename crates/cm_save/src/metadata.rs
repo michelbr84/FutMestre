@@ -1,9 +1,10 @@
 //! Save metadata and listing utilities.
 
-use std::path::Path;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
+use crate::errors::SaveError;
 use crate::format::SAVE_EXTENSION;
 use crate::snapshot::SaveSnapshot;
 
@@ -20,6 +21,12 @@ pub struct SaveMetadata {
     pub manager_name: String,
     /// Club name / ID.
     pub club_name: String,
+    /// Full file path on disk.
+    #[serde(default)]
+    pub file_path: String,
+    /// File size in bytes.
+    #[serde(default)]
+    pub file_size: u64,
 }
 
 /// Scan a directory for `.cmsave` files and return metadata for each.
@@ -37,10 +44,7 @@ pub fn list_saves(save_dir: &Path) -> Vec<SaveMetadata> {
         let path = entry.path();
 
         // Only consider files with the right extension
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         if ext != SAVE_EXTENSION {
             continue;
         }
@@ -50,6 +54,9 @@ pub fn list_saves(save_dir: &Path) -> Vec<SaveMetadata> {
             Some(s) => s,
             None => continue,
         };
+
+        // Get file size before reading (cheaper than loading full snapshot)
+        let file_size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
 
         if let Ok(snapshot) = SaveSnapshot::read_from_file(path_str) {
             let save_name = path
@@ -64,6 +71,8 @@ pub fn list_saves(save_dir: &Path) -> Vec<SaveMetadata> {
                 game_date: snapshot.payload.game_state.date.clone(),
                 manager_name: snapshot.payload.game_state.manager_name.clone(),
                 club_name: snapshot.payload.game_state.club_id.clone(),
+                file_path: path_str.to_string(),
+                file_size,
             });
         }
     }
@@ -71,6 +80,18 @@ pub fn list_saves(save_dir: &Path) -> Vec<SaveMetadata> {
     // Sort by created_at descending (most recent first)
     results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
     results
+}
+
+/// Delete a save file at the given path.
+///
+/// Returns `Ok(())` if the file was deleted, or an error if removal failed.
+pub fn delete_save(path: &str) -> Result<(), SaveError> {
+    let p = Path::new(path);
+    if !p.exists() {
+        return Err(SaveError::NotFound(path.to_string()));
+    }
+    std::fs::remove_file(p)?;
+    Ok(())
 }
 
 /// Returns true if the game should auto-save based on days played.
@@ -153,10 +174,34 @@ mod tests {
             game_date: "2026-08-15".to_string(),
             manager_name: "Jose".to_string(),
             club_name: "Porto".to_string(),
+            file_path: "saves/slot1.cmsave".to_string(),
+            file_size: 12345,
         };
         assert_eq!(meta.save_name, "slot1");
         assert_eq!(meta.manager_name, "Jose");
         assert_eq!(meta.club_name, "Porto");
         assert_eq!(meta.game_date, "2026-08-15");
+        assert_eq!(meta.file_path, "saves/slot1.cmsave");
+        assert_eq!(meta.file_size, 12345);
+    }
+
+    #[test]
+    fn test_delete_save_nonexistent() {
+        let result = delete_save("/nonexistent/path/fake.cmsave");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_delete_save_real_file() {
+        let tmp = temp_test_dir("delete");
+        let file_path = tmp.join("test.cmsave");
+        fs::write(&file_path, "fake save data").unwrap();
+        assert!(file_path.exists());
+
+        let result = delete_save(file_path.to_str().unwrap());
+        assert!(result.is_ok());
+        assert!(!file_path.exists());
+
+        let _ = fs::remove_dir_all(&tmp);
     }
 }

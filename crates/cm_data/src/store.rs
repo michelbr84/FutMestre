@@ -1,7 +1,7 @@
 //! Data store abstraction.
 
-use cm_core::world::World;
 use crate::errors::DataError;
+use cm_core::world::World;
 
 /// Abstract data store trait.
 pub trait DataStore {

@@ -12,6 +12,7 @@ use crate::discipline::DisciplineTracker;
 use crate::fatigue;
 use crate::injuries;
 use crate::model::{MatchEvent, MatchEventType, MatchInput, MatchResult, MatchStats, TeamStrength};
+use crate::ratings;
 use crate::referee;
 use crate::set_pieces::{self, SetPieceType};
 
@@ -178,7 +179,8 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                     referee::CardType::Yellow => {
                         stats.away_yellow_cards += 1;
                         let second = away_discipline.yellow_card(player_id.clone());
-                        let desc = commentary::card_commentary(minute, &player_id.to_string(), true);
+                        let desc =
+                            commentary::card_commentary(minute, &player_id.to_string(), true);
                         highlights.push(desc.clone());
                         events.push(MatchEvent {
                             minute: m,
@@ -188,11 +190,8 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                         if second {
                             stats.away_red_cards += 1;
                             away_reds += 1;
-                            let desc2 = commentary::card_commentary(
-                                minute,
-                                &player_id.to_string(),
-                                false,
-                            );
+                            let desc2 =
+                                commentary::card_commentary(minute, &player_id.to_string(), false);
                             highlights.push(desc2.clone());
                             events.push(MatchEvent {
                                 minute: m,
@@ -251,10 +250,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                     home_goals += 1;
                     stats.home_shots += 1;
                     stats.home_shots_on_target += 1;
-                    let desc = format!(
-                        "{}' GOOOL! Gol de falta para o mandante!",
-                        minute
-                    );
+                    let desc = commentary::freekick_goal_commentary(minute, "mandante");
                     highlights.push(desc.clone());
                     events.push(MatchEvent {
                         minute: m,
@@ -278,7 +274,8 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                     referee::CardType::Yellow => {
                         stats.home_yellow_cards += 1;
                         let second = home_discipline.yellow_card(player_id.clone());
-                        let desc = commentary::card_commentary(minute, &player_id.to_string(), true);
+                        let desc =
+                            commentary::card_commentary(minute, &player_id.to_string(), true);
                         highlights.push(desc.clone());
                         events.push(MatchEvent {
                             minute: m,
@@ -288,11 +285,8 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                         if second {
                             stats.home_red_cards += 1;
                             home_reds += 1;
-                            let desc2 = commentary::card_commentary(
-                                minute,
-                                &player_id.to_string(),
-                                false,
-                            );
+                            let desc2 =
+                                commentary::card_commentary(minute, &player_id.to_string(), false);
                             highlights.push(desc2.clone());
                             events.push(MatchEvent {
                                 minute: m,
@@ -349,10 +343,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                     away_goals += 1;
                     stats.away_shots += 1;
                     stats.away_shots_on_target += 1;
-                    let desc = format!(
-                        "{}' GOOOL! Gol de falta para o visitante!",
-                        minute
-                    );
+                    let desc = commentary::freekick_goal_commentary(minute, "visitante");
                     highlights.push(desc.clone());
                     events.push(MatchEvent {
                         minute: m,
@@ -372,7 +363,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                 home_goals += 1;
                 stats.home_shots += 1;
                 stats.home_shots_on_target += 1;
-                let desc = format!("{}' GOOOL! Gol de escanteio para o mandante!", minute);
+                let desc = commentary::corner_goal_commentary(minute, "mandante");
                 highlights.push(desc.clone());
                 events.push(MatchEvent {
                     minute: m,
@@ -383,7 +374,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                 events.push(MatchEvent {
                     minute: m,
                     event_type: MatchEventType::Corner,
-                    description: commentary::corner_commentary(minute, true),
+                    description: commentary::corner_commentary(minute, "mandante"),
                 });
             }
         }
@@ -395,7 +386,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                 away_goals += 1;
                 stats.away_shots += 1;
                 stats.away_shots_on_target += 1;
-                let desc = format!("{}' GOOOL! Gol de escanteio para o visitante!", minute);
+                let desc = commentary::corner_goal_commentary(minute, "visitante");
                 highlights.push(desc.clone());
                 events.push(MatchEvent {
                     minute: m,
@@ -406,7 +397,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                 events.push(MatchEvent {
                     minute: m,
                     event_type: MatchEventType::Corner,
-                    description: commentary::corner_commentary(minute, false),
+                    description: commentary::corner_commentary(minute, "visitante"),
                 });
             }
         }
@@ -436,7 +427,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                 stats.home_shots_on_target += 1;
                 if shot_is_goal(home_str.finishing, away_str.defense, &mut rng) {
                     home_goals += 1;
-                    let desc = commentary::goal_commentary(minute, "Mandante", true);
+                    let desc = commentary::goal_commentary(minute, "Jogador", "mandante");
                     highlights.push(desc.clone());
                     events.push(MatchEvent {
                         minute: m,
@@ -457,7 +448,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
                 stats.away_shots_on_target += 1;
                 if shot_is_goal(away_str.finishing, home_str.defense, &mut rng) {
                     away_goals += 1;
-                    let desc = commentary::goal_commentary(minute, "Visitante", false);
+                    let desc = commentary::goal_commentary(minute, "Jogador", "visitante");
                     highlights.push(desc.clone());
                     events.push(MatchEvent {
                         minute: m,
@@ -498,7 +489,9 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
 
         // --- Half-time ---
         if minute == 45 && input.minutes >= 90 {
-            let desc = commentary::halftime_commentary(home_goals, away_goals);
+            let hn = input.home_id.to_string();
+            let an = input.away_id.to_string();
+            let desc = commentary::halftime_commentary(home_goals, away_goals, &hn, &an);
             highlights.push(desc.clone());
             events.push(MatchEvent {
                 minute: m,
@@ -524,7 +517,7 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
     stats.home_possession = (home_poss_ticks as f64 / total_ticks as f64 * 100.0).round();
     stats.away_possession = 100.0 - stats.home_possession;
 
-    MatchResult {
+    let mut result = MatchResult {
         home_id: input.home_id.clone(),
         away_id: input.away_id.clone(),
         home_goals,
@@ -532,7 +525,13 @@ pub fn simulate_match(input: &MatchInput) -> MatchResult {
         highlights,
         stats,
         events,
-    }
+        player_ratings: vec![],
+    };
+
+    // Gerar ratings individuais dos jogadores
+    result.player_ratings = ratings::generate_player_ratings(&result, &mut rng);
+
+    result
 }
 
 /// Simulate with extra time (and penalties if still drawn).
@@ -583,7 +582,9 @@ pub fn simulate_with_extra_time(input: &MatchInput) -> MatchResult {
 
     // If still draw, go to penalties
     if result.is_draw() {
-        result.highlights.push(commentary::penalty_shootout_commentary());
+        result
+            .highlights
+            .push(commentary::penalty_shootout_commentary());
 
         let mut rng = match input.seed {
             Some(s) => ChaCha8Rng::seed_from_u64(s.wrapping_add(100)),
@@ -596,10 +597,7 @@ pub fn simulate_with_extra_time(input: &MatchInput) -> MatchResult {
 
         let desc = format!(
             "Penaltis: {} - {} (total: {} - {})",
-            h_pen,
-            a_pen,
-            result.home_goals,
-            result.away_goals
+            h_pen, a_pen, result.home_goals, result.away_goals
         );
         result.highlights.push(desc.clone());
         result.events.push(MatchEvent {
@@ -729,9 +727,7 @@ mod tests {
 
         let result = simulate_match(&input);
         // Possession should sum to 100
-        assert!(
-            (result.stats.home_possession + result.stats.away_possession - 100.0).abs() < 0.01
-        );
+        assert!((result.stats.home_possession + result.stats.away_possession - 100.0).abs() < 0.01);
         // Should have events (at minimum full-time)
         assert!(!result.events.is_empty());
         assert!(!result.highlights.is_empty());

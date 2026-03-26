@@ -1,7 +1,7 @@
 //! Game events.
 
-use serde::{Deserialize, Serialize};
 use crate::ids::{ClubId, MatchId, PlayerId};
+use serde::{Deserialize, Serialize};
 
 /// Match events during simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -214,8 +214,13 @@ mod tests {
             home_goals: 3,
             away_goals: 1,
         };
-        
-        if let GameEvent::MatchPlayed { home_goals, away_goals, .. } = event {
+
+        if let GameEvent::MatchPlayed {
+            home_goals,
+            away_goals,
+            ..
+        } = event
+        {
             assert_eq!(home_goals, 3);
             assert_eq!(away_goals, 1);
         } else {
@@ -230,7 +235,7 @@ mod tests {
             from: ClubId::new("LIV"),
             to: ClubId::new("MAN"),
         };
-        
+
         if let GameEvent::TransferCompleted { from, to, .. } = event {
             assert_eq!(from.as_str(), "LIV");
             assert_eq!(to.as_str(), "MAN");
@@ -245,7 +250,7 @@ mod tests {
             player: PlayerId::new("P001"),
             club: ClubId::new("LIV"),
         };
-        
+
         if let GameEvent::ContractSigned { club, .. } = event {
             assert_eq!(club.as_str(), "LIV");
         } else {
@@ -259,7 +264,7 @@ mod tests {
             player: PlayerId::new("P001"),
             days_out: 21,
         };
-        
+
         if let GameEvent::InjuryUpdate { days_out, .. } = event {
             assert_eq!(days_out, 21);
         } else {
@@ -275,7 +280,7 @@ mod tests {
         let new = GameEvent::NewSeason {
             season: "2025-26".to_string(),
         };
-        
+
         if let GameEvent::SeasonEnd { season } = end {
             assert_eq!(season, "2024-25");
         }
@@ -295,8 +300,13 @@ mod tests {
         };
         let json = serde_json::to_string(&event).unwrap();
         let parsed: GameEvent = serde_json::from_str(&json).unwrap();
-        
-        if let GameEvent::MatchPlayed { home_goals, away_goals, .. } = parsed {
+
+        if let GameEvent::MatchPlayed {
+            home_goals,
+            away_goals,
+            ..
+        } = parsed
+        {
             assert_eq!(home_goals, 2);
             assert_eq!(away_goals, 2);
         }

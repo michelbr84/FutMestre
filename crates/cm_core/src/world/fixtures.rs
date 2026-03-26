@@ -1,8 +1,8 @@
 //! Fixtures and matches.
 
+use crate::ids::{ClubId, CompetitionId, MatchId, StadiumId};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
-use crate::ids::{ClubId, CompetitionId, MatchId, StadiumId};
 
 /// A scheduled match.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,7 +95,9 @@ pub struct Fixtures {
 impl Fixtures {
     /// Create empty fixtures.
     pub fn new() -> Self {
-        Self { matches: Vec::new() }
+        Self {
+            matches: Vec::new(),
+        }
     }
 
     /// Add a fixture.
@@ -123,8 +125,6 @@ impl Fixtures {
 
     /// Get next fixture for a team.
     pub fn next_for_team(&self, club_id: &ClubId) -> Option<&Fixture> {
-        self.for_team(club_id)
-            .into_iter()
-            .find(|f| !f.is_played())
+        self.for_team(club_id).into_iter().find(|f| !f.is_played())
     }
 }

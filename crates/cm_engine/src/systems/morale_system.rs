@@ -2,8 +2,8 @@
 
 use crate::config::GameConfig;
 use crate::state::GameState;
-use cm_core::world::{Morale, MoraleLevel, World};
 use cm_core::ids::ClubId;
+use cm_core::world::{Morale, MoraleLevel, World};
 
 /// Morale change events.
 #[derive(Debug, Clone, Copy)]
@@ -11,10 +11,10 @@ pub enum MoraleEvent {
     MatchWin,
     MatchDraw,
     MatchLoss,
-    BigWin,           // 3+ goal margin
-    HeavyLoss,        // 3+ goal margin
+    BigWin,    // 3+ goal margin
+    HeavyLoss, // 3+ goal margin
     GoalScored,
-    CleanSheet,       // For defenders/GK
+    CleanSheet, // For defenders/GK
     ContractRenewal,
     TransferRejected, // Wanted to leave
     DroppedFromSquad,
@@ -55,7 +55,7 @@ impl MoraleSystem {
         // Natural morale drift toward neutral (50)
         for player in world.players.values_mut() {
             let current = player.morale.value;
-            
+
             // Drift toward 50
             let drift = if current > 50 {
                 -1
@@ -64,9 +64,9 @@ impl MoraleSystem {
             } else {
                 0
             };
-            
+
             player.morale.adjust(drift);
-            
+
             // Form affected by morale
             let form_change = match player.morale.level() {
                 MoraleLevel::Superb => 2,
@@ -75,7 +75,7 @@ impl MoraleSystem {
                 MoraleLevel::Poor => -1,
                 MoraleLevel::VeryPoor => -2,
             };
-            
+
             player.form = (player.form as i16 + form_change).clamp(1, 100) as u8;
         }
     }
@@ -94,7 +94,8 @@ impl MoraleSystem {
 
     /// Apply a morale event to entire squad.
     pub fn apply_squad_event(&self, world: &mut World, club_id: &ClubId, event: MoraleEvent) {
-        let player_ids: Vec<_> = world.players
+        let player_ids: Vec<_> = world
+            .players
             .values()
             .filter(|p| p.club_id.as_ref() == Some(club_id))
             .map(|p| p.id.clone())
@@ -107,7 +108,8 @@ impl MoraleSystem {
 
     /// Get average squad morale for a club.
     pub fn squad_morale(&self, world: &World, club_id: &ClubId) -> u8 {
-        let players: Vec<_> = world.players
+        let players: Vec<_> = world
+            .players
             .values()
             .filter(|p| p.club_id.as_ref() == Some(club_id))
             .collect();
@@ -123,7 +125,7 @@ impl MoraleSystem {
     /// Check for morale-related concerns.
     pub fn check_morale_concerns(&self, world: &World, club_id: &ClubId) -> Vec<String> {
         let mut concerns = Vec::new();
-        
+
         for player in world.players.values() {
             if player.club_id.as_ref() != Some(club_id) {
                 continue;
@@ -137,10 +139,7 @@ impl MoraleSystem {
                     ));
                 }
                 MoraleLevel::Poor => {
-                    concerns.push(format!(
-                        "{} has poor morale",
-                        player.full_name()
-                    ));
+                    concerns.push(format!("{} has poor morale", player.full_name()));
                 }
                 _ => {}
             }
@@ -153,14 +152,14 @@ impl MoraleSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cm_core::world::Player;
-    use cm_core::ids::{NationId, PlayerId};
     use chrono::NaiveDate;
+    use cm_core::ids::{NationId, PlayerId};
+    use cm_core::world::Player;
     use cm_core::world::Position;
 
     fn setup_test() -> (World, GameState, MoraleSystem) {
         let mut world = World::new();
-        
+
         let mut player = Player::new(
             "P001",
             "Test",
@@ -172,10 +171,10 @@ mod tests {
         player.club_id = Some(ClubId::new("LIV"));
         player.morale = Morale::new(50);
         world.players.insert(player.id.clone(), player);
-        
+
         let state = GameState::default();
         let system = MoraleSystem;
-        
+
         (world, state, system)
     }
 
@@ -191,10 +190,10 @@ mod tests {
     fn test_apply_player_event() {
         let (mut world, _, system) = setup_test();
         let player_id = PlayerId::new("P001");
-        
+
         let initial = world.players.get(&player_id).unwrap().morale.value;
         system.apply_player_event(&mut world, &player_id, MoraleEvent::MatchWin);
-        
+
         let after = world.players.get(&player_id).unwrap().morale.value;
         assert!(after > initial);
     }
@@ -203,9 +202,9 @@ mod tests {
     fn test_apply_squad_event() {
         let (mut world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
-        
+
         system.apply_squad_event(&mut world, &club_id, MoraleEvent::BigWin);
-        
+
         let player = world.players.get(&PlayerId::new("P001")).unwrap();
         assert!(player.morale.value > 50);
     }
@@ -221,12 +220,12 @@ mod tests {
     fn test_morale_concerns() {
         let (mut world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
-        
+
         // Set player to very poor morale
         if let Some(player) = world.players.get_mut(&PlayerId::new("P001")) {
             player.morale = Morale::new(10);
         }
-        
+
         let concerns = system.check_morale_concerns(&world, &club_id);
         assert!(!concerns.is_empty());
         assert!(concerns[0].contains("very poor morale"));
@@ -236,14 +235,14 @@ mod tests {
     fn test_daily_morale_drift() {
         let (mut world, mut state, system) = setup_test();
         let config = GameConfig::default();
-        
+
         // Set morale high
         if let Some(player) = world.players.get_mut(&PlayerId::new("P001")) {
             player.morale = Morale::new(80);
         }
-        
+
         system.run_daily(&config, &mut world, &mut state);
-        
+
         let player = world.players.get(&PlayerId::new("P001")).unwrap();
         assert!(player.morale.value < 80); // Should drift down toward 50
     }

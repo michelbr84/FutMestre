@@ -1,8 +1,8 @@
 //! Match model types.
 
-use serde::{Deserialize, Serialize};
 use cm_core::ids::ClubId;
 use cm_core::world::Club;
+use serde::{Deserialize, Serialize};
 
 /// Match input for simulation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +91,28 @@ pub struct MatchEvent {
     pub description: String,
 }
 
+/// Lado do time na partida.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TeamSide {
+    Home,
+    Away,
+}
+
+/// Rating de desempenho individual de um jogador na partida.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerMatchRating {
+    pub player_id: String,
+    pub team: TeamSide,
+    pub rating: f32, // 1.0 - 10.0
+    pub goals: u8,
+    pub assists: u8,
+    pub shots: u8,
+    pub tackles: u8,
+    pub passes_completed: u8,
+    pub saves: u8, // for goalkeepers
+    pub man_of_the_match: bool,
+}
+
 /// Match result.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchResult {
@@ -103,6 +125,8 @@ pub struct MatchResult {
     pub stats: MatchStats,
     #[serde(default)]
     pub events: Vec<MatchEvent>,
+    #[serde(default)]
+    pub player_ratings: Vec<PlayerMatchRating>,
 }
 
 impl MatchResult {

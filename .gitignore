@@ -56,3 +56,14 @@ npm-debug.log*
 
 # Release artifacts
 /release/
+
+# Estatisticas exportadas
+/exports/
+*.stats.txt
+
+# Coverage reports
+/coverage/
+*.profraw
+*.profdata
+lcov.info
+tarpaulin-report.html

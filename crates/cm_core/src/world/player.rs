@@ -1,10 +1,10 @@
 //! Player entity.
 
-use chrono::{Datelike, NaiveDate};
-use serde::{Deserialize, Serialize};
+use super::{Attributes, Contract, Injury, Morale, PlayerHistory};
 use crate::economy::Money;
 use crate::ids::{ClubId, NationId, PlayerId};
-use super::{Attributes, Contract, Injury, Morale};
+use chrono::{Datelike, NaiveDate};
+use serde::{Deserialize, Serialize};
 
 /// Player position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -44,7 +44,10 @@ impl Position {
 
     /// Check if position is defensive.
     pub fn is_defender(&self) -> bool {
-        matches!(self, Self::DefenderCenter | Self::DefenderLeft | Self::DefenderRight)
+        matches!(
+            self,
+            Self::DefenderCenter | Self::DefenderLeft | Self::DefenderRight
+        )
     }
 
     /// Check if position is midfield.
@@ -61,7 +64,10 @@ impl Position {
 
     /// Check if position is forward.
     pub fn is_forward(&self) -> bool {
-        matches!(self, Self::ForwardCenter | Self::ForwardLeft | Self::ForwardRight)
+        matches!(
+            self,
+            Self::ForwardCenter | Self::ForwardLeft | Self::ForwardRight
+        )
     }
 }
 
@@ -91,6 +97,8 @@ pub struct Player {
     pub fitness: u8,
     pub form: u8,
     pub potential: u8,
+    #[serde(default)]
+    pub history: PlayerHistory,
 }
 
 /// Preferred foot.
@@ -135,6 +143,7 @@ impl Player {
             fitness: 100,
             form: 50,
             potential: 70,
+            history: PlayerHistory::default(),
         }
     }
 

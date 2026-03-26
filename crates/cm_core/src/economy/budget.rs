@@ -1,6 +1,6 @@
 //! Budget management for clubs.
 
-use super::Money;
+use super::{BankLoan, Money};
 use serde::{Deserialize, Serialize};
 
 /// Club budget allocation.
@@ -14,6 +14,9 @@ pub struct Budget {
     pub wage_budget: Money,
     /// Current weekly wage bill.
     pub wage_bill: Money,
+    /// Active bank loans.
+    #[serde(default)]
+    pub loans: Vec<BankLoan>,
 }
 
 impl Budget {
@@ -24,6 +27,7 @@ impl Budget {
             transfer_budget,
             wage_budget,
             wage_bill: Money::ZERO,
+            loans: Vec::new(),
         }
     }
 
@@ -83,6 +87,38 @@ impl Budget {
     pub fn process_transfer_income(&mut self, fee: Money) {
         self.receive_transfer(fee);
     }
+
+    /// Take a bank loan: add amount to balance and store the loan.
+    pub fn take_loan(&mut self, loan: BankLoan) {
+        self.balance += loan.amount;
+        self.loans.push(loan);
+    }
+
+    /// Process monthly loan payments for all active loans.
+    /// Returns total amount paid this month.
+    pub fn process_loan_payments(&mut self) -> Money {
+        let mut total_paid = Money::ZERO;
+        for loan in &mut self.loans {
+            let payment = loan.make_payment();
+            total_paid += payment;
+        }
+        self.balance -= total_paid;
+        // Remove paid-off loans
+        self.loans.retain(|l| !l.is_paid_off());
+        total_paid
+    }
+
+    /// Check if there are active loans.
+    pub fn has_active_loans(&self) -> bool {
+        !self.loans.is_empty()
+    }
+
+    /// Total remaining debt across all loans.
+    pub fn total_loan_debt(&self) -> Money {
+        self.loans
+            .iter()
+            .fold(Money::ZERO, |acc, l| acc + l.remaining)
+    }
 }
 
 impl Default for Budget {
@@ -97,9 +133,9 @@ mod tests {
 
     fn test_budget() -> Budget {
         Budget::new(
-            Money::from_major(50_000_000),  // balance
-            Money::from_major(20_000_000),  // transfer budget
-            Money::from_major(500_000),     // wage budget
+            Money::from_major(50_000_000), // balance
+            Money::from_major(20_000_000), // transfer budget
+            Money::from_major(500_000),    // wage budget
         )
     }
 
@@ -122,7 +158,7 @@ mod tests {
     fn test_available_wage_room() {
         let mut budget = test_budget();
         assert_eq!(budget.available_wage_room().major(), 500_000);
-        
+
         budget.add_wage(Money::from_major(200_000));
         assert_eq!(budget.available_wage_room().major(), 300_000);
     }
@@ -139,7 +175,7 @@ mod tests {
     fn test_can_afford_wage() {
         let mut budget = test_budget();
         budget.add_wage(Money::from_major(400_000));
-        
+
         assert!(budget.can_afford_wage(Money::from_major(100_000)));
         assert!(!budget.can_afford_wage(Money::from_major(200_000)));
     }
@@ -149,7 +185,7 @@ mod tests {
         let mut budget = test_budget();
         let fee = Money::from_major(5_000_000);
         budget.spend_transfer(fee);
-        
+
         assert_eq!(budget.transfer_budget.major(), 15_000_000);
         assert_eq!(budget.balance.major(), 45_000_000);
     }
@@ -159,7 +195,7 @@ mod tests {
         let mut budget = test_budget();
         let fee = Money::from_major(10_000_000);
         budget.receive_transfer(fee);
-        
+
         assert_eq!(budget.transfer_budget.major(), 30_000_000);
         assert_eq!(budget.balance.major(), 60_000_000);
     }
@@ -167,13 +203,13 @@ mod tests {
     #[test]
     fn test_wage_operations() {
         let mut budget = test_budget();
-        
+
         budget.add_wage(Money::from_major(100_000));
         assert_eq!(budget.wage_bill.major(), 100_000);
-        
+
         budget.add_wage(Money::from_major(50_000));
         assert_eq!(budget.wage_bill.major(), 150_000);
-        
+
         budget.remove_wage(Money::from_major(30_000));
         assert_eq!(budget.wage_bill.major(), 120_000);
     }
@@ -182,10 +218,10 @@ mod tests {
     fn test_pay_weekly_wages() {
         let mut budget = test_budget();
         budget.add_wage(Money::from_major(200_000));
-        
+
         budget.pay_weekly_wages();
         assert_eq!(budget.balance.major(), 49_800_000);
-        
+
         // Paying wages multiple times
         budget.pay_weekly_wages();
         assert_eq!(budget.balance.major(), 49_600_000);
@@ -205,7 +241,7 @@ mod tests {
         let budget = test_budget();
         let json = serde_json::to_string(&budget).unwrap();
         let parsed: Budget = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(budget.balance, parsed.balance);
         assert_eq!(budget.transfer_budget, parsed.transfer_budget);
     }

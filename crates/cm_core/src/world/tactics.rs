@@ -107,9 +107,9 @@ pub struct Tactics {
     pub formation: Formation,
     pub mentality: Mentality,
     pub tempo: Tempo,
-    pub pressing: u8,      // 0-100
+    pub pressing: u8,       // 0-100
     pub defensive_line: u8, // 0-100 (low to high)
-    pub width: u8,         // 0-100 (narrow to wide)
+    pub width: u8,          // 0-100 (narrow to wide)
     pub direct_passing: u8, // 0-100 (short to long)
 }
 

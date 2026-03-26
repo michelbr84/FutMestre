@@ -23,14 +23,16 @@ pub mod tactics;
 pub mod training;
 
 pub use academy::Academy;
-pub use attributes::{Attributes, GoalkeeperAttributes, MentalAttributes, PhysicalAttributes, TechnicalAttributes};
+pub use attributes::{
+    Attributes, GoalkeeperAttributes, MentalAttributes, PhysicalAttributes, TechnicalAttributes,
+};
 pub use board::Board;
 pub use calendar::{Calendar, CalendarEntry};
 pub use club::Club;
-pub use competition::{Competition, CompetitionType, DivisionLevel};
+pub use competition::{Competition, CompetitionType, DivisionLevel, TopScorer};
 pub use contract::Contract;
 pub use fixtures::{Fixture, Fixtures};
-pub use history::{ClubHistory, PlayerHistory, SeasonRecord};
+pub use history::{ClubHistory, PlayerHistory, PlayerSeasonStats, SeasonRecord};
 pub use injury::{Injury, InjuryType};
 pub use morale::{Morale, MoraleLevel};
 pub use nation::Nation;
@@ -44,10 +46,10 @@ pub use table::{Table, TableRow};
 pub use tactics::{Formation, Mentality, Tactics, TacticsPreset, Tempo};
 pub use training::{Training, TrainingFocus};
 
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use crate::ids::*;
 use crate::CoreError;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// The game world containing all entities.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -89,22 +91,18 @@ impl World {
 
     /// Get a player by ID.
     pub fn player(&self, id: &PlayerId) -> Result<&Player, CoreError> {
-        self.players
-            .get(id)
-            .ok_or_else(|| CoreError::NotFound {
-                entity_type: "Player".into(),
-                id: id.to_string(),
-            })
+        self.players.get(id).ok_or_else(|| CoreError::NotFound {
+            entity_type: "Player".into(),
+            id: id.to_string(),
+        })
     }
 
     /// Get a mutable player by ID.
     pub fn player_mut(&mut self, id: &PlayerId) -> Result<&mut Player, CoreError> {
-        self.players
-            .get_mut(id)
-            .ok_or_else(|| CoreError::NotFound {
-                entity_type: "Player".into(),
-                id: id.to_string(),
-            })
+        self.players.get_mut(id).ok_or_else(|| CoreError::NotFound {
+            entity_type: "Player".into(),
+            id: id.to_string(),
+        })
     }
 
     /// Get all players for a club.

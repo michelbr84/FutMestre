@@ -1,15 +1,15 @@
 //! Finance system - handles club finances, wages, and income.
 
 use crate::config::GameConfig;
-use crate::state::GameState;
 use crate::inbox::generators;
+use crate::state::GameState;
 use chrono::Datelike;
 use cm_core::economy::Money;
-use cm_core::world::World;
 use cm_core::ids::ClubId;
-use cm_finance::tv_revenue;
+use cm_core::world::World;
 use cm_finance::merchandising;
-use cm_finance::report::{MonthlyReport, IncomeBreakdown, ExpenseBreakdown};
+use cm_finance::report::{ExpenseBreakdown, IncomeBreakdown, MonthlyReport};
+use cm_finance::tv_revenue;
 
 /// Finance system.
 pub struct FinanceSystem;
@@ -22,8 +22,9 @@ impl FinanceSystem {
             self.process_weekly_wages(world, state);
         }
 
-        // Monthly financial report on first of month
+        // Monthly financial report and loan payments on first of month
         if state.date.is_first_of_month() {
+            self.process_loan_payments(world, state);
             self.generate_monthly_report(world, state);
         }
     }
@@ -32,15 +33,16 @@ impl FinanceSystem {
     fn process_weekly_wages(&self, world: &mut World, state: &mut GameState) {
         // Calculate wage bill for user's club
         let user_club_id = &state.club_id;
-        
+
         if let Some(club) = world.clubs.get_mut(user_club_id) {
             // Get total wages from players
-            let total_wages: Money = world.players
+            let total_wages: Money = world
+                .players
                 .values()
                 .filter(|p| p.club_id.as_ref() == Some(user_club_id))
                 .map(|p| p.weekly_wage())
                 .fold(Money::ZERO, |acc, w| acc + w);
-            
+
             // Update wage bill and pay
             club.budget.wage_bill = total_wages;
             club.budget.pay_weekly_wages();
@@ -61,9 +63,7 @@ impl FinanceSystem {
             let monthly_tv = annual_tv / 12;
 
             // Calculate merchandising revenue (monthly = annual / 12)
-            let annual_merch = merchandising::calculate_merchandising(
-                club.reputation as u32, 0, 0,
-            );
+            let annual_merch = merchandising::calculate_merchandising(club.reputation as u32, 0, 0);
             let monthly_merch = annual_merch / 12;
 
             // Estimate other monthly income based on reputation
@@ -108,8 +108,49 @@ impl FinanceSystem {
         }
     }
 
+    /// Process monthly loan payments for all clubs.
+    fn process_loan_payments(&self, world: &mut World, state: &mut GameState) {
+        let user_club_id = &state.club_id;
+
+        if let Some(club) = world.clubs.get_mut(user_club_id) {
+            if club.budget.has_active_loans() {
+                let total_paid = club.budget.process_loan_payments();
+                if total_paid > Money::ZERO {
+                    state.add_message(format!(
+                        "Pagamento mensal de emprestimo: {}. Divida restante: {}",
+                        total_paid,
+                        club.budget.total_loan_debt()
+                    ));
+                }
+            }
+        }
+    }
+
+    /// Take a bank loan for a club. Adds the loan amount to balance.
+    pub fn take_loan(
+        &self,
+        world: &mut World,
+        club_id: &ClubId,
+        amount: Money,
+        interest_rate: f64,
+        term_months: u16,
+        start_date: String,
+    ) {
+        if let Some(club) = world.clubs.get_mut(club_id) {
+            let loan =
+                cm_core::economy::BankLoan::new(amount, interest_rate, term_months, start_date);
+            club.budget.take_loan(loan);
+        }
+    }
+
     /// Process match day income (tickets, etc.).
-    pub fn process_match_income(&self, world: &mut World, club_id: &ClubId, attendance: u32, ticket_price: Money) {
+    pub fn process_match_income(
+        &self,
+        world: &mut World,
+        club_id: &ClubId,
+        attendance: u32,
+        ticket_price: Money,
+    ) {
         if let Some(club) = world.clubs.get_mut(club_id) {
             let income = ticket_price.multiply(attendance as f64);
             club.budget.balance += income;
@@ -146,7 +187,8 @@ impl FinanceSystem {
 
     /// Check if club can afford a transfer.
     pub fn can_afford_transfer(&self, world: &World, club_id: &ClubId, fee: Money) -> bool {
-        world.clubs
+        world
+            .clubs
             .get(club_id)
             .map(|c| c.budget.can_afford_transfer(fee))
             .unwrap_or(false)
@@ -154,7 +196,8 @@ impl FinanceSystem {
 
     /// Check if club can afford wages.
     pub fn can_afford_wages(&self, world: &World, club_id: &ClubId, weekly_wage: Money) -> bool {
-        world.clubs
+        world
+            .clubs
             .get(club_id)
             .map(|c| c.budget.can_afford_wage(weekly_wage))
             .unwrap_or(false)
@@ -199,14 +242,14 @@ pub struct FinancialStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cm_core::world::{Club, Player, Position};
-    use cm_core::ids::NationId;
-    use cm_core::economy::Budget;
     use chrono::NaiveDate;
+    use cm_core::economy::Budget;
+    use cm_core::ids::NationId;
+    use cm_core::world::{Club, Player, Position};
 
     fn setup_test() -> (World, GameState, FinanceSystem) {
         let mut world = World::new();
-        
+
         // Create club with budget
         let mut club = Club::new("LIV", "Liverpool", NationId::new("ENG"));
         club.budget = Budget::new(
@@ -215,7 +258,7 @@ mod tests {
             Money::from_major(500_000),
         );
         world.clubs.insert(club.id.clone(), club);
-        
+
         // Create player with wage
         let mut player = Player::new(
             "P001",
@@ -227,10 +270,10 @@ mod tests {
         );
         player.club_id = Some(ClubId::new("LIV"));
         world.players.insert(player.id.clone(), player);
-        
+
         let state = GameState::default();
         let system = FinanceSystem;
-        
+
         (world, state, system)
     }
 
@@ -238,7 +281,7 @@ mod tests {
     fn test_can_afford_transfer() {
         let (world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
-        
+
         assert!(system.can_afford_transfer(&world, &club_id, Money::from_major(10_000_000)));
         assert!(!system.can_afford_transfer(&world, &club_id, Money::from_major(30_000_000)));
     }
@@ -247,10 +290,10 @@ mod tests {
     fn test_process_transfer_income() {
         let (mut world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
-        
+
         let initial = world.clubs.get(&club_id).unwrap().budget.balance;
         system.process_transfer_income(&mut world, &club_id, Money::from_major(5_000_000));
-        
+
         let after = world.clubs.get(&club_id).unwrap().budget.balance;
         assert!(after > initial);
     }
@@ -259,10 +302,10 @@ mod tests {
     fn test_process_transfer_expense() {
         let (mut world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
-        
+
         let initial = world.clubs.get(&club_id).unwrap().budget.balance;
         system.process_transfer_expense(&mut world, &club_id, Money::from_major(5_000_000));
-        
+
         let after = world.clubs.get(&club_id).unwrap().budget.balance;
         assert!(after < initial);
     }
@@ -271,10 +314,10 @@ mod tests {
     fn test_process_match_income() {
         let (mut world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
-        
+
         let initial = world.clubs.get(&club_id).unwrap().budget.balance;
         system.process_match_income(&mut world, &club_id, 45_000, Money::from_major(50));
-        
+
         let after = world.clubs.get(&club_id).unwrap().budget.balance;
         assert!(after > initial);
     }
@@ -284,13 +327,13 @@ mod tests {
         let (mut world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
         let wage = Money::from_major(100_000);
-        
+
         let initial = world.clubs.get(&club_id).unwrap().budget.wage_bill;
         system.add_player_wages(&mut world, &club_id, wage);
-        
+
         let after = world.clubs.get(&club_id).unwrap().budget.wage_bill;
         assert!(after > initial);
-        
+
         system.remove_player_wages(&mut world, &club_id, wage);
         let final_bill = world.clubs.get(&club_id).unwrap().budget.wage_bill;
         assert_eq!(initial, final_bill);
@@ -300,10 +343,10 @@ mod tests {
     fn test_get_financial_status() {
         let (world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
-        
+
         let status = system.get_financial_status(&world, &club_id);
         assert!(status.is_some());
-        
+
         let status = status.unwrap();
         assert!(!status.is_in_debt);
         assert_eq!(status.balance.major(), 50_000_000);
@@ -313,10 +356,10 @@ mod tests {
     fn test_award_prize_money() {
         let (mut world, _, system) = setup_test();
         let club_id = ClubId::new("LIV");
-        
+
         let initial = world.clubs.get(&club_id).unwrap().budget.balance;
         system.award_prize_money(&mut world, &club_id, Money::from_major(1_000_000));
-        
+
         let after = world.clubs.get(&club_id).unwrap().budget.balance;
         assert_eq!(after, initial + Money::from_major(1_000_000));
     }

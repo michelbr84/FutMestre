@@ -46,9 +46,15 @@ pub fn match_result(
     };
 
     let subject = if is_user_match {
-        format!("Match Report: {} {} - {} {}", home_club, home_goals, away_goals, away_club)
+        format!(
+            "Match Report: {} {} - {} {}",
+            home_club, home_goals, away_goals, away_club
+        )
     } else {
-        format!("{} {} - {} {}", home_club, home_goals, away_goals, away_club)
+        format!(
+            "{} {} - {} {}",
+            home_club, home_goals, away_goals, away_club
+        )
     };
 
     let body = if is_user_match {
@@ -59,7 +65,10 @@ pub fn match_result(
             home_club, home_goals, away_goals, away_club, result_str
         )
     } else {
-        format!("{} {} - {} {}", home_club, home_goals, away_goals, away_club)
+        format!(
+            "{} {} - {} {}",
+            home_club, home_goals, away_goals, away_club
+        )
     };
 
     InboxMessage::new(date, MessageCategory::Match, subject, body)
@@ -145,11 +154,7 @@ pub fn transfer_completed(
 }
 
 /// Generate contract expiring message.
-pub fn contract_expiring(
-    date: NaiveDate,
-    player_name: &str,
-    months_remaining: u8,
-) -> InboxMessage {
+pub fn contract_expiring(date: NaiveDate, player_name: &str, months_remaining: u8) -> InboxMessage {
     InboxMessage::new(
         date,
         MessageCategory::Contract,
@@ -163,11 +168,7 @@ pub fn contract_expiring(
 }
 
 /// Generate contract renewal message.
-pub fn contract_renewed(
-    date: NaiveDate,
-    player_name: &str,
-    years: u8,
-) -> InboxMessage {
+pub fn contract_renewed(date: NaiveDate, player_name: &str, years: u8) -> InboxMessage {
     InboxMessage::new(
         date,
         MessageCategory::Contract,
@@ -201,11 +202,7 @@ pub fn board_expectations(
 }
 
 /// Generate board confidence message.
-pub fn board_confidence(
-    date: NaiveDate,
-    confidence_level: &str,
-    reason: &str,
-) -> InboxMessage {
+pub fn board_confidence(date: NaiveDate, confidence_level: &str, reason: &str) -> InboxMessage {
     InboxMessage::new(
         date,
         MessageCategory::Board,
@@ -227,7 +224,7 @@ pub fn monthly_financial_report(
 ) -> InboxMessage {
     let net = income - expenses;
     let status = if net.is_negative() { "Loss" } else { "Profit" };
-    
+
     InboxMessage::new(
         date,
         MessageCategory::Other,
@@ -238,7 +235,11 @@ pub fn monthly_financial_report(
             Expenses: {}\n\
             Net {}: {}\n\
             Current Balance: {}",
-            income, expenses, status, net.abs(), balance
+            income,
+            expenses,
+            status,
+            net.abs(),
+            balance
         ),
     )
 }
@@ -310,12 +311,7 @@ pub fn match_preview(
 }
 
 /// Generate season end summary message.
-pub fn season_end(
-    date: NaiveDate,
-    season: &str,
-    league_position: u8,
-    points: u16,
-) -> InboxMessage {
+pub fn season_end(date: NaiveDate, season: &str, league_position: u8, points: u16) -> InboxMessage {
     InboxMessage::new(
         date,
         MessageCategory::Other,
@@ -350,16 +346,111 @@ pub fn transfer_window_status(date: NaiveDate, is_opening: bool) -> InboxMessage
     let (subject, body) = if is_opening {
         (
             "Transfer Window Opens",
-            "The transfer window is now open. You may buy and sell players."
+            "The transfer window is now open. You may buy and sell players.",
         )
     } else {
         (
             "Transfer Window Closes",
-            "The transfer window has closed. No more transfers until the next window."
+            "The transfer window has closed. No more transfers until the next window.",
         )
     };
 
     InboxMessage::new(date, MessageCategory::Transfer, subject, body)
+}
+
+/// Tipos de rumor de transferencia.
+#[derive(Debug, Clone, Copy)]
+pub enum RumorType {
+    /// Jogador sendo observado por um clube.
+    BeingWatched,
+    /// Clube prepara oferta.
+    PreparingBid,
+    /// Jogador quer sair.
+    WantsToLeave,
+}
+
+/// Generate a transfer rumor message.
+pub fn transfer_rumor(
+    date: NaiveDate,
+    player_name: &str,
+    player_club: &str,
+    interested_club: &str,
+    rumor_type: RumorType,
+) -> InboxMessage {
+    let (subject, body) = match rumor_type {
+        RumorType::BeingWatched => (
+            format!("Rumor: {} sendo observado", player_name),
+            format!(
+                "{} esta sendo observado por {}.\n\n\
+                Olheiros do clube foram vistos acompanhando as ultimas partidas do jogador.",
+                player_name, interested_club
+            ),
+        ),
+        RumorType::PreparingBid => (
+            format!("Rumor: Oferta por {}", player_name),
+            format!(
+                "{} prepara oferta por {}, atualmente no {}.\n\n\
+                Fontes indicam que o clube esta disposto a investir pesado na contratacao.",
+                interested_club, player_name, player_club
+            ),
+        ),
+        RumorType::WantsToLeave => (
+            format!("Rumor: {} quer sair", player_name),
+            format!(
+                "Rumores indicam que {} quer sair de {}.\n\n\
+                O jogador estaria insatisfeito com seu papel no time e busca novos desafios.",
+                player_name, player_club
+            ),
+        ),
+    };
+
+    InboxMessage::new(date, MessageCategory::Transfer, subject, body)
+}
+
+/// Gera rumores de transferencia aleatorios.
+///
+/// Seleciona jogadores de clubes notaveis e gera rumores variados.
+/// `seed` e usado para determinismo (normalmente dias_played ou similar).
+pub fn generate_random_rumors(
+    date: NaiveDate,
+    player_names: &[(String, String)], // (player_name, player_club)
+    club_names: &[String],
+    seed: u32,
+) -> Vec<InboxMessage> {
+    let mut rumors = Vec::new();
+
+    if player_names.is_empty() || club_names.is_empty() {
+        return rumors;
+    }
+
+    // Usar seed para selecionar jogador e tipo de rumor deterministicamente.
+    let player_idx = (seed as usize) % player_names.len();
+    let club_idx = ((seed as usize) * 7 + 3) % club_names.len();
+    let rumor_type_idx = (seed as usize) % 3;
+
+    let (ref player_name, ref player_club) = player_names[player_idx];
+    let interested_club = &club_names[club_idx];
+
+    // Evitar rumor sobre jogador indo para o proprio clube.
+    if interested_club == player_club {
+        return rumors;
+    }
+
+    let rumor_type = match rumor_type_idx {
+        0 => RumorType::BeingWatched,
+        1 => RumorType::PreparingBid,
+        _ => RumorType::WantsToLeave,
+    };
+
+    rumors.push(transfer_rumor(
+        date,
+        player_name,
+        player_club,
+        interested_club,
+        rumor_type,
+    ));
+
+    rumors
 }
 
 #[cfg(test)]
@@ -460,7 +551,7 @@ mod tests {
     fn test_transfer_window() {
         let open_msg = transfer_window_status(test_date(), true);
         assert!(open_msg.subject.contains("Opens"));
-        
+
         let close_msg = transfer_window_status(test_date(), false);
         assert!(close_msg.subject.contains("Closes"));
     }
@@ -471,5 +562,64 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_nanos(1));
         let msg2 = welcome_inbox(test_date(), "A", "B");
         assert_ne!(msg1.id, msg2.id);
+    }
+
+    #[test]
+    fn test_transfer_rumor_being_watched() {
+        let msg = transfer_rumor(
+            test_date(),
+            "Ronaldinho",
+            "Flamengo",
+            "Barcelona",
+            RumorType::BeingWatched,
+        );
+        assert_eq!(msg.category, MessageCategory::Transfer);
+        assert!(msg.subject.contains("Ronaldinho"));
+        assert!(msg.body.contains("Barcelona"));
+    }
+
+    #[test]
+    fn test_transfer_rumor_preparing_bid() {
+        let msg = transfer_rumor(
+            test_date(),
+            "Neymar",
+            "Santos",
+            "Real Madrid",
+            RumorType::PreparingBid,
+        );
+        assert!(msg.body.contains("Real Madrid"));
+        assert!(msg.body.contains("Neymar"));
+        assert!(msg.body.contains("Santos"));
+    }
+
+    #[test]
+    fn test_transfer_rumor_wants_to_leave() {
+        let msg = transfer_rumor(
+            test_date(),
+            "Kaka",
+            "Milan",
+            "Chelsea",
+            RumorType::WantsToLeave,
+        );
+        assert!(msg.body.contains("Kaka"));
+        assert!(msg.body.contains("Milan"));
+    }
+
+    #[test]
+    fn test_generate_random_rumors() {
+        let players = vec![
+            ("Jogador A".to_string(), "Clube A".to_string()),
+            ("Jogador B".to_string(), "Clube B".to_string()),
+        ];
+        let clubs = vec!["Clube C".to_string(), "Clube D".to_string()];
+        let rumors = generate_random_rumors(test_date(), &players, &clubs, 42);
+        assert!(!rumors.is_empty());
+        assert_eq!(rumors[0].category, MessageCategory::Transfer);
+    }
+
+    #[test]
+    fn test_generate_random_rumors_empty() {
+        let rumors = generate_random_rumors(test_date(), &[], &[], 0);
+        assert!(rumors.is_empty());
     }
 }

@@ -2,10 +2,11 @@
 
 use crate::config::GameConfig;
 use crate::state::GameState;
-use cm_core::world::{World, TrainingFocus, Player, Position};
-use cm_core::world::player::PreferredFoot;
 use cm_core::ids::{ClubId, NationId, PlayerId};
+use cm_core::world::player::PreferredFoot;
+use cm_core::world::{Player, Position, StaffRole, TrainingFocus, World};
 use rand::Rng;
+use std::collections::HashMap;
 
 /// Training intensity levels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -118,7 +119,11 @@ fn apply_attr_gain(attr: &mut u8, gain: f32, rng: &mut impl Rng) {
     let whole = gain as u8;
     let frac = gain - whole as f32;
     let extra = if rng.gen::<f32>() < frac { 1u8 } else { 0u8 };
-    *attr = (*attr).saturating_add(whole).saturating_add(extra).min(99).max(1);
+    *attr = (*attr)
+        .saturating_add(whole)
+        .saturating_add(extra)
+        .min(99)
+        .max(1);
 }
 
 /// Apply a fractional decrement to a u8 attribute, clamping to [1, 99].
@@ -143,8 +148,7 @@ impl TrainingSystem {
 
             let intensity = TrainingIntensity::Medium;
             let fitness_change = intensity.fitness_factor();
-            player.fitness = (player.fitness as i16 + fitness_change as i16)
-                .clamp(0, 100) as u8;
+            player.fitness = (player.fitness as i16 + fitness_change as i16).clamp(0, 100) as u8;
         }
     }
 
@@ -156,7 +160,8 @@ impl TrainingSystem {
         _focus: TrainingFocus,
         intensity: TrainingIntensity,
     ) {
-        let player_ids: Vec<_> = world.players
+        let player_ids: Vec<_> = world
+            .players
             .values()
             .filter(|p| p.club_id.as_ref() == Some(club_id) && !p.is_injured())
             .map(|p| p.id.clone())
@@ -165,16 +170,95 @@ impl TrainingSystem {
         for player_id in player_ids {
             if let Some(player) = world.players.get_mut(&player_id) {
                 let fitness_change = intensity.fitness_factor();
-                player.fitness = (player.fitness as i16 + fitness_change as i16)
-                    .clamp(0, 100) as u8;
+                player.fitness =
+                    (player.fitness as i16 + fitness_change as i16).clamp(0, 100) as u8;
             }
         }
     }
 
     /// Rest players (light training/recovery).
     pub fn rest_squad(&self, world: &mut World, club_id: &ClubId) {
-        self.apply_club_training(world, club_id, TrainingFocus::Fitness, TrainingIntensity::Low);
+        self.apply_club_training(
+            world,
+            club_id,
+            TrainingFocus::Fitness,
+            TrainingIntensity::Low,
+        );
     }
+}
+
+// ---------------------------------------------------------------------------
+// Staff bonus calculation
+// ---------------------------------------------------------------------------
+
+/// Calculate the coaching staff bonus for a club.
+///
+/// Averages the `coaching` attribute of all Coach, FitnessCoach, and GoalkeeperCoach
+/// staff assigned to the club. Returns a value in the range [0.0, 0.2] that acts
+/// as a multiplier bonus for training gains.
+pub fn calculate_staff_bonus(world: &World, club_id: &ClubId) -> f32 {
+    let mut total_coaching: u32 = 0;
+    let mut count: u32 = 0;
+
+    for staff in world.staff.values() {
+        if staff.club_id.as_ref() != Some(club_id) {
+            continue;
+        }
+        match staff.role {
+            StaffRole::Coach | StaffRole::FitnessCoach | StaffRole::GoalkeeperCoach => {
+                total_coaching += staff.coaching as u32;
+                count += 1;
+            }
+            _ => {}
+        }
+    }
+
+    if count == 0 {
+        return 0.0;
+    }
+
+    let avg = total_coaching as f32 / count as f32;
+    // Scale to [0.0, 0.2] range: coaching 1-20 maps to 0.01-0.20
+    (avg / 100.0).clamp(0.0, 0.2)
+}
+
+/// Calculate the goalkeeper coach bonus for a club.
+///
+/// Returns an additional bonus (0.0-0.2) from GoalkeeperCoach staff specifically,
+/// applied on top of the general staff bonus for goalkeeper training.
+pub fn calculate_gk_coach_bonus(world: &World, club_id: &ClubId) -> f32 {
+    let mut total: u32 = 0;
+    let mut count: u32 = 0;
+
+    for staff in world.staff.values() {
+        if staff.club_id.as_ref() != Some(club_id) {
+            continue;
+        }
+        if staff.role == StaffRole::GoalkeeperCoach {
+            total += staff.coaching as u32;
+            count += 1;
+        }
+    }
+
+    if count == 0 {
+        return 0.0;
+    }
+
+    let avg = total as f32 / count as f32;
+    (avg / 100.0).clamp(0.0, 0.2)
+}
+
+/// Pre-compute staff bonuses for all clubs in the world.
+fn compute_all_staff_bonuses(world: &World) -> (HashMap<ClubId, f32>, HashMap<ClubId, f32>) {
+    let mut general_bonus: HashMap<ClubId, f32> = HashMap::new();
+    let mut gk_bonus: HashMap<ClubId, f32> = HashMap::new();
+
+    for club_id in world.clubs.keys() {
+        general_bonus.insert(club_id.clone(), calculate_staff_bonus(world, club_id));
+        gk_bonus.insert(club_id.clone(), calculate_gk_coach_bonus(world, club_id));
+    }
+
+    (general_bonus, gk_bonus)
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +270,11 @@ impl TrainingSystem {
 /// Applies attribute gains based on `training_focus` and `intensity`,
 /// modified by each player's age. Also applies fitness cost and
 /// stochastic injury risk.
-pub fn process_training(world: &mut World, training_focus: TrainingFocus, intensity: TrainingIntensity) {
+pub fn process_training(
+    world: &mut World,
+    training_focus: TrainingFocus,
+    intensity: TrainingIntensity,
+) {
     let mut rng = rand::thread_rng();
     process_training_with_rng(world, training_focus, intensity, &mut rng);
 }
@@ -199,6 +287,9 @@ pub fn process_training_with_rng(
     rng: &mut impl Rng,
 ) {
     let today = chrono::Utc::now().date_naive();
+
+    // Pre-compute staff bonuses for all clubs
+    let (staff_bonuses, gk_bonuses) = compute_all_staff_bonuses(world);
 
     let player_ids: Vec<PlayerId> = world.players.keys().cloned().collect();
 
@@ -254,9 +345,32 @@ pub fn process_training_with_rng(
             continue; // No attribute gains if injured this session
         }
 
+        // --- Staff coaching bonus ---
+        let coaching_bonus = player
+            .club_id
+            .as_ref()
+            .and_then(|cid| staff_bonuses.get(cid))
+            .copied()
+            .unwrap_or(0.0);
+
+        let is_goalkeeper = player.position == Position::Goalkeeper;
+        let gk_bonus = if is_goalkeeper {
+            player
+                .club_id
+                .as_ref()
+                .and_then(|cid| gk_bonuses.get(cid))
+                .copied()
+                .unwrap_or(0.0)
+        } else {
+            0.0
+        };
+
         // --- Attribute gains ---
         let base_gain = intensity.attribute_gain();
-        let gain = base_gain * age_mod.attribute_gain_mult;
+        // training_gain = base_gain * age_modifier * (1.0 + coaching_bonus)
+        let gain = base_gain * age_mod.attribute_gain_mult * (1.0 + coaching_bonus);
+        // Goalkeepers get an additional boost from GK coaches
+        let gk_gain = base_gain * age_mod.attribute_gain_mult * (1.0 + coaching_bonus + gk_bonus);
 
         match training_focus {
             TrainingFocus::Physical => {
@@ -290,6 +404,14 @@ pub fn process_training_with_rng(
             }
         }
 
+        // Goalkeeper-specific training: GK coaches boost goalkeeper attributes
+        if is_goalkeeper && gk_bonus > 0.0 {
+            let gk_small = gk_gain * 0.3; // small bonus to GK attributes each session
+            apply_attr_gain(&mut player.attributes.goalkeeper.handling, gk_small, rng);
+            apply_attr_gain(&mut player.attributes.goalkeeper.reflexes, gk_small, rng);
+            apply_attr_gain(&mut player.attributes.goalkeeper.positioning, gk_small, rng);
+        }
+
         // --- 33+ random decline ---
         if age_mod.may_decline {
             // ~14% chance per session (roughly once per week if training daily)
@@ -301,7 +423,11 @@ pub fn process_training_with_rng(
                     0 => apply_attr_decline(&mut player.attributes.physical.pace, decline, rng),
                     1 => apply_attr_decline(&mut player.attributes.physical.stamina, decline, rng),
                     2 => apply_attr_decline(&mut player.attributes.physical.strength, decline, rng),
-                    3 => apply_attr_decline(&mut player.attributes.physical.acceleration, decline, rng),
+                    3 => apply_attr_decline(
+                        &mut player.attributes.physical.acceleration,
+                        decline,
+                        rng,
+                    ),
                     _ => apply_attr_decline(&mut player.attributes.physical.agility, decline, rng),
                 }
             }
@@ -369,14 +495,25 @@ pub fn generate_youth_player(rng: &mut impl Rng) -> Player {
     let player_id = format!("YTH{id_num}");
 
     let first_names = [
-        "Lucas", "Gabriel", "Matheus", "Pedro", "Rafael",
-        "Bruno", "Felipe", "Thiago", "Vinicius", "Arthur",
-        "Carlos", "Diego", "Eduardo", "Gustavo", "Henrique",
+        "Lucas", "Gabriel", "Matheus", "Pedro", "Rafael", "Bruno", "Felipe", "Thiago", "Vinicius",
+        "Arthur", "Carlos", "Diego", "Eduardo", "Gustavo", "Henrique",
     ];
     let last_names = [
-        "Silva", "Santos", "Oliveira", "Souza", "Lima",
-        "Pereira", "Costa", "Almeida", "Ferreira", "Rodrigues",
-        "Gomes", "Martins", "Araujo", "Ribeiro", "Carvalho",
+        "Silva",
+        "Santos",
+        "Oliveira",
+        "Souza",
+        "Lima",
+        "Pereira",
+        "Costa",
+        "Almeida",
+        "Ferreira",
+        "Rodrigues",
+        "Gomes",
+        "Martins",
+        "Araujo",
+        "Ribeiro",
+        "Carvalho",
     ];
 
     let first = first_names[rng.gen_range(0..first_names.len())];
@@ -408,7 +545,9 @@ pub fn generate_youth_player(rng: &mut impl Rng) -> Player {
     );
 
     // Random attributes in the 20-55 range for youth players
-    fn rand_attr(rng: &mut impl Rng) -> u8 { rng.gen_range(20..=55) }
+    fn rand_attr(rng: &mut impl Rng) -> u8 {
+        rng.gen_range(20..=55)
+    }
 
     // Technical
     player.attributes.technical.crossing = rand_attr(rng);
@@ -486,11 +625,11 @@ use chrono::Datelike;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cm_core::world::Player;
-    use cm_core::ids::NationId;
     use chrono::NaiveDate;
-    use rand::SeedableRng;
+    use cm_core::ids::NationId;
+    use cm_core::world::Player;
     use rand::rngs::StdRng;
+    use rand::SeedableRng;
 
     fn setup_test() -> (World, GameState, TrainingSystem) {
         let mut world = World::new();
@@ -528,7 +667,10 @@ mod tests {
 
     #[test]
     fn test_intensity_development() {
-        assert!(TrainingIntensity::High.development_multiplier() > TrainingIntensity::Medium.development_multiplier());
+        assert!(
+            TrainingIntensity::High.development_multiplier()
+                > TrainingIntensity::Medium.development_multiplier()
+        );
     }
 
     #[test]
@@ -588,7 +730,12 @@ mod tests {
 
         // Run many sessions to ensure measurable gain
         for _ in 0..50 {
-            process_training_with_rng(&mut world, TrainingFocus::Physical, TrainingIntensity::High, &mut rng);
+            process_training_with_rng(
+                &mut world,
+                TrainingFocus::Physical,
+                TrainingIntensity::High,
+                &mut rng,
+            );
             // Restore fitness so they keep training
             if let Some(p) = world.players.get_mut(&PlayerId::new("P100")) {
                 p.fitness = 90;
@@ -598,7 +745,11 @@ mod tests {
 
         let p = world.players.get(&PlayerId::new("P100")).unwrap();
         // After 50 high-intensity sessions with youth bonus, attributes should have improved
-        assert!(p.attributes.physical.pace > 40, "pace should improve, got {}", p.attributes.physical.pace);
+        assert!(
+            p.attributes.physical.pace > 40,
+            "pace should improve, got {}",
+            p.attributes.physical.pace
+        );
         assert!(p.attributes.physical.stamina > 40, "stamina should improve");
     }
 
@@ -621,7 +772,12 @@ mod tests {
         let mut rng = make_seeded_rng();
 
         for _ in 0..30 {
-            process_training_with_rng(&mut world, TrainingFocus::Technical, TrainingIntensity::Medium, &mut rng);
+            process_training_with_rng(
+                &mut world,
+                TrainingFocus::Technical,
+                TrainingIntensity::Medium,
+                &mut rng,
+            );
             if let Some(p) = world.players.get_mut(&PlayerId::new("P200")) {
                 p.fitness = 90;
                 p.injury = None;
@@ -629,8 +785,14 @@ mod tests {
         }
 
         let p = world.players.get(&PlayerId::new("P200")).unwrap();
-        assert!(p.attributes.technical.passing > 50, "passing should improve");
-        assert!(p.attributes.technical.dribbling > 50, "dribbling should improve");
+        assert!(
+            p.attributes.technical.passing > 50,
+            "passing should improve"
+        );
+        assert!(
+            p.attributes.technical.dribbling > 50,
+            "dribbling should improve"
+        );
     }
 
     #[test]
@@ -653,7 +815,12 @@ mod tests {
         let mut rng = make_seeded_rng();
 
         for _ in 0..30 {
-            process_training_with_rng(&mut world, TrainingFocus::Tactical, TrainingIntensity::Medium, &mut rng);
+            process_training_with_rng(
+                &mut world,
+                TrainingFocus::Tactical,
+                TrainingIntensity::Medium,
+                &mut rng,
+            );
             if let Some(p) = world.players.get_mut(&PlayerId::new("P300")) {
                 p.fitness = 90;
                 p.injury = None;
@@ -661,8 +828,14 @@ mod tests {
         }
 
         let p = world.players.get(&PlayerId::new("P300")).unwrap();
-        assert!(p.attributes.mental.positioning > 50, "positioning should improve");
-        assert!(p.attributes.mental.decisions > 50, "decisions should improve");
+        assert!(
+            p.attributes.mental.positioning > 50,
+            "positioning should improve"
+        );
+        assert!(
+            p.attributes.mental.decisions > 50,
+            "decisions should improve"
+        );
     }
 
     #[test]
@@ -681,10 +854,19 @@ mod tests {
         world.players.insert(player.id.clone(), player);
 
         let mut rng = make_seeded_rng();
-        process_training_with_rng(&mut world, TrainingFocus::Recovery, TrainingIntensity::High, &mut rng);
+        process_training_with_rng(
+            &mut world,
+            TrainingFocus::Recovery,
+            TrainingIntensity::High,
+            &mut rng,
+        );
 
         let p = world.players.get(&PlayerId::new("P400")).unwrap();
-        assert!(p.fitness > 50, "fitness should be restored, got {}", p.fitness);
+        assert!(
+            p.fitness > 50,
+            "fitness should be restored, got {}",
+            p.fitness
+        );
         // Attributes should not change
         assert_eq!(p.attributes.physical.pace, 60);
     }
@@ -705,11 +887,20 @@ mod tests {
 
         // Use a deterministic RNG that won't cause injury
         let mut rng = StdRng::seed_from_u64(999);
-        process_training_with_rng(&mut world, TrainingFocus::Physical, TrainingIntensity::High, &mut rng);
+        process_training_with_rng(
+            &mut world,
+            TrainingFocus::Physical,
+            TrainingIntensity::High,
+            &mut rng,
+        );
 
         let p = world.players.get(&PlayerId::new("P500")).unwrap();
         // Fitness should decrease (unless player got injured which also decreases it)
-        assert!(p.fitness < 80, "fitness should decrease from training, got {}", p.fitness);
+        assert!(
+            p.fitness < 80,
+            "fitness should decrease from training, got {}",
+            p.fitness
+        );
     }
 
     #[test]
@@ -766,7 +957,10 @@ mod tests {
             + p.attributes.physical.acceleration as u32
             + p.attributes.physical.agility as u32;
         // Should have declined from 350 total
-        assert!(total_phys < 350, "physical attributes should decline with aging, total={total_phys}");
+        assert!(
+            total_phys < 350,
+            "physical attributes should decline with aging, total={total_phys}"
+        );
         assert!(p.potential < 80, "potential should decrease");
     }
 
@@ -780,9 +974,19 @@ mod tests {
 
         // Age can be 15 if birthday hasn't passed yet this year
         assert!(age >= 15 && age <= 19, "youth should be 15-19, got {age}");
-        assert!(player.potential >= 60, "youth should have high potential, got {}", player.potential);
-        assert!(player.attributes.technical.passing >= 20, "attributes should be initialized");
-        assert!(player.attributes.physical.pace >= 20, "physical attrs should be initialized");
+        assert!(
+            player.potential >= 60,
+            "youth should have high potential, got {}",
+            player.potential
+        );
+        assert!(
+            player.attributes.technical.passing >= 20,
+            "attributes should be initialized"
+        );
+        assert!(
+            player.attributes.physical.pace >= 20,
+            "physical attrs should be initialized"
+        );
         assert!(!player.first_name.is_empty());
         assert!(!player.last_name.is_empty());
     }
@@ -819,10 +1023,18 @@ mod tests {
         world.players.insert(player.id.clone(), player);
 
         let mut rng = make_seeded_rng();
-        process_training_with_rng(&mut world, TrainingFocus::Technical, TrainingIntensity::High, &mut rng);
+        process_training_with_rng(
+            &mut world,
+            TrainingFocus::Technical,
+            TrainingIntensity::High,
+            &mut rng,
+        );
 
         let p = world.players.get(&PlayerId::new("P700")).unwrap();
-        assert_eq!(p.attributes.technical.finishing, 50, "injured player should not improve");
+        assert_eq!(
+            p.attributes.technical.finishing, 50,
+            "injured player should not improve"
+        );
         assert_eq!(p.fitness, 80, "injured player fitness should not change");
     }
 }

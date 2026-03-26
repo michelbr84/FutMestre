@@ -1,6 +1,5 @@
 //! JSON world importer.
 
-
 use std::path::Path;
 
 use chrono::NaiveDate;
@@ -16,22 +15,95 @@ use crate::errors::DataError;
 
 /// Brazilian first names for procedural generation.
 const FIRST_NAMES: &[&str] = &[
-    "João", "Pedro", "Lucas", "Gabriel", "Matheus", "Rafael", "Bruno", "Felipe",
-    "Gustavo", "Leonardo", "Ricardo", "Carlos", "André", "Paulo", "Marcos",
-    "Eduardo", "Fernando", "Diego", "Thiago", "Rodrigo", "Daniel", "Alexandre",
-    "Vinicius", "Henrique", "Arthur", "Caio", "Leandro", "Marcelo", "Fabio",
-    "Sergio", "Renato", "Willian", "Luiz", "Danilo", "Igor", "Renan", "Hugo",
-    "Victor", "Otávio", "Wesley", "Luan", "Yuri", "Raul", "Enzo", "Murilo",
+    "João",
+    "Pedro",
+    "Lucas",
+    "Gabriel",
+    "Matheus",
+    "Rafael",
+    "Bruno",
+    "Felipe",
+    "Gustavo",
+    "Leonardo",
+    "Ricardo",
+    "Carlos",
+    "André",
+    "Paulo",
+    "Marcos",
+    "Eduardo",
+    "Fernando",
+    "Diego",
+    "Thiago",
+    "Rodrigo",
+    "Daniel",
+    "Alexandre",
+    "Vinicius",
+    "Henrique",
+    "Arthur",
+    "Caio",
+    "Leandro",
+    "Marcelo",
+    "Fabio",
+    "Sergio",
+    "Renato",
+    "Willian",
+    "Luiz",
+    "Danilo",
+    "Igor",
+    "Renan",
+    "Hugo",
+    "Victor",
+    "Otávio",
+    "Wesley",
+    "Luan",
+    "Yuri",
+    "Raul",
+    "Enzo",
+    "Murilo",
 ];
 
 /// Brazilian last names for procedural generation.
 const LAST_NAMES: &[&str] = &[
-    "Silva", "Santos", "Oliveira", "Souza", "Lima", "Pereira", "Costa",
-    "Ferreira", "Rodrigues", "Almeida", "Nascimento", "Carvalho", "Gomes",
-    "Martins", "Araújo", "Ribeiro", "Barbosa", "Rocha", "Dias", "Moreira",
-    "Mendes", "Nunes", "Correia", "Vieira", "Lopes", "Monteiro", "Batista",
-    "Cardoso", "Teixeira", "Freitas", "Pinto", "Melo", "Cunha", "Andrade",
-    "Barros", "Campos", "Rezende", "Machado", "Ramos", "Fonseca",
+    "Silva",
+    "Santos",
+    "Oliveira",
+    "Souza",
+    "Lima",
+    "Pereira",
+    "Costa",
+    "Ferreira",
+    "Rodrigues",
+    "Almeida",
+    "Nascimento",
+    "Carvalho",
+    "Gomes",
+    "Martins",
+    "Araújo",
+    "Ribeiro",
+    "Barbosa",
+    "Rocha",
+    "Dias",
+    "Moreira",
+    "Mendes",
+    "Nunes",
+    "Correia",
+    "Vieira",
+    "Lopes",
+    "Monteiro",
+    "Batista",
+    "Cardoso",
+    "Teixeira",
+    "Freitas",
+    "Pinto",
+    "Melo",
+    "Cunha",
+    "Andrade",
+    "Barros",
+    "Campos",
+    "Rezende",
+    "Machado",
+    "Ramos",
+    "Fonseca",
 ];
 
 /// JSON importer for world data.
@@ -155,6 +227,7 @@ impl JsonWorldImporter {
                 staff_ids: Vec::new(),
                 primary_color: c.primary_color.unwrap_or_else(|| "#FF0000".into()),
                 secondary_color: c.secondary_color.unwrap_or_else(|| "#FFFFFF".into()),
+                history: Default::default(),
             };
             world.clubs.insert(club.id.clone(), club);
         }
@@ -170,7 +243,11 @@ impl JsonWorldImporter {
             let mut player_id = 1;
 
             for club_id in world.clubs.keys().cloned().collect::<Vec<_>>() {
-                let club_rep = world.clubs.get(&club_id).map(|c| c.reputation).unwrap_or(50);
+                let club_rep = world
+                    .clubs
+                    .get(&club_id)
+                    .map(|c| c.reputation)
+                    .unwrap_or(50);
 
                 // Squad of 22 players with balanced positions
                 let positions = vec![
@@ -228,53 +305,166 @@ impl JsonWorldImporter {
                     let base = (club_rep as i32 - 20).max(20) as u8;
                     let var = 15u8;
 
-                    player.attributes.technical.passing = base.saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.finishing = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.dribbling = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.crossing = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.tackling = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.heading = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.first_touch = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.technique = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.long_shots = base.saturating_sub(8).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.marking = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.penalties = base.saturating_sub(10).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.technical.free_kick = base.saturating_sub(10).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.passing =
+                        base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.technical.finishing = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.dribbling = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.crossing = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.tackling = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.heading = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.first_touch = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.technique = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.long_shots = base
+                        .saturating_sub(8)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.marking = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.penalties = base
+                        .saturating_sub(10)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.technical.free_kick = base
+                        .saturating_sub(10)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
 
-                    player.attributes.mental.decisions = base.saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.positioning = base.saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.composure = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.vision = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.anticipation = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.determination = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.teamwork = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.work_rate = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.concentration = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.leadership = base.saturating_sub(10).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.bravery = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.aggression = base.saturating_sub(10).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.flair = base.saturating_sub(8).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.mental.off_the_ball = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.decisions =
+                        base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.positioning =
+                        base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.mental.composure = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.vision = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.anticipation = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.determination = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.teamwork = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.work_rate = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.concentration = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.leadership = base
+                        .saturating_sub(10)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.bravery = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.aggression = base
+                        .saturating_sub(10)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.flair = base
+                        .saturating_sub(8)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.mental.off_the_ball = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
 
-                    player.attributes.physical.pace = base.saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.physical.stamina = base.saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.physical.strength = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.physical.acceleration = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.physical.agility = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.physical.balance = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.physical.jumping = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                    player.attributes.physical.natural_fitness = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.pace =
+                        base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.stamina =
+                        base.saturating_add(rng.gen_range(0..var)).min(95);
+                    player.attributes.physical.strength = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.physical.acceleration = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.physical.agility = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.physical.balance = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.physical.jumping = base
+                        .saturating_sub(5)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
+                    player.attributes.physical.natural_fitness = base
+                        .saturating_sub(3)
+                        .saturating_add(rng.gen_range(0..var))
+                        .min(95);
 
                     if *pos == Position::Goalkeeper {
-                        player.attributes.goalkeeper.handling = base.saturating_add(rng.gen_range(0..var)).min(95);
-                        player.attributes.goalkeeper.reflexes = base.saturating_add(rng.gen_range(0..var)).min(95);
-                        player.attributes.goalkeeper.positioning = base.saturating_add(rng.gen_range(0..var)).min(95);
-                        player.attributes.goalkeeper.aerial_ability = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                        player.attributes.goalkeeper.command_of_area = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                        player.attributes.goalkeeper.communication = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
-                        player.attributes.goalkeeper.kicking = base.saturating_sub(8).saturating_add(rng.gen_range(0..var)).min(95);
-                        player.attributes.goalkeeper.one_on_ones = base.saturating_sub(3).saturating_add(rng.gen_range(0..var)).min(95);
-                        player.attributes.goalkeeper.throwing = base.saturating_sub(5).saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.handling =
+                            base.saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.reflexes =
+                            base.saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.positioning =
+                            base.saturating_add(rng.gen_range(0..var)).min(95);
+                        player.attributes.goalkeeper.aerial_ability = base
+                            .saturating_sub(5)
+                            .saturating_add(rng.gen_range(0..var))
+                            .min(95);
+                        player.attributes.goalkeeper.command_of_area = base
+                            .saturating_sub(5)
+                            .saturating_add(rng.gen_range(0..var))
+                            .min(95);
+                        player.attributes.goalkeeper.communication = base
+                            .saturating_sub(5)
+                            .saturating_add(rng.gen_range(0..var))
+                            .min(95);
+                        player.attributes.goalkeeper.kicking = base
+                            .saturating_sub(8)
+                            .saturating_add(rng.gen_range(0..var))
+                            .min(95);
+                        player.attributes.goalkeeper.one_on_ones = base
+                            .saturating_sub(3)
+                            .saturating_add(rng.gen_range(0..var))
+                            .min(95);
+                        player.attributes.goalkeeper.throwing = base
+                            .saturating_sub(5)
+                            .saturating_add(rng.gen_range(0..var))
+                            .min(95);
                     }
 
                     // Value based on reputation
@@ -345,7 +535,9 @@ impl JsonWorldImporter {
                 }
             }
 
-            world.competitions.insert(CompetitionId::new("BRA1"), league);
+            world
+                .competitions
+                .insert(CompetitionId::new("BRA1"), league);
             return Ok(());
         }
 

@@ -36,7 +36,7 @@ enum Command {
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    
+
     // Set up tracing based on verbosity
     let filter = if cli.verbose {
         EnvFilter::from_default_env().add_directive("debug".parse()?)

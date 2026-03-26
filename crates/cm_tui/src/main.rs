@@ -7,8 +7,8 @@ mod widgets;
 use std::io;
 
 use crossterm::{
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::prelude::*;
 use ratatui::Terminal;

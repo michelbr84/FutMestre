@@ -1,7 +1,7 @@
 //! Data validators.
 
-use cm_core::world::World;
 use crate::errors::DataError;
+use cm_core::world::World;
 
 /// Validate world data.
 pub fn validate_world(world: &World) -> Result<(), DataError> {

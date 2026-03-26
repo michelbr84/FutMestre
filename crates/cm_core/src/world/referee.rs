@@ -1,7 +1,7 @@
 //! Referee entity.
 
-use serde::{Deserialize, Serialize};
 use crate::ids::{NationId, RefereeId};
+use serde::{Deserialize, Serialize};
 
 /// A match referee.
 #[derive(Debug, Clone, Serialize, Deserialize)]

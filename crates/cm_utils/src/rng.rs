@@ -47,7 +47,10 @@ mod tests {
         let mut rng2 = seeded_rng(42);
 
         for _ in 0..100 {
-            assert_eq!(random_range(&mut rng1, 0, 1000), random_range(&mut rng2, 0, 1000));
+            assert_eq!(
+                random_range(&mut rng1, 0, 1000),
+                random_range(&mut rng2, 0, 1000)
+            );
         }
     }
 
@@ -68,8 +71,12 @@ mod tests {
         let mut rng2 = entropy_rng();
 
         // Very unlikely to produce same sequence
-        let vals1: Vec<i32> = (0..10).map(|_| random_range(&mut rng1, 0, i32::MAX)).collect();
-        let vals2: Vec<i32> = (0..10).map(|_| random_range(&mut rng2, 0, i32::MAX)).collect();
+        let vals1: Vec<i32> = (0..10)
+            .map(|_| random_range(&mut rng1, 0, i32::MAX))
+            .collect();
+        let vals2: Vec<i32> = (0..10)
+            .map(|_| random_range(&mut rng2, 0, i32::MAX))
+            .collect();
         assert_ne!(vals1, vals2);
     }
 

@@ -19,6 +19,7 @@ pub struct Game {
     ai: ai_system::AiSystem,
     morale: morale_system::MoraleSystem,
     save: save_system::SaveSystem,
+    academy: academy_system::AcademySystem,
 }
 
 impl Game {
@@ -36,6 +37,7 @@ impl Game {
             ai: ai_system::AiSystem,
             morale: morale_system::MoraleSystem,
             save: save_system::SaveSystem,
+            academy: academy_system::AcademySystem,
         }
     }
 
@@ -76,8 +78,9 @@ impl Game {
             "Bem-vindo ao {}! Seu desafio comeca hoje. A diretoria espera grandes resultados.",
             club_name
         ));
-        self.state
-            .add_message("Revise o elenco e defina suas taticas antes da primeira partida.".to_string());
+        self.state.add_message(
+            "Revise o elenco e defina suas taticas antes da primeira partida.".to_string(),
+        );
     }
 
     /// Process one day.
@@ -112,7 +115,11 @@ impl Game {
         self.morale
             .run_daily(&self.cfg, &mut self.world, &mut self.state);
 
-        // 8) Save flag
+        // 8) Academy (youth generation on July 1st)
+        self.academy
+            .run_daily(&self.cfg, &mut self.world, &mut self.state);
+
+        // 9) Save flag
         self.save.mark_dirty(&mut self.state);
 
         // Increment day counter

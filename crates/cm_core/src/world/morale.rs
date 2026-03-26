@@ -46,7 +46,9 @@ pub struct Morale {
 impl Morale {
     /// Create new morale.
     pub fn new(value: u8) -> Self {
-        Self { value: value.min(100) }
+        Self {
+            value: value.min(100),
+        }
     }
 
     /// Get morale level.
