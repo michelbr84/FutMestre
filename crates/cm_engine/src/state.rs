@@ -23,6 +23,15 @@ pub struct GameFlags {
     pub dirty: bool,
 }
 
+/// Snapshot financeiro mensal para graficos e historico.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonthlySnapshot {
+    pub month: String,
+    pub balance: i64,
+    pub income: i64,
+    pub expenses: i64,
+}
+
 /// Game state.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameState {
@@ -38,6 +47,9 @@ pub struct GameState {
     /// Objetivos de carreira (modo Serie D).
     #[serde(default)]
     pub career_objectives: Vec<CareerObjective>,
+    /// Historico financeiro mensal para graficos.
+    #[serde(default)]
+    pub financial_history: Vec<MonthlySnapshot>,
 }
 
 impl GameState {
@@ -52,6 +64,7 @@ impl GameState {
             days_played: 0,
             last_match_result: None,
             career_objectives: Vec::new(),
+            financial_history: Vec::new(),
         }
     }
 

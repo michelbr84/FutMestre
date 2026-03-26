@@ -625,12 +625,55 @@ fn start_match(
     // Store last match result
     game.state_mut().last_match_result = Some(result.clone());
 
+    let display_events: Vec<DisplayMatchEvent> = result
+        .events
+        .iter()
+        .map(|e| DisplayMatchEvent {
+            minute: e.minute,
+            event_type: format!("{:?}", e.event_type),
+            description: e.description.clone(),
+        })
+        .collect();
+
+    let display_stats = DisplayMatchStats {
+        home_possession: result.stats.home_possession,
+        away_possession: result.stats.away_possession,
+        home_shots: result.stats.home_shots,
+        away_shots: result.stats.away_shots,
+        home_shots_on_target: result.stats.home_shots_on_target,
+        away_shots_on_target: result.stats.away_shots_on_target,
+        home_fouls: result.stats.home_fouls,
+        away_fouls: result.stats.away_fouls,
+        home_corners: result.stats.home_corners,
+        away_corners: result.stats.away_corners,
+        home_yellow_cards: result.stats.home_yellow_cards,
+        away_yellow_cards: result.stats.away_yellow_cards,
+        home_red_cards: result.stats.home_red_cards,
+        away_red_cards: result.stats.away_red_cards,
+    };
+
+    let display_ratings: Vec<DisplayPlayerRating> = result
+        .player_ratings
+        .iter()
+        .map(|r| DisplayPlayerRating {
+            player_id: r.player_id.clone(),
+            team: format!("{:?}", r.team),
+            rating: r.rating,
+            goals: r.goals,
+            assists: r.assists,
+            man_of_the_match: r.man_of_the_match,
+        })
+        .collect();
+
     Some(DisplayMatchResult {
         home_goals: result.home_goals,
         away_goals: result.away_goals,
         home_name,
         away_name,
         highlights: result.highlights,
+        events: display_events,
+        stats: display_stats,
+        player_ratings: display_ratings,
     })
 }
 
@@ -770,6 +813,26 @@ fn get_finances(state: State<AppState>) -> Option<DisplayFinances> {
         wage_bill: format_money(club.budget.wage_bill),
         wage_room: format_money(club.budget.available_wage_room()),
     })
+}
+
+#[tauri::command]
+fn get_financial_history(state: State<AppState>) -> Vec<DisplayMonthlySnapshot> {
+    let lock = state.game.lock().unwrap();
+    let game = match lock.as_ref() {
+        Some(g) => g,
+        None => return Vec::new(),
+    };
+
+    game.state()
+        .financial_history
+        .iter()
+        .map(|s| DisplayMonthlySnapshot {
+            month: s.month.clone(),
+            balance: s.balance,
+            income: s.income,
+            expenses: s.expenses,
+        })
+        .collect()
 }
 
 // ─── Commands: Transfers ─────────────────────────────────────────────────────
@@ -1030,6 +1093,7 @@ fn load_game(slot_id: u32, state: State<AppState>) -> Result<DisplayGameState, S
         days_played: 0,
         last_match_result: None,
         career_objectives: Vec::new(),
+        financial_history: Vec::new(),
     };
 
     let cfg = GameConfig {
@@ -1161,6 +1225,7 @@ pub fn run() {
             get_fixtures,
             get_inbox,
             get_finances,
+            get_financial_history,
             search_players,
             offer_transfer,
             update_tactics,

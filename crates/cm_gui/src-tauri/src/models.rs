@@ -108,6 +108,44 @@ pub struct DisplayMatchResult {
     pub home_name: String,
     pub away_name: String,
     pub highlights: Vec<String>,
+    pub events: Vec<DisplayMatchEvent>,
+    pub stats: DisplayMatchStats,
+    pub player_ratings: Vec<DisplayPlayerRating>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplayMatchEvent {
+    pub minute: u32,
+    pub event_type: String,
+    pub description: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplayMatchStats {
+    pub home_possession: f64,
+    pub away_possession: f64,
+    pub home_shots: u32,
+    pub away_shots: u32,
+    pub home_shots_on_target: u32,
+    pub away_shots_on_target: u32,
+    pub home_fouls: u32,
+    pub away_fouls: u32,
+    pub home_corners: u32,
+    pub away_corners: u32,
+    pub home_yellow_cards: u32,
+    pub away_yellow_cards: u32,
+    pub home_red_cards: u32,
+    pub away_red_cards: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplayPlayerRating {
+    pub player_id: String,
+    pub team: String,
+    pub rating: f32,
+    pub goals: u8,
+    pub assists: u8,
+    pub man_of_the_match: bool,
 }
 
 // ─── League Table ───────────────────────────────────────────────────────────
@@ -241,6 +279,16 @@ pub struct RoundResult {
     pub home_goals: u8,
     pub away_goals: u8,
     pub competition: String,
+}
+
+// ─── Financial History ──────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplayMonthlySnapshot {
+    pub month: String,
+    pub balance: i64,
+    pub income: i64,
+    pub expenses: i64,
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

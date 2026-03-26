@@ -323,6 +323,7 @@
     <!-- Screen X: Match Engine (Overlay) -->
     <div id="screen-match" class="screen" style="background:black; z-index:20;">
       <div class="match-layout">
+        <!-- Match Header with Score -->
         <div class="match-header">
           <div class="team-score">
             <div class="team-lg" id="score-home-name">Casa</div>
@@ -330,7 +331,8 @@
           </div>
           <div class="match-timer">
             <div class="timer-box" id="match-time">00:00</div>
-            <div class="match-status">AO VIVO</div>
+            <div class="match-status" id="match-status-label">AO VIVO</div>
+            <div class="match-competition" id="match-competition"></div>
           </div>
           <div class="team-score">
             <div class="score-lg" id="score-away">0</div>
@@ -338,15 +340,102 @@
           </div>
         </div>
 
-        <div class="match-body">
-          <div class="commentary-box" id="commentary-feed"></div>
+        <!-- Goal scorers under header -->
+        <div class="match-scorers">
+          <div class="scorers-home" id="scorers-home"></div>
+          <div class="scorers-away" id="scorers-away"></div>
         </div>
 
-        <div class="match-footer" style="padding:1rem 2rem; display:flex; justify-content:center; gap:1rem; align-items:center;">
-          <button class="action-btn secondary" id="btn-match-subs" onclick="app.openMatchSubs()" style="font-size:0.85rem;">Substituicao</button>
-          <button class="action-btn secondary" id="btn-match-tactics" onclick="app.openMatchTactics()" style="font-size:0.85rem;">Tatica</button>
-          <button class="action-btn primary" id="btn-finish-match" onclick="app.finishMatch()"
-            style="display:none;">Encerrar Partida</button>
+        <!-- Match Body: Commentary + Stats side panel -->
+        <div class="match-body">
+          <div class="match-body-main">
+            <!-- Event Ticker -->
+            <div class="event-ticker" id="event-ticker" style="display:none;">
+              <div class="ticker-content" id="ticker-content"></div>
+            </div>
+            <!-- Commentary Feed -->
+            <div class="commentary-box" id="commentary-feed"></div>
+          </div>
+          <div class="match-stats-panel" id="match-stats-panel">
+            <div class="stats-title">Estatisticas</div>
+            <div class="stat-row">
+              <span class="stat-home" id="stat-possession-home">50%</span>
+              <span class="stat-label">Posse</span>
+              <span class="stat-away" id="stat-possession-away">50%</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-home" id="stat-shots-home">0</span>
+              <span class="stat-label">Finalizacoes</span>
+              <span class="stat-away" id="stat-shots-away">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-home" id="stat-sot-home">0</span>
+              <span class="stat-label">No Gol</span>
+              <span class="stat-away" id="stat-sot-away">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-home" id="stat-fouls-home">0</span>
+              <span class="stat-label">Faltas</span>
+              <span class="stat-away" id="stat-fouls-away">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-home" id="stat-corners-home">0</span>
+              <span class="stat-label">Escanteios</span>
+              <span class="stat-away" id="stat-corners-away">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-home" id="stat-yellows-home">0</span>
+              <span class="stat-label">Amarelos</span>
+              <span class="stat-away" id="stat-yellows-away">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-home" id="stat-reds-home">0</span>
+              <span class="stat-label">Vermelhos</span>
+              <span class="stat-away" id="stat-reds-away">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Post-Match: Player Ratings (hidden during match) -->
+        <div id="match-ratings-panel" class="match-ratings-panel" style="display:none;">
+          <div class="ratings-title">Desempenho Individual</div>
+          <div class="ratings-columns">
+            <div class="ratings-col" id="ratings-home"></div>
+            <div class="ratings-col" id="ratings-away"></div>
+          </div>
+        </div>
+
+        <!-- Match Footer with Controls -->
+        <div class="match-footer">
+          <div class="match-subs-counter" id="subs-counter">Substituicoes: 0/3</div>
+          <div class="match-controls">
+            <button class="action-btn secondary match-ctrl-btn" id="btn-match-subs" onclick="app.openMatchSubs()">Substituicao</button>
+            <button class="action-btn secondary match-ctrl-btn" id="btn-match-tactics" onclick="app.openMatchTactics()">Tatica</button>
+            <button class="action-btn primary match-ctrl-btn" id="btn-finish-match" onclick="app.finishMatch()" style="display:none;">Encerrar Partida</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Substitution Modal -->
+    <div id="subs-modal" class="modal-overlay" onclick="if(event.target === this) app.closeSubsModal()" style="display:none;">
+      <div class="profile-card" style="max-width:600px;">
+        <div class="profile-header">
+          <div class="profile-name">Substituicao</div>
+          <button class="action-btn secondary" onclick="app.closeSubsModal()">Fechar</button>
+        </div>
+        <div class="profile-body" style="padding:1rem;">
+          <div style="margin-bottom:1rem;">
+            <div class="panel-header" style="margin-bottom:0.5rem;">Sai do campo:</div>
+            <div id="subs-out-list" class="subs-player-list"></div>
+          </div>
+          <div>
+            <div class="panel-header" style="margin-bottom:0.5rem;">Entra em campo:</div>
+            <div id="subs-in-list" class="subs-player-list"></div>
+          </div>
+          <div style="margin-top:1rem; text-align:center;">
+            <button class="action-btn primary" id="btn-confirm-sub" onclick="app.confirmSub()" disabled>Confirmar Substituicao</button>
+          </div>
         </div>
       </div>
     </div>

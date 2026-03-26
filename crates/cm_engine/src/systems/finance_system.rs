@@ -2,7 +2,7 @@
 
 use crate::config::GameConfig;
 use crate::inbox::generators;
-use crate::state::GameState;
+use crate::state::{GameState, MonthlySnapshot};
 use chrono::Datelike;
 use cm_core::economy::Money;
 use cm_core::ids::ClubId;
@@ -97,6 +97,19 @@ impl FinanceSystem {
                 expense_breakdown,
                 club.budget.balance.major(),
             );
+
+            // Registrar snapshot mensal para historico/graficos
+            let snapshot = MonthlySnapshot {
+                month: state.date.date().format("%Y-%m").to_string(),
+                balance: club.budget.balance.major(),
+                income: monthly_income.major(),
+                expenses: monthly_wages.major(),
+            };
+            state.financial_history.push(snapshot);
+            // Manter no maximo 24 meses de historico
+            if state.financial_history.len() > 24 {
+                state.financial_history.remove(0);
+            }
 
             let msg = generators::monthly_financial_report(
                 state.date.date(),

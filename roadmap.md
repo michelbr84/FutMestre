@@ -88,8 +88,7 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Criterios de desempate avancados (confronto direto via head-to-head)
 - [x] Noticias de promocao/rebaixamento no fim de temporada
 
-## Pendente (Fase 2)
-- [ ] Calendario completo com datas FIFA
+- [x] Calendario com datas FIFA (pausas internacionais em marco, junho, setembro, outubro, novembro)
 
 ---
 
@@ -104,8 +103,7 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Aba Financas no TUI com saldo, orcamentos e folha salarial
 - [x] Emprestimos bancarios com juros (BankLoan com pagamento mensal)
 
-## Pendente (Fase 3)
-- [ ] Graficos financeiros na GUI
+- [x] Graficos financeiros na GUI (historico mensal de receitas/despesas)
 
 ---
 
@@ -199,11 +197,10 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Formacoes mudam posicoes dos bonecos ao trocar dropdown
 - [x] Mentalidade e ritmo na tela de taticas
 
-## Pendente (Fase 9)
-- [ ] Match day ao vivo com animacoes melhoradas
-- [ ] Substituicoes durante partida na GUI
-- [ ] Estatisticas individuais de jogadores na partida
-- [ ] Overview de partida (arbitro, clima, cartoes)
+- [x] Match day ao vivo com animacoes melhoradas (ticker de eventos, pulsing em gols)
+- [x] Substituicoes durante partida na GUI (painel de banco, max 3)
+- [x] Estatisticas individuais de jogadores na partida (ratings, craque da partida)
+- [x] Overview de partida (placar, minuto, eventos, estatisticas)
 
 ---
 
@@ -236,10 +233,11 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Historico de temporadas anteriores (SeasonRecord por clube e PlayerSeasonStats)
 - [x] Artilharia e premiacoes (TopScorer por competicao)
 
+- [x] Flashing text para noticias urgentes (MessagePriority: Normal/Important/Urgent)
+- [x] Background matches (placares ao vivo de todas as partidas da rodada)
+
 ## Pendente (Fase 11)
 - [ ] Sons e musica
-- [ ] Flashing text para noticias urgentes
-- [ ] Background matches (placares ao vivo durante partida)
 
 ---
 
@@ -284,13 +282,14 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 # Fase 14 — Testes e Qualidade
 
-- [x] 551+ testes passando em todo o workspace
+- [x] 558+ testes passando em todo o workspace
 - [x] Testes de motor de partida, financas, transferencias, IA, competicoes, treinamento
 - [x] CI/CD com GitHub Actions (check, fmt, clippy, test, build multi-OS)
 
+- [x] Testes de integracao para game loop completo (7 dias, match day, financas)
+
 ## Pendente (Fase 14)
 - [ ] Cobertura > 70%
-- [ ] Testes de integracao para game loop completo
 
 ---
 
@@ -323,8 +322,8 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 ## Prioridades Atuais
 
-1. **GUI partida ao vivo** — animacoes melhoradas e substituicoes na GUI
-2. **Calendario FIFA** — datas de selecoes e janelas de transferencia corretas
-3. **Sons e musica** — efeitos sonoros para eventos de partida
-4. **Guia do jogador** — documentacao de como jogar
-5. **Release v1.0** — binarios para Windows/Linux
+1. **Sons e musica** — efeitos sonoros para eventos de partida
+2. **Guia do jogador** — documentacao de como jogar
+3. **Release v1.0** — binarios para Windows/Linux
+4. **Cobertura > 70%** — testes adicionais
+5. **Leilao estilo Elifoot** — sistema de leilao para transferencias

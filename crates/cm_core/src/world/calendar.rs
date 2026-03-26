@@ -1,7 +1,7 @@
 //! Calendar system.
 
 use crate::ids::{CompetitionId, MatchId};
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 /// Calendar entry type.
@@ -86,5 +86,61 @@ impl Calendar {
             .filter(|e| e.date >= from && e.is_match_day())
             .map(|e| e.date)
             .next()
+    }
+
+    /// Check if a date falls within an international break.
+    pub fn is_international_break(&self, date: NaiveDate) -> bool {
+        self.entries.iter().any(|e| {
+            e.date == date && matches!(e.entry_type, CalendarEntryType::InternationalBreak)
+        })
+    }
+
+    /// Check if a date falls within any FIFA international break period.
+    /// Uses standard FIFA calendar windows.
+    pub fn is_fifa_break(date: NaiveDate) -> bool {
+        let month = date.month();
+        let day = date.day();
+        matches!(
+            (month, day),
+            // Marco: semana FIFA (normalmente dias 20-28)
+            (3, 20..=28) |
+            // Junho: janela longa (1-14)
+            (6, 1..=14) |
+            // Setembro: semana FIFA (4-12)
+            (9, 4..=12) |
+            // Outubro: semana FIFA (9-17)
+            (10, 9..=17) |
+            // Novembro: semana FIFA (13-21)
+            (11, 13..=21)
+        )
+    }
+
+    /// Populate FIFA international break entries for a given season year.
+    /// Season runs from July of `year` to June of `year+1`.
+    pub fn add_fifa_breaks(&mut self, year: i32) {
+        let breaks = [
+            // Setembro do ano da temporada
+            (year, 9, 4, 12),
+            // Outubro do ano da temporada
+            (year, 10, 9, 17),
+            // Novembro do ano da temporada
+            (year, 11, 13, 21),
+            // Marco do ano seguinte
+            (year + 1, 3, 20, 28),
+            // Junho do ano seguinte
+            (year + 1, 6, 1, 14),
+        ];
+
+        for (y, m, start_day, end_day) in breaks {
+            for d in start_day..=end_day {
+                if let Some(date) = NaiveDate::from_ymd_opt(y, m, d) {
+                    self.add(CalendarEntry {
+                        date,
+                        entry_type: CalendarEntryType::InternationalBreak,
+                        competition_id: None,
+                    });
+                }
+            }
+        }
     }
 }

@@ -4,4 +4,4 @@ pub mod filters;
 pub mod generators;
 pub mod message;
 
-pub use message::InboxMessage;
+pub use message::{InboxMessage, MessagePriority};

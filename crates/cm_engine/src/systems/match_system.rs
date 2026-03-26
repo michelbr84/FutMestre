@@ -119,11 +119,39 @@ impl MatchSystem {
             }
         }
 
-        let user_played = to_simulate
-            .iter()
-            .any(|(_, _, h, a)| h == &state.club_id || a == &state.club_id);
-        if !user_played {
-            state.add_message(format!("{} jogo(s) simulado(s) hoje.", to_simulate.len()));
+        // Coletar resultados de outros jogos para mensagem consolidada
+        let mut other_results: Vec<String> = Vec::new();
+
+        for (comp_id, fix_idx, home_id, away_id) in &to_simulate {
+            if home_id == &state.club_id || away_id == &state.club_id {
+                continue;
+            }
+
+            if let Some(comp) = world.competitions.get(comp_id) {
+                if let Some(fixture) = comp.fixtures.matches.get(*fix_idx) {
+                    if let Some(ref res) = fixture.result {
+                        let h_name = world
+                            .clubs
+                            .get(home_id)
+                            .map(|c| c.short_name.clone())
+                            .unwrap_or_else(|| home_id.to_string());
+                        let a_name = world
+                            .clubs
+                            .get(away_id)
+                            .map(|c| c.short_name.clone())
+                            .unwrap_or_else(|| away_id.to_string());
+                        other_results.push(format!(
+                            "{} {} x {} {}",
+                            h_name, res.home_goals, res.away_goals, a_name
+                        ));
+                    }
+                }
+            }
+        }
+
+        if !other_results.is_empty() {
+            let summary = format!("Resultados da rodada: {}", other_results.join(" | "));
+            state.add_message(summary);
         }
 
         state.flags.match_day = false;

@@ -61,6 +61,9 @@ pub struct World {
     pub competitions: HashMap<CompetitionId, Competition>,
     pub stadiums: HashMap<StadiumId, Stadium>,
     pub referees: HashMap<RefereeId, Referee>,
+    /// Calendario do jogo com datas FIFA e eventos especiais.
+    #[serde(default)]
+    pub calendar: Calendar,
 }
 
 impl World {

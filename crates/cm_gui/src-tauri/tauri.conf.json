@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "cratescm_gui",
+  "productName": "FutMestre",
   "version": "0.1.0",
-  "identifier": "com.miche.cratescm_gui",
+  "identifier": "com.miche.futmestre",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,9 +10,9 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "cratescm_gui",
-        "width": 800,
-        "height": 600
+        "title": "FutMestre - Football Manager",
+        "width": 1280,
+        "height": 800
       }
     ],
     "security": {

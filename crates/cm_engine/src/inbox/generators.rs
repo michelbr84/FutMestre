@@ -3,7 +3,7 @@
 use chrono::NaiveDate;
 use cm_core::economy::Money;
 
-use super::message::{InboxMessage, MessageCategory};
+use super::message::{InboxMessage, MessageCategory, MessagePriority};
 
 /// Generate welcome message.
 pub fn welcome_message(manager: &str, club: &str) -> String {
@@ -311,8 +311,9 @@ pub fn match_preview(
 }
 
 /// Generate season end summary message.
+/// Uses Urgent priority since season results (promotion/relegation/title) are critical.
 pub fn season_end(date: NaiveDate, season: &str, league_position: u8, points: u16) -> InboxMessage {
-    InboxMessage::new(
+    InboxMessage::with_priority(
         date,
         MessageCategory::Other,
         format!("Season End: {}", season),
@@ -323,6 +324,7 @@ pub fn season_end(date: NaiveDate, season: &str, league_position: u8, points: u1
             Review your season performance and prepare for the next campaign.",
             season, league_position, points
         ),
+        MessagePriority::Urgent,
     )
 }
 

@@ -933,19 +933,49 @@ const app = {
 
   // ─── Match ──────────────────────────────────────────────────────────────
 
-  startMatch: async (homeId, awayId, homeName, awayName) => {
+  matchSubsUsed: 0,
+  matchSubOut: null,
+  matchSubIn: null,
+  matchResult: null,
+  matchInterval: null,
+  matchIsLive: false,
+
+  startMatch: async (homeId, awayId, homeName, awayName, competition) => {
     app.showScreen('match');
+    app.matchSubsUsed = 0;
+    app.matchSubOut = null;
+    app.matchSubIn = null;
+    app.matchResult = null;
+    app.matchIsLive = true;
+
+    // Reset UI
     document.getElementById('score-home').textContent = '0';
     document.getElementById('score-away').textContent = '0';
-    document.getElementById('score-home-name').textContent = homeName || 'Home';
-    document.getElementById('score-away-name').textContent = awayName || 'Away';
+    document.getElementById('score-home').classList.remove('goal-flash');
+    document.getElementById('score-away').classList.remove('goal-flash');
+    document.getElementById('score-home-name').textContent = homeName || 'Casa';
+    document.getElementById('score-away-name').textContent = awayName || 'Fora';
     document.getElementById('match-time').textContent = '00:00';
     document.getElementById('commentary-feed').innerHTML = '';
     document.getElementById('btn-finish-match').style.display = 'none';
+    document.getElementById('btn-match-subs').style.display = 'inline-block';
+    document.getElementById('btn-match-tactics').style.display = 'inline-block';
+    document.getElementById('match-status-label').textContent = 'AO VIVO';
+    document.getElementById('match-status-label').classList.remove('ended');
+    document.getElementById('match-competition').textContent = competition || '';
+    document.getElementById('scorers-home').innerHTML = '';
+    document.getElementById('scorers-away').innerHTML = '';
+    document.getElementById('subs-counter').textContent = 'Substituicoes: 0/3';
+    document.getElementById('match-ratings-panel').style.display = 'none';
+    document.getElementById('event-ticker').style.display = 'none';
+
+    // Reset stats
+    app.resetMatchStats();
 
     try {
       const result = await invoke('start_match', { homeId: homeId.toString(), awayId: awayId.toString() });
       if (result) {
+        app.matchResult = result;
         document.getElementById('score-home-name').textContent = result.home_name;
         document.getElementById('score-away-name').textContent = result.away_name;
         app.playMatch(result);
@@ -955,81 +985,422 @@ const app = {
     }
   },
 
+  resetMatchStats: () => {
+    const ids = ['possession', 'shots', 'sot', 'fouls', 'corners', 'yellows', 'reds'];
+    ids.forEach(id => {
+      const h = document.getElementById(`stat-${id}-home`);
+      const a = document.getElementById(`stat-${id}-away`);
+      if (h) h.textContent = id === 'possession' ? '50%' : '0';
+      if (a) a.textContent = id === 'possession' ? '50%' : '0';
+    });
+  },
+
   playMatch: (result) => {
     let minute = 0;
-    const speed = 100;
-    const tick = setInterval(() => {
+    const speed = 120; // ms per minute tick
+    let homeGoalsShown = 0;
+    let awayGoalsShown = 0;
+
+    // Pre-process events by minute for efficient lookup
+    const eventsByMinute = {};
+    (result.events || []).forEach(ev => {
+      if (!eventsByMinute[ev.minute]) eventsByMinute[ev.minute] = [];
+      eventsByMinute[ev.minute].push(ev);
+    });
+
+    // Also process highlights by minute as fallback
+    const highlightsByMinute = {};
+    (result.highlights || []).forEach(h => {
+      const match = h.match(/^(\d+)'/);
+      if (match) {
+        const m = parseInt(match[1]);
+        if (!highlightsByMinute[m]) highlightsByMinute[m] = [];
+        highlightsByMinute[m].push(h);
+      }
+    });
+
+    app.matchInterval = setInterval(() => {
       minute++;
       document.getElementById('match-time').textContent = `${minute}:00`;
 
-      result.highlights.forEach(h => {
-        if (h.startsWith(`${minute}'`)) {
-          app.addCommentary(h, h.toLowerCase().includes("goal") || h.toLowerCase().includes("gol"));
-          if (h.includes("Home") || h.includes("home")) {
-            let s = document.getElementById('score-home');
-            s.textContent = parseInt(s.textContent) + 1;
-          } else if (h.includes("Away") || h.includes("away")) {
-            let s = document.getElementById('score-away');
-            s.textContent = parseInt(s.textContent) + 1;
+      // Half time
+      if (minute === 45) {
+        app.addMatchEvent(45, 'HalfTime', 'INTERVALO', null);
+      }
+
+      // Process structured events for this minute
+      const eventsNow = eventsByMinute[minute] || [];
+      eventsNow.forEach(ev => {
+        app.addMatchEvent(ev.minute, ev.event_type, ev.description, ev);
+
+        // Update score on goal events
+        if (ev.event_type === 'Goal') {
+          const descLower = ev.description.toLowerCase();
+          // Determine which team scored based on description
+          if (descLower.includes('home') || descLower.includes(result.home_name.toLowerCase())) {
+            homeGoalsShown++;
+            app.flashScore('home', homeGoalsShown);
+            app.addScorer('home', ev.minute, ev.description);
+          } else {
+            awayGoalsShown++;
+            app.flashScore('away', awayGoalsShown);
+            app.addScorer('away', ev.minute, ev.description);
           }
         }
       });
 
+      // Fallback: process highlights that weren't covered by events
+      if (eventsNow.length === 0) {
+        const highlights = highlightsByMinute[minute] || [];
+        highlights.forEach(h => {
+          const isGoal = h.toLowerCase().includes('goal') || h.toLowerCase().includes('gol');
+          const isYellow = h.toLowerCase().includes('yellow') || h.toLowerCase().includes('amarelo') || h.toLowerCase().includes('cartao amarelo');
+          const isRed = h.toLowerCase().includes('red card') || h.toLowerCase().includes('vermelho') || h.toLowerCase().includes('cartao vermelho');
+
+          let type = 'info';
+          if (isGoal) type = 'Goal';
+          else if (isRed) type = 'RedCard';
+          else if (isYellow) type = 'YellowCard';
+
+          app.addMatchEvent(minute, type, h, null);
+
+          if (isGoal) {
+            if (h.toLowerCase().includes('home')) {
+              homeGoalsShown++;
+              app.flashScore('home', homeGoalsShown);
+              app.addScorer('home', minute, h);
+            } else if (h.toLowerCase().includes('away')) {
+              awayGoalsShown++;
+              app.flashScore('away', awayGoalsShown);
+              app.addScorer('away', minute, h);
+            }
+          }
+        });
+      }
+
+      // Progressively update stats (interpolate toward final values)
+      if (result.stats && minute <= 90) {
+        const progress = minute / 90;
+        app.updateMatchStatsProgressive(result.stats, progress);
+      }
+
       if (minute >= 90) {
-        clearInterval(tick);
-        app.addCommentary(I18N.t('full_time'), true);
+        clearInterval(app.matchInterval);
+        app.matchInterval = null;
+        app.matchIsLive = false;
+
+        // Final whistle
+        app.addMatchEvent(90, 'FullTime', 'APITO FINAL!', null);
+
+        // Set final score
         document.getElementById('score-home').textContent = result.home_goals;
         document.getElementById('score-away').textContent = result.away_goals;
-        document.getElementById('btn-finish-match').style.display = 'block';
+
+        // Update status
+        document.getElementById('match-status-label').textContent = 'ENCERRADO';
+        document.getElementById('match-status-label').classList.add('ended');
+
+        // Update final stats
+        if (result.stats) app.updateMatchStatsFinal(result.stats);
+
+        // Show finish button, hide live controls
+        document.getElementById('btn-finish-match').style.display = 'inline-block';
+        document.getElementById('btn-match-subs').style.display = 'none';
+        document.getElementById('btn-match-tactics').style.display = 'none';
+
+        // Show player ratings if available
+        if (result.player_ratings && result.player_ratings.length > 0) {
+          app.renderPlayerRatings(result);
+        }
       }
     }, speed);
   },
 
-  addCommentary: (text, important = false) => {
+  flashScore: (side, goals) => {
+    const el = document.getElementById(`score-${side}`);
+    el.textContent = goals;
+    el.classList.add('goal-flash');
+    setTimeout(() => el.classList.remove('goal-flash'), 1500);
+  },
+
+  addScorer: (side, minute, description) => {
+    const container = document.getElementById(`scorers-${side}`);
+    const entry = document.createElement('div');
+    entry.className = 'scorer-entry';
+    entry.innerHTML = `<span style="color:#4ade80;">&#9917;</span> <span>${minute}'</span>`;
+    entry.style.animation = 'comm-fade-in 0.3s ease-out';
+    container.appendChild(entry);
+  },
+
+  addMatchEvent: (minute, eventType, description, rawEvent) => {
+    // Show ticker for important events
+    const isGoal = eventType === 'Goal';
+    const isYellow = eventType === 'YellowCard';
+    const isRed = eventType === 'RedCard';
+    const isHalf = eventType === 'HalfTime';
+    const isFull = eventType === 'FullTime';
+
+    if (isGoal || isYellow || isRed) {
+      app.showTicker(eventType, description);
+    }
+
+    // Determine icon
+    let icon = '';
+    let cssClass = '';
+    if (isGoal) {
+      icon = '&#9917;';
+      cssClass = 'goal';
+    } else if (isYellow) {
+      icon = '<span style="display:inline-block;width:10px;height:14px;background:#facc15;border-radius:1px;"></span>';
+      cssClass = 'yellow-card';
+    } else if (isRed) {
+      icon = '<span style="display:inline-block;width:10px;height:14px;background:#f87171;border-radius:1px;"></span>';
+      cssClass = 'red-card';
+    } else if (isHalf) {
+      cssClass = 'halftime';
+    } else if (isFull) {
+      cssClass = 'fulltime';
+    }
+
     const box = document.getElementById('commentary-feed');
     const div = document.createElement('div');
-    div.className = `comm-event ${important ? 'goal' : ''}`;
-    div.textContent = text;
+    div.className = `comm-event ${cssClass}`;
+
+    if (isHalf || isFull) {
+      div.innerHTML = `<span class="comm-text">${description}</span>`;
+    } else {
+      div.innerHTML = `
+        <span class="comm-minute">${minute}'</span>
+        <span class="comm-icon">${icon}</span>
+        <span class="comm-text">${description}</span>
+      `;
+    }
+
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
   },
 
-  matchSubsUsed: 0,
+  showTicker: (eventType, text) => {
+    const ticker = document.getElementById('event-ticker');
+    const content = document.getElementById('ticker-content');
+
+    ticker.className = 'event-ticker';
+    if (eventType === 'Goal') ticker.classList.add('goal-ticker');
+    else if (eventType === 'YellowCard') ticker.classList.add('card-ticker');
+    else if (eventType === 'RedCard') ticker.classList.add('red-ticker');
+
+    content.textContent = text;
+    ticker.style.display = 'block';
+    ticker.style.animation = 'none';
+    ticker.offsetHeight; // force reflow
+    ticker.style.animation = '';
+
+    // Auto-hide after 3 seconds
+    clearTimeout(app._tickerTimeout);
+    app._tickerTimeout = setTimeout(() => {
+      ticker.style.display = 'none';
+    }, 3000);
+  },
+
+  updateMatchStatsProgressive: (stats, progress) => {
+    // Interpolate stats toward final values with some noise
+    const lerp = (target) => Math.round(target * progress);
+    const poss = stats.home_possession || 50;
+
+    document.getElementById('stat-possession-home').textContent = Math.round(poss) + '%';
+    document.getElementById('stat-possession-away').textContent = Math.round(stats.away_possession || (100 - poss)) + '%';
+    document.getElementById('stat-shots-home').textContent = lerp(stats.home_shots);
+    document.getElementById('stat-shots-away').textContent = lerp(stats.away_shots);
+    document.getElementById('stat-sot-home').textContent = lerp(stats.home_shots_on_target);
+    document.getElementById('stat-sot-away').textContent = lerp(stats.away_shots_on_target);
+    document.getElementById('stat-fouls-home').textContent = lerp(stats.home_fouls);
+    document.getElementById('stat-fouls-away').textContent = lerp(stats.away_fouls);
+    document.getElementById('stat-corners-home').textContent = lerp(stats.home_corners);
+    document.getElementById('stat-corners-away').textContent = lerp(stats.away_corners);
+    document.getElementById('stat-yellows-home').textContent = lerp(stats.home_yellow_cards);
+    document.getElementById('stat-yellows-away').textContent = lerp(stats.away_yellow_cards);
+    document.getElementById('stat-reds-home').textContent = lerp(stats.home_red_cards);
+    document.getElementById('stat-reds-away').textContent = lerp(stats.away_red_cards);
+  },
+
+  updateMatchStatsFinal: (stats) => {
+    document.getElementById('stat-possession-home').textContent = Math.round(stats.home_possession || 50) + '%';
+    document.getElementById('stat-possession-away').textContent = Math.round(stats.away_possession || 50) + '%';
+    document.getElementById('stat-shots-home').textContent = stats.home_shots;
+    document.getElementById('stat-shots-away').textContent = stats.away_shots;
+    document.getElementById('stat-sot-home').textContent = stats.home_shots_on_target;
+    document.getElementById('stat-sot-away').textContent = stats.away_shots_on_target;
+    document.getElementById('stat-fouls-home').textContent = stats.home_fouls;
+    document.getElementById('stat-fouls-away').textContent = stats.away_fouls;
+    document.getElementById('stat-corners-home').textContent = stats.home_corners;
+    document.getElementById('stat-corners-away').textContent = stats.away_corners;
+    document.getElementById('stat-yellows-home').textContent = stats.home_yellow_cards;
+    document.getElementById('stat-yellows-away').textContent = stats.away_yellow_cards;
+    document.getElementById('stat-reds-home').textContent = stats.home_red_cards;
+    document.getElementById('stat-reds-away').textContent = stats.away_red_cards;
+  },
+
+  renderPlayerRatings: (result) => {
+    const panel = document.getElementById('match-ratings-panel');
+    const homeCol = document.getElementById('ratings-home');
+    const awayCol = document.getElementById('ratings-away');
+    homeCol.innerHTML = `<div style="font-size:0.8rem; font-weight:700; color:white; margin-bottom:0.5rem;">${result.home_name}</div>`;
+    awayCol.innerHTML = `<div style="font-size:0.8rem; font-weight:700; color:white; margin-bottom:0.5rem;">${result.away_name}</div>`;
+
+    const homeRatings = result.player_ratings.filter(r => r.team === 'Home').sort((a, b) => b.rating - a.rating);
+    const awayRatings = result.player_ratings.filter(r => r.team === 'Away').sort((a, b) => b.rating - a.rating);
+
+    const renderRatingRow = (r) => {
+      let colorClass = 'avg';
+      if (r.rating >= 8.0) colorClass = 'excellent';
+      else if (r.rating >= 7.0) colorClass = 'good';
+      else if (r.rating < 5.5) colorClass = 'poor';
+
+      let icons = '';
+      for (let i = 0; i < r.goals; i++) icons += '<span style="color:#4ade80;">&#9917;</span>';
+      if (r.man_of_the_match) icons += '<span class="rating-motm" title="Melhor em campo">&#9733;</span>';
+
+      // Clean player ID to just show surname-like label
+      const name = r.player_id.replace('HOME_', '').replace('AWAY_', '');
+      const label = `Jogador ${name}`;
+
+      return `<div class="rating-row">
+        <span class="rating-name">${label}</span>
+        <span class="rating-icons">${icons}</span>
+        <span class="rating-val ${colorClass}">${r.rating.toFixed(1)}</span>
+      </div>`;
+    };
+
+    homeRatings.forEach(r => homeCol.innerHTML += renderRatingRow(r));
+    awayRatings.forEach(r => awayCol.innerHTML += renderRatingRow(r));
+
+    panel.style.display = 'block';
+  },
+
+  // ─── Substitution Modal ──────────────────────────────────────────────
 
   openMatchSubs: () => {
+    if (!app.matchIsLive) return;
     if (app.matchSubsUsed >= 3) {
       alert('Limite de 3 substituicoes atingido.');
       return;
     }
     const squad = app.state.currentSquad || [];
-    const subs = squad.slice(11); // Reserves
-    if (subs.length === 0) {
+    if (squad.length <= 11) {
       alert('Nenhum reserva disponivel.');
       return;
     }
-    let msg = 'Escolha o reserva para entrar:\n';
-    subs.forEach((p, i) => { msg += `${i + 1}. ${p.name} (${p.position}, OVR ${p.overall})\n`; });
-    const choice = prompt(msg + '\nDigite o numero:');
-    if (choice && parseInt(choice) > 0 && parseInt(choice) <= subs.length) {
-      app.matchSubsUsed++;
-      const entering = subs[parseInt(choice) - 1];
-      app.addCommentary(`Substituicao: ${entering.name} entra em campo. (${app.matchSubsUsed}/3)`, true);
+
+    app.matchSubOut = null;
+    app.matchSubIn = null;
+
+    const starters = squad.slice(0, 11);
+    const subs = squad.slice(11);
+
+    const outList = document.getElementById('subs-out-list');
+    outList.innerHTML = '';
+    starters.forEach((p, i) => {
+      const item = document.createElement('div');
+      item.className = 'subs-player-item';
+      item.innerHTML = `<div class="player-info"><span class="pos-badge pos-MID">${p.position}</span> <span>${p.name}</span></div><span class="player-ovr">${p.overall}</span>`;
+      item.onclick = () => {
+        document.querySelectorAll('#subs-out-list .subs-player-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        app.matchSubOut = i;
+        app.updateSubConfirmBtn();
+      };
+      outList.appendChild(item);
+    });
+
+    const inList = document.getElementById('subs-in-list');
+    inList.innerHTML = '';
+    subs.forEach((p, i) => {
+      const item = document.createElement('div');
+      item.className = 'subs-player-item';
+      item.innerHTML = `<div class="player-info"><span class="pos-badge pos-MID">${p.position}</span> <span>${p.name}</span></div><span class="player-ovr">${p.overall}</span>`;
+      item.onclick = () => {
+        document.querySelectorAll('#subs-in-list .subs-player-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        app.matchSubIn = i;
+        app.updateSubConfirmBtn();
+      };
+      inList.appendChild(item);
+    });
+
+    document.getElementById('btn-confirm-sub').disabled = true;
+    document.getElementById('subs-modal').style.display = 'flex';
+  },
+
+  updateSubConfirmBtn: () => {
+    document.getElementById('btn-confirm-sub').disabled = (app.matchSubOut === null || app.matchSubIn === null);
+  },
+
+  confirmSub: () => {
+    if (app.matchSubOut === null || app.matchSubIn === null) return;
+
+    const squad = app.state.currentSquad || [];
+    const starters = squad.slice(0, 11);
+    const subs = squad.slice(11);
+
+    const playerOut = starters[app.matchSubOut];
+    const playerIn = subs[app.matchSubIn];
+
+    app.matchSubsUsed++;
+
+    // Get current minute from timer
+    const timeText = document.getElementById('match-time').textContent;
+    const currentMinute = parseInt(timeText) || 0;
+
+    // Add event to commentary
+    app.addMatchEvent(
+      currentMinute,
+      'Substitution',
+      `Substituicao: sai ${playerOut.name}, entra ${playerIn.name} (${app.matchSubsUsed}/3)`,
+      null
+    );
+
+    // Show ticker
+    app.showTicker('info', `Substituicao: ${playerIn.name} entra no lugar de ${playerOut.name}`);
+
+    // Update subs counter
+    document.getElementById('subs-counter').textContent = `Substituicoes: ${app.matchSubsUsed}/3`;
+
+    // Close modal
+    app.closeSubsModal();
+
+    // Disable subs button if maxed
+    if (app.matchSubsUsed >= 3) {
+      document.getElementById('btn-match-subs').style.opacity = '0.5';
+      document.getElementById('btn-match-subs').style.pointerEvents = 'none';
     }
   },
 
+  closeSubsModal: () => {
+    document.getElementById('subs-modal').style.display = 'none';
+  },
+
   openMatchTactics: () => {
+    if (!app.matchIsLive) return;
     const options = ['Defensivo', 'Cauteloso', 'Equilibrado', 'Ofensivo', 'Ataque Total'];
     let msg = 'Alterar mentalidade:\n';
     options.forEach((o, i) => { msg += `${i + 1}. ${o}\n`; });
     const choice = prompt(msg + '\nDigite o numero:');
     if (choice && parseInt(choice) > 0 && parseInt(choice) <= options.length) {
       const selected = options[parseInt(choice) - 1];
-      app.addCommentary(`Mudanca tatica: mentalidade alterada para ${selected}.`, true);
+      const timeText = document.getElementById('match-time').textContent;
+      const currentMinute = parseInt(timeText) || 0;
+      app.addMatchEvent(currentMinute, 'info', `Mudanca tatica: mentalidade alterada para ${selected}.`, null);
     }
   },
 
   finishMatch: () => {
+    if (app.matchInterval) {
+      clearInterval(app.matchInterval);
+      app.matchInterval = null;
+    }
     app.matchSubsUsed = 0;
+    app.matchIsLive = false;
+    app.matchResult = null;
     app.renderGameHub();
     app.showScreen('news');
   },
@@ -1049,7 +1420,7 @@ const app = {
       if (result.user_match) {
         const m = result.user_match;
         if (confirm(`${I18N.t('match_today')}: ${m.home_name} vs ${m.away_name} (${m.competition}). ${I18N.t('play_match')}`)) {
-          app.startMatch(m.home_id, m.away_id, m.home_name, m.away_name);
+          app.startMatch(m.home_id, m.away_id, m.home_name, m.away_name, m.competition);
           return;
         }
       }
