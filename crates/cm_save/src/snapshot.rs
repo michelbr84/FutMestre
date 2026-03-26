@@ -104,3 +104,83 @@ impl SaveSnapshot {
         &mut self.payload.game_state
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_test_snapshot() -> SaveSnapshot {
+        let world = World::new();
+        let config = GameConfigData {
+            difficulty: 50,
+            auto_save: true,
+        };
+        let state = GameStateData {
+            date: "2024-07-01".to_string(),
+            manager_name: "Test Manager".to_string(),
+            club_id: "FLA".to_string(),
+            inbox: vec!["Welcome message".to_string()],
+        };
+        SaveSnapshot::new(world, config, state).unwrap()
+    }
+
+    #[test]
+    fn test_save_snapshot_creation() {
+        let snap = make_test_snapshot();
+        assert_eq!(snap.version, SAVE_VERSION);
+        assert!(!snap.sha256.is_empty());
+        assert_eq!(snap.payload.game_config.difficulty, 50);
+        assert_eq!(snap.payload.game_state.club_id, "FLA");
+    }
+
+    #[test]
+    fn test_save_snapshot_roundtrip() {
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join("cm_test_snapshot.sav");
+        let path_str = path.to_str().unwrap();
+
+        let snap = make_test_snapshot();
+        snap.write_to_file(path_str).expect("write should succeed");
+
+        let loaded = SaveSnapshot::read_from_file(path_str).expect("read should succeed");
+        assert_eq!(loaded.version, snap.version);
+        assert_eq!(loaded.sha256, snap.sha256);
+        assert_eq!(loaded.payload.game_state.club_id, "FLA");
+        assert_eq!(loaded.payload.game_state.manager_name, "Test Manager");
+        assert_eq!(loaded.payload.game_config.difficulty, 50);
+
+        // Cleanup
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_save_snapshot_integrity_verified() {
+        let temp_dir = std::env::temp_dir();
+        let path = temp_dir.join("cm_test_snapshot_integrity.sav");
+        let path_str = path.to_str().unwrap();
+
+        let snap = make_test_snapshot();
+        snap.write_to_file(path_str).expect("write should succeed");
+
+        // Reading should verify integrity
+        let result = SaveSnapshot::read_from_file(path_str);
+        assert!(result.is_ok());
+
+        // Cleanup
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_save_snapshot_accessors() {
+        let snap = make_test_snapshot();
+        assert!(snap.world().clubs.is_empty());
+        assert_eq!(snap.state().date, "2024-07-01");
+    }
+
+    #[test]
+    fn test_save_snapshot_mutable_accessors() {
+        let mut snap = make_test_snapshot();
+        snap.state_mut().date = "2024-08-01".to_string();
+        assert_eq!(snap.state().date, "2024-08-01");
+    }
+}

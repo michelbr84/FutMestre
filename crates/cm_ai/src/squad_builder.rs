@@ -542,6 +542,55 @@ mod tests {
     }
 
     #[test]
+    fn test_squad_needs_analysis() {
+        // Test that squad needs analysis correctly identifies missing positions
+        let mut world = World::new();
+        let club_id = ClubId::new("partial_club");
+
+        let mut club =
+            cm_core::world::Club::new("partial_club", "Partial FC", NationId::new("test"));
+
+        // Only goalkeepers and defenders - no midfield or forwards
+        let players = vec![
+            create_test_player("gk1", Position::Goalkeeper, 70, 28),
+            create_test_player("gk2", Position::Goalkeeper, 65, 24),
+            create_test_player("dc1", Position::DefenderCenter, 70, 26),
+            create_test_player("dc2", Position::DefenderCenter, 68, 28),
+            create_test_player("dc3", Position::DefenderCenter, 65, 30),
+            create_test_player("dl1", Position::DefenderLeft, 66, 25),
+            create_test_player("dr1", Position::DefenderRight, 67, 24),
+        ];
+
+        for mut player in players {
+            player.club_id = Some(club_id.clone());
+            club.add_player(player.id.clone());
+            world.players.insert(player.id.clone(), player);
+        }
+
+        world.clubs.insert(club_id.clone(), club);
+
+        let needs = analyze_squad_needs(&world, &club_id);
+
+        // Should have critical needs for midfield and forward positions
+        let critical_positions: Vec<String> = needs
+            .iter()
+            .filter(|n| n.priority == Priority::Critical)
+            .map(|n| n.position.clone())
+            .collect();
+
+        assert!(
+            !critical_positions.is_empty(),
+            "Should have critical needs for missing positions"
+        );
+
+        // Forward center should be critical (0 players, min is 2)
+        let has_fc_need = needs
+            .iter()
+            .any(|n| n.position == "FC" && n.priority == Priority::Critical);
+        assert!(has_fc_need, "Should critically need forwards");
+    }
+
+    #[test]
     fn test_position_requirements() {
         let reqs = get_position_requirements();
 

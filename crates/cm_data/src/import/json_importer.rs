@@ -106,6 +106,56 @@ const LAST_NAMES: &[&str] = &[
     "Fonseca",
 ];
 
+/// Schema version information loaded from schema_version.json.
+#[derive(Debug, Clone, Deserialize)]
+pub struct SchemaVersion {
+    pub version: String,
+    pub min_compatible: String,
+}
+
+/// Current schema version expected by this build.
+pub const CURRENT_SCHEMA_VERSION: &str = "1.0.0";
+
+/// Check the data schema version.
+///
+/// Reads `schema_version.json` from the data directory and validates
+/// that the data files are compatible with this build.
+/// Returns the version string if compatible.
+pub fn check_schema_version(data_dir: &str) -> Result<String, DataError> {
+    let path = Path::new(data_dir).join("schema_version.json");
+    if !path.exists() {
+        // No version file means default/embedded data - always compatible
+        return Ok(CURRENT_SCHEMA_VERSION.to_string());
+    }
+
+    let content = std::fs::read_to_string(&path)?;
+    let schema: SchemaVersion = serde_json::from_str(&content)
+        .map_err(|e| DataError::Validation(format!("Invalid schema_version.json: {}", e)))?;
+
+    // Parse versions for comparison (simple semver: major.minor.patch)
+    let current_parts = parse_semver(CURRENT_SCHEMA_VERSION);
+    let min_parts = parse_semver(&schema.min_compatible);
+
+    if current_parts < min_parts {
+        return Err(DataError::Validation(format!(
+            "Data schema version {} requires minimum compatible {}, but current build supports {}",
+            schema.version, schema.min_compatible, CURRENT_SCHEMA_VERSION
+        )));
+    }
+
+    Ok(schema.version)
+}
+
+/// Parse a semver string into (major, minor, patch) for comparison.
+fn parse_semver(version: &str) -> (u32, u32, u32) {
+    let parts: Vec<u32> = version.split('.').filter_map(|p| p.parse().ok()).collect();
+    (
+        parts.first().copied().unwrap_or(0),
+        parts.get(1).copied().unwrap_or(0),
+        parts.get(2).copied().unwrap_or(0),
+    )
+}
+
 /// JSON importer for world data.
 pub struct JsonWorldImporter {
     data_dir: String,
@@ -120,7 +170,11 @@ impl JsonWorldImporter {
     }
 
     /// Load the complete world.
+    /// Checks schema version before loading data.
     pub fn load_world(&self) -> Result<World, DataError> {
+        // Validate schema version before loading
+        check_schema_version(&self.data_dir)?;
+
         let mut world = World::new();
 
         // Load nations
@@ -225,6 +279,7 @@ impl JsonWorldImporter {
                 tactics: Tactics::default(),
                 player_ids: Vec::new(),
                 staff_ids: Vec::new(),
+                reserve_ids: Vec::new(),
                 primary_color: c.primary_color.unwrap_or_else(|| "#FF0000".into()),
                 secondary_color: c.secondary_color.unwrap_or_else(|| "#FFFFFF".into()),
                 history: Default::default(),
@@ -642,4 +697,97 @@ struct RawCompetition {
     reputation: Option<u8>,
     division_level: Option<u8>,
     teams: Option<Vec<String>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_check_schema_version_no_file() {
+        // Non-existent directory should return default version
+        let result = check_schema_version("/nonexistent/path");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), CURRENT_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn test_check_schema_version_valid() {
+        let temp_dir = std::env::temp_dir().join("cm_test_schema_valid");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let schema_path = temp_dir.join("schema_version.json");
+        let mut file = std::fs::File::create(&schema_path).unwrap();
+        write!(file, r#"{{"version": "1.0.0", "min_compatible": "1.0.0"}}"#).unwrap();
+
+        let result = check_schema_version(temp_dir.to_str().unwrap());
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "1.0.0");
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_check_schema_version_incompatible() {
+        let temp_dir = std::env::temp_dir().join("cm_test_schema_incompat");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let schema_path = temp_dir.join("schema_version.json");
+        let mut file = std::fs::File::create(&schema_path).unwrap();
+        // min_compatible is higher than current
+        write!(
+            file,
+            r#"{{"version": "99.0.0", "min_compatible": "99.0.0"}}"#
+        )
+        .unwrap();
+
+        let result = check_schema_version(temp_dir.to_str().unwrap());
+        assert!(result.is_err());
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_check_schema_version_invalid_json() {
+        let temp_dir = std::env::temp_dir().join("cm_test_schema_invalid");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let schema_path = temp_dir.join("schema_version.json");
+        let mut file = std::fs::File::create(&schema_path).unwrap();
+        write!(file, "not json at all").unwrap();
+
+        let result = check_schema_version(temp_dir.to_str().unwrap());
+        assert!(result.is_err());
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_parse_semver() {
+        assert_eq!(parse_semver("1.0.0"), (1, 0, 0));
+        assert_eq!(parse_semver("2.3.4"), (2, 3, 4));
+        assert_eq!(parse_semver("0.1.0"), (0, 1, 0));
+        assert_eq!(parse_semver(""), (0, 0, 0));
+    }
+
+    #[test]
+    fn test_parse_position_mapping() {
+        assert_eq!(parse_position("GK"), Position::Goalkeeper);
+        assert_eq!(parse_position("DC"), Position::DefenderCenter);
+        assert_eq!(parse_position("CB"), Position::DefenderCenter);
+        assert_eq!(parse_position("LB"), Position::DefenderLeft);
+        assert_eq!(parse_position("RB"), Position::DefenderRight);
+        assert_eq!(parse_position("CM"), Position::MidfielderCenter);
+        assert_eq!(parse_position("DM"), Position::MidfielderDefensive);
+        assert_eq!(parse_position("AM"), Position::MidfielderAttacking);
+        assert_eq!(parse_position("ST"), Position::ForwardCenter);
+        assert_eq!(parse_position("LW"), Position::ForwardLeft);
+        assert_eq!(parse_position("RW"), Position::ForwardRight);
+        // Unknown defaults to MidfielderCenter
+        assert_eq!(parse_position("XYZ"), Position::MidfielderCenter);
+    }
 }

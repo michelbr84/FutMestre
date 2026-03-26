@@ -198,3 +198,179 @@ impl Table {
         self.sort();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup_table() -> Table {
+        let mut table = Table::new();
+        table.add_team(ClubId::new("FLA"));
+        table.add_team(ClubId::new("PAL"));
+        table.add_team(ClubId::new("SAO"));
+        table.add_team(ClubId::new("COR"));
+        table
+    }
+
+    #[test]
+    fn test_table_sort_by_points() {
+        let mut table = setup_table();
+        let fla = ClubId::new("FLA");
+        let pal = ClubId::new("PAL");
+        let sao = ClubId::new("SAO");
+        let cor = ClubId::new("COR");
+
+        // FLA wins 2-0 vs COR -> FLA 3pts, COR 0pts
+        table.record_result(&fla, &cor, 2, 0, 3, 1);
+        // PAL wins 1-0 vs SAO -> PAL 3pts, SAO 0pts
+        table.record_result(&pal, &sao, 1, 0, 3, 1);
+        // FLA wins 1-0 vs SAO -> FLA 6pts
+        table.record_result(&fla, &sao, 1, 0, 3, 1);
+
+        // FLA should be first (6pts), PAL second (3pts)
+        assert_eq!(table.position(&fla), Some(1));
+        assert_eq!(table.position(&pal), Some(2));
+    }
+
+    #[test]
+    fn test_table_sort_by_goal_difference() {
+        let mut table = Table::new();
+        let fla = ClubId::new("FLA");
+        let pal = ClubId::new("PAL");
+        let sao = ClubId::new("SAO");
+        let cor = ClubId::new("COR");
+
+        table.add_team(fla.clone());
+        table.add_team(pal.clone());
+        table.add_team(sao.clone());
+        table.add_team(cor.clone());
+
+        // Both FLA and PAL win, same points, but FLA wins by bigger margin
+        table.record_result(&fla, &sao, 3, 0, 3, 1); // FLA +3 GD
+        table.record_result(&pal, &cor, 1, 0, 3, 1); // PAL +1 GD
+
+        assert_eq!(table.position(&fla), Some(1));
+        assert_eq!(table.position(&pal), Some(2));
+    }
+
+    #[test]
+    fn test_table_head_to_head() {
+        let mut table = Table::new();
+        let fla = ClubId::new("FLA");
+        let pal = ClubId::new("PAL");
+
+        table.add_team(fla.clone());
+        table.add_team(pal.clone());
+
+        // Record head-to-head
+        table.record_head_to_head(&fla, &pal, 2, 1);
+
+        // Check from FLA's perspective
+        let h2h_fla = table.head_to_head.get(&(fla.clone(), pal.clone()));
+        assert!(h2h_fla.is_some());
+        let (scored, conceded) = h2h_fla.unwrap();
+        assert_eq!(*scored, 2);
+        assert_eq!(*conceded, 1);
+
+        // Check from PAL's perspective
+        let h2h_pal = table.head_to_head.get(&(pal.clone(), fla.clone()));
+        assert!(h2h_pal.is_some());
+        let (scored, conceded) = h2h_pal.unwrap();
+        assert_eq!(*scored, 1);
+        assert_eq!(*conceded, 2);
+    }
+
+    #[test]
+    fn test_table_record_result_home_win() {
+        let mut table = setup_table();
+        let fla = ClubId::new("FLA");
+        let pal = ClubId::new("PAL");
+
+        table.record_result(&fla, &pal, 2, 1, 3, 1);
+
+        let fla_row = table.get_team(&fla).unwrap();
+        assert_eq!(fla_row.played, 1);
+        assert_eq!(fla_row.won, 1);
+        assert_eq!(fla_row.points, 3);
+        assert_eq!(fla_row.goals_for, 2);
+        assert_eq!(fla_row.goals_against, 1);
+
+        let pal_row = table.get_team(&pal).unwrap();
+        assert_eq!(pal_row.played, 1);
+        assert_eq!(pal_row.lost, 1);
+        assert_eq!(pal_row.points, 0);
+    }
+
+    #[test]
+    fn test_table_record_result_draw() {
+        let mut table = setup_table();
+        let fla = ClubId::new("FLA");
+        let pal = ClubId::new("PAL");
+
+        table.record_result(&fla, &pal, 1, 1, 3, 1);
+
+        let fla_row = table.get_team(&fla).unwrap();
+        assert_eq!(fla_row.drawn, 1);
+        assert_eq!(fla_row.points, 1);
+
+        let pal_row = table.get_team(&pal).unwrap();
+        assert_eq!(pal_row.drawn, 1);
+        assert_eq!(pal_row.points, 1);
+    }
+
+    #[test]
+    fn test_table_record_result_away_win() {
+        let mut table = setup_table();
+        let fla = ClubId::new("FLA");
+        let pal = ClubId::new("PAL");
+
+        table.record_result(&fla, &pal, 0, 2, 3, 1);
+
+        let fla_row = table.get_team(&fla).unwrap();
+        assert_eq!(fla_row.lost, 1);
+        assert_eq!(fla_row.points, 0);
+
+        let pal_row = table.get_team(&pal).unwrap();
+        assert_eq!(pal_row.won, 1);
+        assert_eq!(pal_row.points, 3);
+    }
+
+    #[test]
+    fn test_table_goal_difference() {
+        let row = TableRow {
+            club_id: ClubId::new("FLA"),
+            played: 5,
+            won: 3,
+            drawn: 1,
+            lost: 1,
+            goals_for: 10,
+            goals_against: 4,
+            points: 10,
+        };
+        assert_eq!(row.goal_difference(), 6);
+    }
+
+    #[test]
+    fn test_table_goal_difference_negative() {
+        let row = TableRow {
+            club_id: ClubId::new("FLA"),
+            played: 5,
+            won: 0,
+            drawn: 1,
+            lost: 4,
+            goals_for: 2,
+            goals_against: 12,
+            points: 1,
+        };
+        assert_eq!(row.goal_difference(), -10);
+    }
+
+    #[test]
+    fn test_table_add_team_no_duplicate() {
+        let mut table = Table::new();
+        let fla = ClubId::new("FLA");
+        table.add_team(fla.clone());
+        table.add_team(fla.clone());
+        assert_eq!(table.rows.len(), 1);
+    }
+}

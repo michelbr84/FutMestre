@@ -11,3 +11,6 @@ chrono.workspace = true
 rand.workspace = true
 
 cm_core = { path = "../cm_core" }
+
+[dev-dependencies]
+serde_json.workspace = true

@@ -778,6 +778,7 @@ dependencies = [
  "cm_core",
  "rand 0.8.5",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 
@@ -923,11 +924,13 @@ name = "cratescm_gui"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "cm_ai",
  "cm_core",
  "cm_data",
  "cm_engine",
  "cm_match",
  "cm_save",
+ "cm_telemetry",
  "cm_transfers",
  "rand 0.8.5",
  "serde",
@@ -935,6 +938,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "tracing",
 ]
 
 [[package]]

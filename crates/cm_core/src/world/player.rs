@@ -190,3 +190,200 @@ impl Player {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::economy::{Money, Wage};
+    use crate::ids::NationId;
+    use crate::world::{Contract, Injury, InjuryType};
+
+    fn make_player(position: Position) -> Player {
+        Player::new(
+            "P001",
+            "Test",
+            "Player",
+            NationId::new("BRA"),
+            NaiveDate::from_ymd_opt(1995, 6, 15).unwrap(),
+            position,
+        )
+    }
+
+    #[test]
+    fn test_player_overall_rating_goalkeeper() {
+        let mut player = make_player(Position::Goalkeeper);
+        player.attributes.goalkeeper.handling = 80;
+        player.attributes.goalkeeper.reflexes = 70;
+        player.attributes.goalkeeper.positioning = 60;
+        player.attributes.goalkeeper.one_on_ones = 90;
+        // keeper_rating = (80 + 70 + 60 + 90) / 4 = 75
+        assert_eq!(player.overall_rating(), 75);
+    }
+
+    #[test]
+    fn test_player_overall_rating_defender() {
+        let mut player = make_player(Position::DefenderCenter);
+        player.attributes.technical.tackling = 80;
+        player.attributes.technical.marking = 70;
+        player.attributes.mental.positioning = 60;
+        player.attributes.physical.strength = 90;
+        // defense_rating = (80 + 70 + 60 + 90) / 4 = 75
+        assert_eq!(player.overall_rating(), 75);
+    }
+
+    #[test]
+    fn test_player_overall_rating_midfielder() {
+        let mut player = make_player(Position::MidfielderCenter);
+        player.attributes.technical.passing = 80;
+        player.attributes.technical.first_touch = 70;
+        player.attributes.mental.vision = 60;
+        player.attributes.physical.stamina = 90;
+        // midfield_rating = (80 + 70 + 60 + 90) / 4 = 75
+        assert_eq!(player.overall_rating(), 75);
+    }
+
+    #[test]
+    fn test_player_overall_rating_forward() {
+        let mut player = make_player(Position::ForwardCenter);
+        player.attributes.technical.finishing = 80;
+        player.attributes.technical.dribbling = 70;
+        player.attributes.technical.passing = 60;
+        player.attributes.mental.off_the_ball = 90;
+        // attack_rating = (80 + 70 + 60 + 90) / 4 = 75
+        assert_eq!(player.overall_rating(), 75);
+    }
+
+    #[test]
+    fn test_player_overall_rating_left_positions() {
+        // DefenderLeft uses defense_rating
+        let player = make_player(Position::DefenderLeft);
+        assert_eq!(player.overall_rating(), player.attributes.defense_rating());
+
+        // ForwardLeft uses attack_rating
+        let player = make_player(Position::ForwardLeft);
+        assert_eq!(player.overall_rating(), player.attributes.attack_rating());
+
+        // MidfielderLeft uses midfield_rating
+        let player = make_player(Position::MidfielderLeft);
+        assert_eq!(player.overall_rating(), player.attributes.midfield_rating());
+    }
+
+    #[test]
+    fn test_player_age_calculation() {
+        let player = Player::new(
+            "P001",
+            "Test",
+            "Player",
+            NationId::new("BRA"),
+            NaiveDate::from_ymd_opt(1995, 6, 15).unwrap(),
+            Position::ForwardCenter,
+        );
+
+        // Before birthday in 2024
+        let date_before = NaiveDate::from_ymd_opt(2024, 3, 1).unwrap();
+        assert_eq!(player.age_on(date_before), 28);
+
+        // After birthday in 2024
+        let date_after = NaiveDate::from_ymd_opt(2024, 7, 1).unwrap();
+        assert_eq!(player.age_on(date_after), 29);
+
+        // On birthday
+        let date_on = NaiveDate::from_ymd_opt(2024, 6, 15).unwrap();
+        assert_eq!(player.age_on(date_on), 29);
+    }
+
+    #[test]
+    fn test_player_availability_healthy() {
+        let mut player = make_player(Position::MidfielderCenter);
+        player.fitness = 80;
+        player.injury = None;
+        assert!(player.is_available());
+    }
+
+    #[test]
+    fn test_player_availability_injured() {
+        let mut player = make_player(Position::MidfielderCenter);
+        player.fitness = 80;
+        player.injury = Some(Injury::new(
+            InjuryType::Knee,
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            30,
+        ));
+        assert!(!player.is_available());
+        assert!(player.is_injured());
+    }
+
+    #[test]
+    fn test_player_availability_low_fitness() {
+        let mut player = make_player(Position::MidfielderCenter);
+        player.fitness = 40; // below 50
+        player.injury = None;
+        assert!(!player.is_available());
+    }
+
+    #[test]
+    fn test_player_availability_exactly_50_fitness() {
+        let mut player = make_player(Position::MidfielderCenter);
+        player.fitness = 50;
+        player.injury = None;
+        assert!(player.is_available());
+    }
+
+    #[test]
+    fn test_player_weekly_wage_with_contract() {
+        let mut player = make_player(Position::ForwardCenter);
+        let contract = Contract::new(
+            Wage::weekly(Money::from_major(50_000)),
+            NaiveDate::from_ymd_opt(2024, 1, 1).unwrap(),
+            NaiveDate::from_ymd_opt(2026, 6, 30).unwrap(),
+        );
+        player.contract = Some(contract);
+        assert_eq!(player.weekly_wage().major(), 50_000);
+    }
+
+    #[test]
+    fn test_player_weekly_wage_without_contract() {
+        let player = make_player(Position::ForwardCenter);
+        assert_eq!(player.weekly_wage(), Money::ZERO);
+    }
+
+    #[test]
+    fn test_player_full_name() {
+        let player = Player::new(
+            "P001",
+            "Roberto",
+            "Carlos",
+            NationId::new("BRA"),
+            NaiveDate::from_ymd_opt(1973, 4, 10).unwrap(),
+            Position::DefenderLeft,
+        );
+        assert_eq!(player.full_name(), "Roberto Carlos");
+    }
+
+    #[test]
+    fn test_position_short_names() {
+        assert_eq!(Position::Goalkeeper.short_name(), "GK");
+        assert_eq!(Position::ForwardCenter.short_name(), "FC");
+        assert_eq!(Position::MidfielderDefensive.short_name(), "DM");
+        assert_eq!(Position::MidfielderAttacking.short_name(), "AM");
+    }
+
+    #[test]
+    fn test_position_categories() {
+        assert!(Position::DefenderCenter.is_defender());
+        assert!(Position::DefenderLeft.is_defender());
+        assert!(Position::DefenderRight.is_defender());
+        assert!(!Position::Goalkeeper.is_defender());
+        assert!(!Position::ForwardCenter.is_defender());
+
+        assert!(Position::MidfielderCenter.is_midfielder());
+        assert!(Position::MidfielderDefensive.is_midfielder());
+        assert!(Position::MidfielderAttacking.is_midfielder());
+        assert!(!Position::Goalkeeper.is_midfielder());
+
+        assert!(Position::ForwardCenter.is_forward());
+        assert!(Position::ForwardLeft.is_forward());
+        assert!(Position::ForwardRight.is_forward());
+        assert!(!Position::Goalkeeper.is_forward());
+    }
+}

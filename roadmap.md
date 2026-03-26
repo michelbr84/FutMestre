@@ -22,13 +22,13 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Roadmap detalhado (este arquivo)
 - [x] CLAUDE.md com instrucoes para Claude Code
 - [x] Padronizar nomenclatura de telas/rotas (Inbox/Squad/Tactics/Transfers/Finance/Competitions)
-- [ ] Definir convencao de IDs e versionamento de schema JSON
-- [ ] Checklist de release: versao, changelog, build, smoke test, pacote final
+- [x] Definir convencao de IDs e versionamento de schema JSON (docs/schema.md)
+- [x] Checklist de release: versao, changelog, build, smoke test, pacote final (docs/release-checklist.md)
 
 ## 0.2 Logging e diagnosticos
 - [x] Logs de UI (navegacao, erros de JSON, falha de load/save)
 - [x] Sistema de telemetria (cm_telemetry: tracing, metricas)
-- [ ] Logs do backend (comandos tauri, erros de simulacao, save)
+- [x] Logs do backend (tracing em comandos Tauri: start_new_game, advance_day, save, load, match)
 - [ ] Painel "Debug" opcional (dev-only)
 
 ## 0.3 Workspace e infra
@@ -41,32 +41,23 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 ---
 
-# Fase 1 — Motor de Partida
+# Fase 1 — Motor de Partida (COMPLETA)
 
-## 1.1 Simulacao base
 - [x] Simulacao probabilistica minuto-a-minuto (90 min)
 - [x] Calculo de vantagem ataque/defesa com RNG semeado
 - [x] Eventos: gols, inicio/fim de tempo
 - [x] Vantagem de jogar em casa (+3 ataque, +2 meio-campo, +2 moral)
 - [x] Tempo extra (30 min) para copas + disputa de penaltis
-
-## 1.2 Cartoes e disciplina
 - [x] Sistema de faltas (~14% chance por minuto por time)
 - [x] Cartoes amarelos e vermelhos
 - [x] Segundo amarelo = vermelho automatico
 - [x] Reducao de efetividade por expulsao (-8%)
-
-## 1.3 Lesoes durante partida
 - [x] Chance de lesao por minuto baseada em fitness
 - [x] Severidade (leve 1-7d, moderada 7-28d, grave 28-90d, severa 90-270d)
-
-## 1.4 Taticas, Bola Parada, Fadiga, Comentarios
 - [x] Modificadores taticos (mentalidade, pressao, formacao)
 - [x] Escanteios (3%), faltas (5%), penaltis (75%), laterais (1%)
 - [x] Fadiga acumulada durante partida
 - [x] Narracoes em portugues para todos os eventos
-
-## 1.5 Integracao com Engine
 - [x] MatchSystem conectado ao cm_match (simulacao real, nao stub)
 - [x] Resultados atualizam tabela de classificacao automaticamente
 - [x] Relatorios de jogo enviados para inbox do usuario
@@ -75,7 +66,7 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 ---
 
-# Fase 2 — Competicoes e Calendario
+# Fase 2 — Competicoes e Calendario (COMPLETA)
 
 - [x] Geracao de fixtures (ida e volta, round-robin)
 - [x] Tabela de classificacao (pontos, saldo, gols)
@@ -87,12 +78,11 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Exibicao de proximos jogos e resultados na aba Jogos
 - [x] Criterios de desempate avancados (confronto direto via head-to-head)
 - [x] Noticias de promocao/rebaixamento no fim de temporada
-
 - [x] Calendario com datas FIFA (pausas internacionais em marco, junho, setembro, outubro, novembro)
 
 ---
 
-# Fase 3 — Gestao Financeira
+# Fase 3 — Gestao Financeira (COMPLETA)
 
 - [x] Bilheteria, patrocinio, premiacoes
 - [x] Receita de TV por divisao + merchandising
@@ -102,12 +92,11 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] FFP compliance check
 - [x] Aba Financas no TUI com saldo, orcamentos e folha salarial
 - [x] Emprestimos bancarios com juros (BankLoan com pagamento mensal)
-
 - [x] Graficos financeiros na GUI (historico mensal de receitas/despesas)
 
 ---
 
-# Fase 4 — Mercado de Transferencias
+# Fase 4 — Mercado de Transferencias (COMPLETA)
 
 - [x] Modelo de transferencia completo
 - [x] Avaliacao de jogadores
@@ -118,13 +107,11 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Jogadores livres (fim de contrato gera agentes livres)
 - [x] IA de mercado ativa (clubes IA fazem transferencias semanais)
 - [x] Rumores de transferencia (mensagens aleatorias durante janela)
-
-## Pendente (Fase 4)
-- [ ] Leilao estilo Elifoot
+- [x] Leilao estilo Elifoot (sistema de leilao com lances, rodadas e arrematacao)
 
 ---
 
-# Fase 5 — Inteligencia Artificial
+# Fase 5 — Inteligencia Artificial (COMPLETA)
 
 - [x] IA de transferencias, escalacao, taticas
 - [x] IA de diretoria, imprensa, staff, scouting
@@ -134,7 +121,7 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 ---
 
-# Fase 6 — Treinamento e Desenvolvimento
+# Fase 6 — Treinamento e Desenvolvimento (COMPLETA)
 
 - [x] 4 tipos de treino: Fisico, Tecnico, Tatico, Recuperacao
 - [x] Intensidade com ganho, fitness e risco de lesao
@@ -146,7 +133,7 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 ---
 
-# Fase 7 — Sistema de Salvamento
+# Fase 7 — Sistema de Salvamento (COMPLETA)
 
 - [x] Salvamento comprimido (gzip) com SHA256
 - [x] SaveMetadata e auto-save
@@ -156,55 +143,37 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 ---
 
-# Fase 8 — Interface TUI (Terminal)
+# Fase 8 — Interface TUI (COMPLETA)
 
 - [x] Menu principal: Novo Jogo / Configuracoes / Sair
 - [x] Selecao de clube com 80 times (nome, divisao, reputacao)
 - [x] Input de nome do tecnico
 - [x] Header com info do clube (nome, divisao, data, saldo, tecnico)
 - [x] 8 abas navegaveis: Elenco, Taticas, Treino, Jogos, Classificacao, Financas, Transferencias, Noticias
-- [x] Aba Elenco: tabela com nome, posicao, idade, OVR, fitness, forma, moral, valor
-- [x] Aba Taticas: formacao, mentalidade, ritmo, pressao, linha, largura, passe (editaveis)
-- [x] Aba Taticas: visualizacao ASCII da formacao
-- [x] Aba Treino: selecao de foco + status do elenco
-- [x] Aba Jogos: fixtures do time com resultados e proximos jogos
-- [x] Aba Classificacao: 4 divisoes navegaveis com destaque do time do usuario
-- [x] Aba Financas: saldo, orcamentos, folha salarial detalhada
-- [x] Aba Transferencias: janela de mercado e jogadores disponiveis
-- [x] Aba Noticias: inbox com mensagens do jogo
-- [x] Avancar dia (Espaco/N) e semana (A)
-- [x] Navegacao por Tab/BackTab e atalhos numericos (1-8)
-- [x] Tela de Configuracoes (idioma, moeda)
+- [x] Todas as abas com funcionalidade completa
 - [x] Simulacao ao vivo de partida com eventos minuto-a-minuto
-- [x] Selecao de titulares/reservas na aba Elenco (Enter para trocar)
-- [x] Negociacao interativa de transferencias (selecionar + oferta)
-- [x] Carregar jogo salvo no menu principal
-- [x] Substituicoes durante partida (max 3)
-- [x] Academia de jovens (aba dedicada com sub-21 e potencial)
-- [x] Salvar jogo (Ctrl+S)
-- [x] Estadios brasileiros reais e arbitros com perfis
-- [x] UI de negociacao com contra-propostas (exibe valor, aceitar/recusar)
+- [x] Negociacao interativa com contra-propostas
+- [x] Carregar jogo salvo, Ctrl+S para salvar
+- [x] Substituicoes durante partida, academia de jovens
 
 ---
 
-# Fase 9 — Interface GUI (Tauri/Desktop)
+# Fase 9 — Interface GUI Tauri/Desktop (COMPLETA)
 
 - [x] Projeto Tauri com frontend web
 - [x] State Machine de telas e navegacao
 - [x] Layout CM-style com glassmorphism
-- [x] Integracao completa com engine real (19 comandos Tauri)
+- [x] Integracao completa com engine real (21+ comandos Tauri)
 - [x] Drag & drop para taticas com mapa de formacoes
-- [x] Formacoes mudam posicoes dos bonecos ao trocar dropdown
-- [x] Mentalidade e ritmo na tela de taticas
-
-- [x] Match day ao vivo com animacoes melhoradas (ticker de eventos, pulsing em gols)
+- [x] Match day ao vivo com animacoes melhoradas (ticker, pulsing em gols)
 - [x] Substituicoes durante partida na GUI (painel de banco, max 3)
 - [x] Estatisticas individuais de jogadores na partida (ratings, craque da partida)
 - [x] Overview de partida (placar, minuto, eventos, estatisticas)
+- [x] Scouting de jogadores via GUI
 
 ---
 
-# Fase 10 — Dados do Jogo
+# Fase 10 — Dados do Jogo (COMPLETA)
 
 - [x] 80 clubes brasileiros (Serie A ate D)
 - [x] 1.760 jogadores gerados com nomes brasileiros reais
@@ -214,9 +183,7 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Estadios brasileiros com capacidades reais (80 estadios)
 - [x] 20 arbitros brasileiros com perfis de personalidade
 - [x] Staff tecnico completo (treinadores especializados afetando treino)
-
-## Pendente (Fase 10)
-- [ ] Dados configuraveis via JSON
+- [x] Dados configuraveis via JSON (schema_version.json com validacao)
 
 ---
 
@@ -232,7 +199,6 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Settings acessivel durante o jogo (engrenagem na barra de tabs)
 - [x] Historico de temporadas anteriores (SeasonRecord por clube e PlayerSeasonStats)
 - [x] Artilharia e premiacoes (TopScorer por competicao)
-
 - [x] Flashing text para noticias urgentes (MessagePriority: Normal/Important/Urgent)
 - [x] Background matches (placares ao vivo de todas as partidas da rodada)
 
@@ -243,15 +209,15 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 # Fase 12 — Modos de Jogo
 
-- [x] GameMode enum (Sandbox, CareerSerieD)
+- [x] GameMode enum (Sandbox, CareerSerieD, Challenge)
 - [x] Tela de selecao de modo antes de criar carreira
 - [x] Filtro de clubes por modo (Serie D apenas no Desafio)
 - [x] Objetivo tracking para CareerSerieD (progresso de promocao)
 - [x] Tela de vitoria ao conquistar Serie A (mensagem e objetivo "CAMPEAO!")
+- [x] Modo desafio com restricoes (ChallengeRestrictions: orcamento, elenco, youth_only, no_buying)
 
 ## Pendente (Fase 12)
 - [ ] Modo historia com cutscenes de texto
-- [ ] Modo desafio com restricoes (orcamento minimo, elenco fraco)
 
 ---
 
@@ -267,29 +233,29 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Background matches on/off (background_matches no config)
 - [x] Save compressed on/off (save_compressed no config)
 - [x] Settings expandidos na TUI (wage_display, match_speed, auto_save_interval editaveis)
+- [x] Flashing text on/off (flashing_text no config)
+- [x] Board confidence / board request (board_system com satisfacao mensal)
+- [x] Scouting (observar jogador, clube, nacao, proximo adversario)
+- [x] Reserve team / control reserve (reserve_ids, move_to/from_reserve)
+- [x] Resign from club (resign() no Game)
 
 ## Pendente (Fase 13)
-- [ ] Flashing text on/off
 - [ ] Tamanho do banco de dados (min/normal/max)
 - [ ] Foreground/background leagues
 - [ ] Add manager (multiplayer hot-seat)
-- [ ] Board confidence / board request
-- [ ] Scouting (observar time, pais, regiao, competicao, proximo adversario)
-- [ ] Reserve team / control reserve
-- [ ] Resign from club
 
 ---
 
 # Fase 14 — Testes e Qualidade
 
-- [x] 558+ testes passando em todo o workspace
+- [x] 643+ testes passando em todo o workspace
 - [x] Testes de motor de partida, financas, transferencias, IA, competicoes, treinamento
 - [x] CI/CD com GitHub Actions (check, fmt, clippy, test, build multi-OS)
-
-- [x] Testes de integracao para game loop completo (7 dias, match day, financas)
+- [x] Testes de integracao para game loop completo (7 dias, match day, financas, FIFA breaks)
+- [x] Testes de save/load roundtrip e compressao/descompressao
 
 ## Pendente (Fase 14)
-- [ ] Cobertura > 70%
+- [ ] Cobertura > 70% (estimada ~60% atualmente)
 
 ---
 
@@ -298,15 +264,17 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] README.md e documentacao
 - [x] Roadmap unificado
 - [x] Changelog (CHANGELOG.md)
+- [x] Guia do jogador (docs/guia-do-jogador.md)
 
 ## Pendente (Fase 15)
-- [ ] Guia do jogador
 - [ ] Release v1.0 com binarios
 
 ---
 
 # Backlog (pos-v1.0)
 
+- [ ] Sons e musica
+- [ ] Modo historia com cutscenes de texto
 - [ ] Editor de dataset (usuario pode adicionar mensagens, jogadores, etc)
 - [ ] Replay de partidas
 - [ ] Multithreading
@@ -316,14 +284,18 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [ ] 10+ idiomas (Danish, Dutch, German, Italian, Norwegian, Swedish)
 - [ ] Impressao de relatorios (TXT/PDF)
 - [ ] Fontes customizaveis na interface
-- [ ] Leilao estilo Elifoot
+- [ ] Add manager (multiplayer hot-seat)
+- [ ] Painel Debug (dev-only)
+- [ ] Foreground/background leagues
+- [ ] Tamanho do banco de dados (min/normal/max)
 
 ---
 
-## Prioridades Atuais
+## Progresso: ~95% do roadmap completo
 
-1. **Sons e musica** — efeitos sonoros para eventos de partida
-2. **Guia do jogador** — documentacao de como jogar
-3. **Release v1.0** — binarios para Windows/Linux
-4. **Cobertura > 70%** — testes adicionais
-5. **Leilao estilo Elifoot** — sistema de leilao para transferencias
+### Itens restantes no roadmap principal:
+1. Sons e musica (requer assets de audio)
+2. Modo historia com cutscenes (requer conteudo narrativo)
+3. Cobertura > 70% (mais testes)
+4. Release v1.0 com binarios (pacote final)
+5. Settings avancados (multiplayer, db size, fg/bg leagues)

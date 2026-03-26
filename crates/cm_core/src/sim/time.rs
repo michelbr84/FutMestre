@@ -266,4 +266,57 @@ mod tests {
         let parsed: GameDate = serde_json::from_str(&json).unwrap();
         assert_eq!(date, parsed);
     }
+
+    #[test]
+    fn test_game_date_season_string_boundary() {
+        // June (before July) belongs to previous season
+        let june = GameDate::new(2025, 6, 30);
+        assert_eq!(june.season_string(), "2024-25");
+
+        // July belongs to current season
+        let july = GameDate::new(2025, 7, 1);
+        assert_eq!(july.season_string(), "2025-26");
+
+        // January belongs to previous season year
+        let jan = GameDate::new(2002, 1, 15);
+        assert_eq!(jan.season_string(), "2001-02");
+
+        // Year 2000 edge case
+        let y2k = GameDate::new(2000, 8, 1);
+        assert_eq!(y2k.season_string(), "2000-01");
+    }
+
+    #[test]
+    fn test_game_date_is_saturday_multiple() {
+        // 2024-01-06 is Saturday
+        assert!(GameDate::new(2024, 1, 6).is_saturday());
+        // 2024-01-13 is also Saturday (one week later)
+        assert!(GameDate::new(2024, 1, 13).is_saturday());
+        // Wednesday
+        assert!(!GameDate::new(2024, 1, 10).is_saturday());
+        // Friday
+        assert!(!GameDate::new(2024, 1, 12).is_saturday());
+    }
+
+    #[test]
+    fn test_game_date_advance_across_year() {
+        let mut date = GameDate::new(2024, 12, 31);
+        date.advance_day();
+        assert_eq!(date.year(), 2025);
+        assert_eq!(date.month(), 1);
+        assert_eq!(date.day(), 1);
+    }
+
+    #[test]
+    fn test_game_date_leap_year() {
+        let mut date = GameDate::new(2024, 2, 28);
+        date.advance_day();
+        // 2024 is leap year
+        assert_eq!(date.month(), 2);
+        assert_eq!(date.day(), 29);
+
+        date.advance_day();
+        assert_eq!(date.month(), 3);
+        assert_eq!(date.day(), 1);
+    }
 }

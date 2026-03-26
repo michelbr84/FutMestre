@@ -3,6 +3,7 @@
 //! Transfer market system.
 
 pub mod agents;
+pub mod auction;
 pub mod clauses;
 pub mod loan;
 pub mod model;

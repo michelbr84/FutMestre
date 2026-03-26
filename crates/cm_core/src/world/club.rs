@@ -23,6 +23,9 @@ pub struct Club {
     pub secondary_color: String,
     #[serde(default)]
     pub history: ClubHistory,
+    /// IDs dos jogadores na reserva / time B.
+    #[serde(default)]
+    pub reserve_ids: Vec<PlayerId>,
 }
 
 impl Club {
@@ -43,6 +46,7 @@ impl Club {
             primary_color: "#FF0000".into(),
             secondary_color: "#FFFFFF".into(),
             history: ClubHistory::default(),
+            reserve_ids: Vec::new(),
         }
     }
 
@@ -66,5 +70,22 @@ impl Club {
     /// Get squad size.
     pub fn squad_size(&self) -> usize {
         self.player_ids.len()
+    }
+
+    /// Adicionar jogador a reserva.
+    pub fn add_to_reserve(&mut self, player_id: PlayerId) {
+        if !self.reserve_ids.contains(&player_id) {
+            self.reserve_ids.push(player_id);
+        }
+    }
+
+    /// Remover jogador da reserva.
+    pub fn remove_from_reserve(&mut self, player_id: &PlayerId) {
+        self.reserve_ids.retain(|id| id != player_id);
+    }
+
+    /// Tamanho da reserva.
+    pub fn reserve_size(&self) -> usize {
+        self.reserve_ids.len()
     }
 }

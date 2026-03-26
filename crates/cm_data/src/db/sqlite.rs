@@ -354,6 +354,7 @@ impl SqliteDb {
             tactics: Default::default(),
             player_ids: Vec::new(),
             staff_ids: Vec::new(),
+            reserve_ids: Vec::new(),
             primary_color: row.get(9)?,
             secondary_color: row.get(10)?,
             history: Default::default(),

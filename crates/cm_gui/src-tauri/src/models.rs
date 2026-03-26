@@ -291,6 +291,22 @@ pub struct DisplayMonthlySnapshot {
     pub expenses: i64,
 }
 
+// ─── Scout Report ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DisplayScoutReport {
+    pub player_id: String,
+    pub player_name: String,
+    pub overall_score: u8,
+    pub current_ability: u8,
+    pub potential_ability: u8,
+    pub value_assessment: String,
+    pub strengths: Vec<String>,
+    pub weaknesses: Vec<String>,
+    pub recommendation: String,
+    pub accuracy: u8,
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 pub fn format_money(m: Money) -> String {

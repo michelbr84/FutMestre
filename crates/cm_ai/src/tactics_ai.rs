@@ -410,6 +410,40 @@ mod tests {
     }
 
     #[test]
+    fn test_tactics_recommendation() {
+        // Strong attack team should get attacking formation with wide play
+        let tactics = recommend_tactics(85, 60, 80, 75, 70);
+        assert!(
+            tactics.formation.forwards() >= 2,
+            "Attacking team should use formation with multiple forwards"
+        );
+        assert!(tactics.width >= 60, "Attacking team should play wide");
+        assert_eq!(tactics.mentality, Mentality::Balanced); // Starts balanced, adjusted during match
+
+        // Defensive team should get solid formation
+        let tactics = recommend_tactics(55, 80, 75, 65, 75);
+        assert!(
+            tactics.formation.defenders() >= 4,
+            "Defensive team should have many defenders"
+        );
+
+        // Low fitness should result in normal tempo
+        let tactics = recommend_tactics(70, 70, 55, 70, 70);
+        assert_eq!(tactics.tempo, Tempo::Normal, "Low fitness = normal tempo");
+
+        // High fitness should result in fast tempo
+        let tactics = recommend_tactics(70, 70, 85, 70, 70);
+        assert_eq!(tactics.tempo, Tempo::Fast, "High fitness = fast tempo");
+
+        // Low quality team should use direct passing
+        let tactics = recommend_tactics(40, 40, 70, 60, 60);
+        assert!(
+            tactics.direct_passing >= 60,
+            "Low quality team should use direct passing"
+        );
+    }
+
+    #[test]
     fn test_edge_cases() {
         // Zero values
         assert_eq!(recommend_formation(0, 0), Formation::F4141);

@@ -28,6 +28,9 @@ cm_engine = { path = "../../cm_engine" }
 cm_data = { path = "../../cm_data" }
 cm_save = { path = "../../cm_save" }
 cm_transfers = { path = "../../cm_transfers" }
+cm_ai = { path = "../../cm_ai" }
+cm_telemetry = { path = "../../cm_telemetry" }
+tracing = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 serde_json = "1"
 rand = "0.8"

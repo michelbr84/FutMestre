@@ -3,7 +3,9 @@
 use crate::config::GameConfig;
 use crate::state::GameState;
 use crate::systems::*;
-use cm_core::world::World;
+use cm_ai::scouting::{generate_scout_report, DetailedScoutReport};
+use cm_core::ids::{ClubId, NationId, PlayerId};
+use cm_core::world::{StaffRole, World};
 
 /// Main game struct.
 pub struct Game {
@@ -20,6 +22,7 @@ pub struct Game {
     morale: morale_system::MoraleSystem,
     save: save_system::SaveSystem,
     academy: academy_system::AcademySystem,
+    board: board_system::BoardSystem,
 }
 
 impl Game {
@@ -38,6 +41,7 @@ impl Game {
             morale: morale_system::MoraleSystem,
             save: save_system::SaveSystem,
             academy: academy_system::AcademySystem,
+            board: board_system::BoardSystem::new(),
         }
     }
 
@@ -124,11 +128,149 @@ impl Game {
         self.academy
             .run_daily(&self.cfg, &mut self.world, &mut self.state);
 
-        // 9) Save flag
+        // 9) Board evaluation (monthly)
+        self.board
+            .run_daily(&self.cfg, &mut self.world, &mut self.state);
+
+        // 10) Save flag
         self.save.mark_dirty(&mut self.state);
 
         // Increment day counter
         self.state.days_played += 1;
+    }
+
+    // ─── Demissao ──────────────────────────────────────────────────────────
+
+    /// Pedir demissao do clube atual.
+    ///
+    /// Reseta o estado para permitir selecionar um novo clube.
+    /// Retorna `true` se a demissao foi processada com sucesso.
+    pub fn resign(&mut self) -> bool {
+        let club_name = self
+            .world
+            .clubs
+            .get(&self.state.club_id)
+            .map(|c| c.name.clone())
+            .unwrap_or_else(|| "seu clube".to_string());
+
+        self.state.add_message(format!(
+            "Voce se demitiu do {}. Procurando novo emprego...",
+            club_name
+        ));
+
+        // Limpar o clube atual - o jogador precisa escolher um novo
+        self.state.club_id = ClubId::new("");
+
+        true
+    }
+
+    // ─── Scouting ───────────────────────────────────────────────────────────
+
+    /// Calcula a habilidade de scouting do clube baseada no staff.
+    fn club_scout_ability(&self, club_id: &ClubId) -> u8 {
+        let club = match self.world.clubs.get(club_id) {
+            Some(c) => c,
+            None => return 50,
+        };
+
+        let scout_abilities: Vec<u8> = club
+            .staff_ids
+            .iter()
+            .filter_map(|sid| self.world.staff.get(sid))
+            .filter(|s| s.role == StaffRole::Scout)
+            .map(|s| s.scouting)
+            .collect();
+
+        if scout_abilities.is_empty() {
+            // Sem olheiro: habilidade base 40
+            40
+        } else {
+            // Media das habilidades de scouting, escalada de 1-20 para 0-100
+            let avg = scout_abilities.iter().map(|&v| v as u16).sum::<u16>()
+                / scout_abilities.len() as u16;
+            (avg * 5).min(100) as u8
+        }
+    }
+
+    /// Observar um jogador especifico.
+    pub fn scout_player(&self, player_id: &PlayerId) -> Option<DetailedScoutReport> {
+        let scout_ability = self.club_scout_ability(&self.state.club_id);
+        generate_scout_report(&self.world, player_id, scout_ability)
+    }
+
+    /// Observar todos os jogadores de um clube.
+    pub fn scout_club(&self, club_id: &ClubId) -> Vec<DetailedScoutReport> {
+        let scout_ability = self.club_scout_ability(&self.state.club_id);
+        let club = match self.world.clubs.get(club_id) {
+            Some(c) => c,
+            None => return Vec::new(),
+        };
+
+        club.player_ids
+            .iter()
+            .filter_map(|pid| generate_scout_report(&self.world, pid, scout_ability))
+            .collect()
+    }
+
+    /// Observar jogadores de uma nacao.
+    pub fn scout_nation(&self, nation_id: &NationId) -> Vec<DetailedScoutReport> {
+        let scout_ability = self.club_scout_ability(&self.state.club_id);
+
+        self.world
+            .players
+            .values()
+            .filter(|p| p.nationality == *nation_id)
+            .filter_map(|p| generate_scout_report(&self.world, &p.id, scout_ability))
+            .collect()
+    }
+
+    /// Observar proximo adversario.
+    pub fn scout_next_opponent(&self) -> Vec<DetailedScoutReport> {
+        let user_club = &self.state.club_id;
+        let today = self.state.date.date();
+
+        // Encontrar o proximo jogo do usuario
+        let next_opponent = self
+            .world
+            .competitions
+            .values()
+            .flat_map(|comp| comp.fixtures.matches.iter())
+            .filter(|f| {
+                !f.is_played()
+                    && f.date >= today
+                    && (f.home_id == *user_club || f.away_id == *user_club)
+            })
+            .min_by_key(|f| f.date)
+            .map(|f| {
+                if f.home_id == *user_club {
+                    f.away_id.clone()
+                } else {
+                    f.home_id.clone()
+                }
+            });
+
+        match next_opponent {
+            Some(opp_id) => self.scout_club(&opp_id),
+            None => Vec::new(),
+        }
+    }
+
+    // ─── Reserve Team ───────────────────────────────────────────────────────
+
+    /// Mover jogador para a reserva.
+    pub fn move_to_reserve(&mut self, player_id: &PlayerId) {
+        let user_club_id = self.state.club_id.clone();
+        if let Some(club) = self.world.clubs.get_mut(&user_club_id) {
+            club.add_to_reserve(player_id.clone());
+        }
+    }
+
+    /// Mover jogador da reserva para o elenco principal.
+    pub fn move_from_reserve(&mut self, player_id: &PlayerId) {
+        let user_club_id = self.state.club_id.clone();
+        if let Some(club) = self.world.clubs.get_mut(&user_club_id) {
+            club.remove_from_reserve(player_id);
+        }
     }
 }
 

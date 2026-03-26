@@ -219,6 +219,96 @@ mod match_tests {
     }
 
     #[test]
+    fn test_home_advantage_effect() {
+        let mut home_wins = 0;
+        let total = 200;
+
+        for seed in 0..total {
+            let input = MatchInput {
+                home_id: ClubId::new("HOME"),
+                away_id: ClubId::new("AWAY"),
+                home: TeamStrength {
+                    attack: 65,
+                    midfield: 65,
+                    defense: 65,
+                    finishing: 65,
+                    morale: 65,
+                    fitness: 75,
+                },
+                away: TeamStrength {
+                    attack: 65,
+                    midfield: 65,
+                    defense: 65,
+                    finishing: 65,
+                    morale: 65,
+                    fitness: 75,
+                },
+                minutes: 90,
+                seed: Some(seed),
+            };
+
+            let result = simulate_match(&input);
+            if result.is_home_win() {
+                home_wins += 1;
+            }
+        }
+
+        // With equal teams, home advantage should give home > 45% wins
+        // (historically ~46% in real football)
+        let home_pct = (home_wins as f64 / total as f64) * 100.0;
+        assert!(
+            home_pct > 30.0,
+            "Home should win > 30% with equal teams (got {}%)",
+            home_pct
+        );
+    }
+
+    #[test]
+    fn test_red_card_reduces_effectiveness() {
+        // A team with very low morale/fitness (simulating being down a man)
+        // should generally lose to a team with high stats
+        let mut weak_wins = 0;
+        let total = 100;
+
+        for seed in 0..total {
+            let input = MatchInput {
+                home_id: ClubId::new("STRONG"),
+                away_id: ClubId::new("WEAK"),
+                home: TeamStrength {
+                    attack: 80,
+                    midfield: 80,
+                    defense: 80,
+                    finishing: 80,
+                    morale: 80,
+                    fitness: 85,
+                },
+                away: TeamStrength {
+                    attack: 40,
+                    midfield: 35,
+                    defense: 40,
+                    finishing: 35,
+                    morale: 30,
+                    fitness: 50,
+                },
+                minutes: 90,
+                seed: Some(seed),
+            };
+
+            let result = simulate_match(&input);
+            if result.is_away_win() {
+                weak_wins += 1;
+            }
+        }
+
+        // Weak team (simulating red card effect) should rarely win
+        assert!(
+            weak_wins < 20,
+            "Weakened team should win < 20% (got {}%)",
+            weak_wins
+        );
+    }
+
+    #[test]
     fn test_player_ratings_deterministic() {
         let input = MatchInput {
             home_id: ClubId::new("LIV"),

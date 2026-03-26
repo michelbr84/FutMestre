@@ -3,7 +3,7 @@ mod models;
 use std::sync::Mutex;
 
 use chrono::NaiveDate;
-use cm_core::ids::{ClubId, CompetitionId, PlayerId};
+use cm_core::ids::{ClubId, CompetitionId, NationId, PlayerId};
 use cm_core::world::{Fixtures, Table, World};
 use cm_data::import::JsonWorldImporter;
 use cm_engine::config::GameMode;
@@ -13,6 +13,7 @@ use cm_save::list_saves;
 use cm_save::snapshot::{GameConfigData, GameStateData, SaveSnapshot};
 use models::*;
 use tauri::State;
+use tracing;
 
 // ─── Global State ────────────────────────────────────────────────────────────
 
@@ -240,8 +241,12 @@ fn start_new_game(
     game_mode: Option<String>,
     state: State<AppState>,
 ) -> Result<DisplayGameState, String> {
+    tracing::info!(name, surname, team_id, ?game_mode, "Iniciando novo jogo");
     let importer = JsonWorldImporter::new(resolve_data_dir());
-    let world = importer.load_world().map_err(|e| format!("{e}"))?;
+    let world = importer.load_world().map_err(|e| {
+        tracing::error!(%e, "Erro ao carregar mundo");
+        format!("{e}")
+    })?;
 
     let club_id = ClubId::new(team_id);
     let manager = format!("{} {}", name, surname);
@@ -450,6 +455,8 @@ fn advance_day(state: State<AppState>) -> Option<AdvanceDayResult> {
     let mut lock = state.game.lock().unwrap();
     let game = lock.as_mut()?;
 
+    tracing::info!(date = %game.state().date, "Avancando dia");
+
     // Process the day (AI matches simulated, user match skipped by match_system)
     game.process_day();
 
@@ -565,6 +572,7 @@ fn start_match(
     away_id: String,
     state: State<AppState>,
 ) -> Option<DisplayMatchResult> {
+    tracing::info!(%home_id, %away_id, "Iniciando partida");
     let mut lock = state.game.lock().unwrap();
     let game = lock.as_mut()?;
 
@@ -1011,10 +1019,14 @@ fn update_tactics(
 
 #[tauri::command]
 fn save_game(state: State<AppState>) -> Result<bool, String> {
+    tracing::info!("Salvando jogo");
     let lock = state.game.lock().unwrap();
     let game = match lock.as_ref() {
         Some(g) => g,
-        None => return Err("Nenhum jogo em andamento.".into()),
+        None => {
+            tracing::error!("Tentativa de salvar sem jogo em andamento");
+            return Err("Nenhum jogo em andamento.".into());
+        }
     };
 
     let gs = game.state();
@@ -1066,6 +1078,7 @@ fn get_saved_games() -> Vec<DisplaySaveSlot> {
 
 #[tauri::command]
 fn load_game(slot_id: u32, state: State<AppState>) -> Result<DisplayGameState, String> {
+    tracing::info!(slot_id, "Carregando jogo salvo");
     let dir = saves_dir();
     let saves = list_saves(&dir);
 
@@ -1202,10 +1215,121 @@ fn get_all_fixtures(state: State<AppState>) -> Vec<DisplayFixture> {
     fixtures
 }
 
+// ─── Commands: Scouting ─────────────────────────────────────────────────────
+
+fn build_display_scout_report(
+    report: &cm_ai::scouting::DetailedScoutReport,
+    world: &World,
+) -> DisplayScoutReport {
+    let player_name = world
+        .players
+        .get(&report.player_id)
+        .map(|p| p.full_name())
+        .unwrap_or_else(|| report.player_id.to_string());
+
+    DisplayScoutReport {
+        player_id: report.player_id.to_string(),
+        player_name,
+        overall_score: report.overall_score,
+        current_ability: report.current_ability,
+        potential_ability: report.potential_ability,
+        value_assessment: format!("{:?}", report.value_assessment),
+        strengths: report.strengths.clone(),
+        weaknesses: report.weaknesses.clone(),
+        recommendation: format!("{:?}", report.recommendation),
+        accuracy: report.accuracy,
+    }
+}
+
+#[tauri::command]
+fn scout_player(player_id: String, state: State<AppState>) -> Option<DisplayScoutReport> {
+    tracing::info!(%player_id, "Scouting jogador");
+    let lock = state.game.lock().unwrap();
+    let game = lock.as_ref()?;
+    let pid = PlayerId::new(&player_id);
+    let report = game.scout_player(&pid)?;
+    Some(build_display_scout_report(&report, game.world()))
+}
+
+#[tauri::command]
+fn scout_club(club_id: String, state: State<AppState>) -> Vec<DisplayScoutReport> {
+    tracing::info!(%club_id, "Scouting clube");
+    let lock = state.game.lock().unwrap();
+    let game = match lock.as_ref() {
+        Some(g) => g,
+        None => return Vec::new(),
+    };
+    let cid = ClubId::new(&club_id);
+    game.scout_club(&cid)
+        .iter()
+        .map(|r| build_display_scout_report(r, game.world()))
+        .collect()
+}
+
+#[tauri::command]
+fn scout_nation(nation_id: String, state: State<AppState>) -> Vec<DisplayScoutReport> {
+    tracing::info!(%nation_id, "Scouting nacao");
+    let lock = state.game.lock().unwrap();
+    let game = match lock.as_ref() {
+        Some(g) => g,
+        None => return Vec::new(),
+    };
+    let nid = NationId::new(&nation_id);
+    game.scout_nation(&nid)
+        .iter()
+        .map(|r| build_display_scout_report(r, game.world()))
+        .collect()
+}
+
+#[tauri::command]
+fn scout_next_opponent(state: State<AppState>) -> Vec<DisplayScoutReport> {
+    tracing::info!("Scouting proximo adversario");
+    let lock = state.game.lock().unwrap();
+    let game = match lock.as_ref() {
+        Some(g) => g,
+        None => return Vec::new(),
+    };
+    game.scout_next_opponent()
+        .iter()
+        .map(|r| build_display_scout_report(r, game.world()))
+        .collect()
+}
+
+// ─── Commands: Reserve Team ─────────────────────────────────────────────────
+
+#[tauri::command]
+fn move_to_reserve(player_id: String, state: State<AppState>) -> bool {
+    tracing::info!(%player_id, "Movendo para reserva");
+    let mut lock = state.game.lock().unwrap();
+    let game = match lock.as_mut() {
+        Some(g) => g,
+        None => return false,
+    };
+    let pid = PlayerId::new(&player_id);
+    game.move_to_reserve(&pid);
+    true
+}
+
+#[tauri::command]
+fn move_from_reserve(player_id: String, state: State<AppState>) -> bool {
+    tracing::info!(%player_id, "Removendo da reserva");
+    let mut lock = state.game.lock().unwrap();
+    let game = match lock.as_mut() {
+        Some(g) => g,
+        None => return false,
+    };
+    let pid = PlayerId::new(&player_id);
+    game.move_from_reserve(&pid);
+    true
+}
+
 // ─── Tauri Entry Point ───────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    cm_telemetry::tracing::init_default_tracing();
+    tracing::info!("FutMestre GUI iniciando");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
@@ -1234,6 +1358,12 @@ pub fn run() {
             load_game,
             get_round_results,
             get_all_fixtures,
+            scout_player,
+            scout_club,
+            scout_nation,
+            scout_next_opponent,
+            move_to_reserve,
+            move_from_reserve,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
