@@ -1,30 +1,478 @@
 [
     {
-        "id": "ANF",
-        "name": "Anfield",
-        "city": "Liverpool",
-        "capacity": 54074,
-        "nation_id": "ENG"
+        "id": "MAR",
+        "name": "Maracanã",
+        "city": "Rio de Janeiro",
+        "capacity": 78838,
+        "nation_id": "BRA"
     },
     {
-        "id": "HBY",
-        "name": "Highbury",
-        "city": "London",
-        "capacity": 38419,
-        "nation_id": "ENG"
+        "id": "ALZ",
+        "name": "Allianz Parque",
+        "city": "São Paulo",
+        "capacity": 43713,
+        "nation_id": "BRA"
     },
     {
-        "id": "OTF",
-        "name": "Old Trafford",
-        "city": "Manchester",
-        "capacity": 76212,
-        "nation_id": "ENG"
+        "id": "MOR",
+        "name": "Morumbi",
+        "city": "São Paulo",
+        "capacity": 66795,
+        "nation_id": "BRA"
     },
     {
-        "id": "SBR",
-        "name": "Stamford Bridge",
-        "city": "London",
-        "capacity": 42055,
-        "nation_id": "ENG"
+        "id": "NEQ",
+        "name": "Neo Química Arena",
+        "city": "São Paulo",
+        "capacity": 49205,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "VBX",
+        "name": "Vila Belmiro",
+        "city": "Santos",
+        "capacity": 16068,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ARN",
+        "name": "Arena MRV",
+        "city": "Belo Horizonte",
+        "capacity": 46000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "BEI",
+        "name": "Beira-Rio",
+        "city": "Porto Alegre",
+        "capacity": 50128,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "MNR",
+        "name": "Mineirão",
+        "city": "Belo Horizonte",
+        "capacity": 61846,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "SJN",
+        "name": "São Januário",
+        "city": "Rio de Janeiro",
+        "capacity": 21880,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "NIL",
+        "name": "Nilton Santos",
+        "city": "Rio de Janeiro",
+        "capacity": 46831,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "FNV",
+        "name": "Arena Fonte Nova",
+        "city": "Salvador",
+        "capacity": 50025,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ILR",
+        "name": "Ilha do Retiro",
+        "city": "Recife",
+        "capacity": 18000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CAS",
+        "name": "Arena Castelão",
+        "city": "Fortaleza",
+        "capacity": 63903,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "LGA",
+        "name": "Ligga Arena",
+        "city": "Curitiba",
+        "capacity": 42372,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "SER",
+        "name": "Serrinha",
+        "city": "Goiânia",
+        "capacity": 15000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CTO",
+        "name": "Couto Pereira",
+        "city": "Curitiba",
+        "capacity": 40502,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "BAR",
+        "name": "Barradão",
+        "city": "Salvador",
+        "capacity": 35632,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "MOI",
+        "name": "Moisés Lucarelli",
+        "city": "Campinas",
+        "capacity": 19728,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "BRN",
+        "name": "Brinco de Ouro",
+        "city": "Campinas",
+        "capacity": 29130,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "AFL",
+        "name": "Aflitos",
+        "city": "Recife",
+        "capacity": 18000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "RES",
+        "name": "Ressacada",
+        "city": "Florianópolis",
+        "capacity": 17800,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ACO",
+        "name": "Arena Condá",
+        "city": "Chapecó",
+        "capacity": 22600,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "REI",
+        "name": "Rei Pelé",
+        "city": "Maceió",
+        "capacity": 18801,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "AGS",
+        "name": "Augusto Bauer",
+        "city": "Brusque",
+        "capacity": 10000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CAF",
+        "name": "Estádio do Café",
+        "city": "Londrina",
+        "capacity": 36720,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "HMJ",
+        "name": "Heriberto Hülse",
+        "city": "Criciúma",
+        "capacity": 19300,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "OBA",
+        "name": "OBA",
+        "city": "Goiânia",
+        "capacity": 13500,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ALM",
+        "name": "Almeidão",
+        "city": "Tombos",
+        "capacity": 5000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "FRS",
+        "name": "Frasqueirão",
+        "city": "Natal",
+        "capacity": 18000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "GRM",
+        "name": "Germano Krüger",
+        "city": "Ponta Grossa",
+        "capacity": 10600,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "JNO",
+        "name": "Jorge Ismael de Biasi",
+        "city": "Novo Horizonte",
+        "capacity": 14000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "NJM",
+        "name": "Novelli Júnior",
+        "city": "Itu",
+        "capacity": 12000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "MSL",
+        "name": "Maião",
+        "city": "Mirassol",
+        "capacity": 15000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "BAE",
+        "name": "Baenão",
+        "city": "Belém",
+        "capacity": 16200,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CUR",
+        "name": "Curuzu",
+        "city": "Belém",
+        "capacity": 16200,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "BAT",
+        "name": "Batistão",
+        "city": "Aracaju",
+        "capacity": 18000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CMT",
+        "name": "Arena da Amazônia",
+        "city": "Manaus",
+        "capacity": 44310,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CID",
+        "name": "Raulino de Oliveira",
+        "city": "Volta Redonda",
+        "capacity": 20000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ELZ",
+        "name": "Elzir Cabral",
+        "city": "Fortaleza",
+        "capacity": 5000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ANA",
+        "name": "Annibal de Toledo",
+        "city": "Aparecida de Goiânia",
+        "capacity": 8000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "SRC",
+        "name": "Santa Cruz",
+        "city": "Ribeirão Preto",
+        "capacity": 28000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "OFS",
+        "name": "Orlando Scarpelli",
+        "city": "Florianópolis",
+        "capacity": 19584,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ALC",
+        "name": "Alcides Santos",
+        "city": "Fortaleza",
+        "capacity": 5000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "LDV",
+        "name": "Lindolfo Monteiro",
+        "city": "Teresina",
+        "capacity": 10000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "POA",
+        "name": "Passo D'Areia",
+        "city": "Porto Alegre",
+        "capacity": 8000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CLP",
+        "name": "Colosso da Lagoa",
+        "city": "Erechim",
+        "capacity": 10000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "BNT",
+        "name": "Bento Freitas",
+        "city": "Pelotas",
+        "capacity": 18000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "AMG",
+        "name": "Amigão",
+        "city": "Campina Grande",
+        "capacity": 10000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "FRJ",
+        "name": "Frei Epifânio",
+        "city": "Imperatriz",
+        "capacity": 8000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "FPM",
+        "name": "Primeiro de Maio",
+        "city": "São Bernardo do Campo",
+        "capacity": 15000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CDR",
+        "name": "Canindé",
+        "city": "São Paulo",
+        "capacity": 21004,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "IND",
+        "name": "Independência",
+        "city": "São João del-Rei",
+        "capacity": 8000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ARD",
+        "name": "Arruda",
+        "city": "Recife",
+        "capacity": 60044,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CMG",
+        "name": "Conselheiro Galvão",
+        "city": "Rio de Janeiro",
+        "capacity": 5400,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "MOC",
+        "name": "Moça Bonita",
+        "city": "Rio de Janeiro",
+        "capacity": 9564,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "JDN",
+        "name": "Janio de Moraes",
+        "city": "Nova Iguaçu",
+        "capacity": 5000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "CEN",
+        "name": "Centenário",
+        "city": "Caxias do Sul",
+        "capacity": 30000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ARS",
+        "name": "Aníbal Costa",
+        "city": "Tubarão",
+        "capacity": 5000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "HPP",
+        "name": "Hipólito Cadenazzi",
+        "city": "Itajaí",
+        "capacity": 6000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "MLR",
+        "name": "Major Levy Sobrinho",
+        "city": "Limeira",
+        "capacity": 16000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "SCH",
+        "name": "Schmidtão",
+        "city": "Rio Claro",
+        "capacity": 12000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "JVB",
+        "name": "Joaquinzão",
+        "city": "Taubaté",
+        "capacity": 12000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "SIL",
+        "name": "Salvador Costa",
+        "city": "Cariacica",
+        "capacity": 8000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "AGN",
+        "name": "Arena Guilhermão",
+        "city": "Águia Branca",
+        "capacity": 5000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "IPC",
+        "name": "Ipatingão",
+        "city": "Ipatinga",
+        "capacity": 20048,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "MHL",
+        "name": "Mário Helênio",
+        "city": "Juiz de Fora",
+        "capacity": 30000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "MOD",
+        "name": "Modelão",
+        "city": "Castanhal",
+        "capacity": 8000,
+        "nation_id": "BRA"
+    },
+    {
+        "id": "ZOL",
+        "name": "Zolito Nunes",
+        "city": "Marabá",
+        "capacity": 6000,
+        "nation_id": "BRA"
     }
 ]

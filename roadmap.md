@@ -71,8 +71,9 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Resultados atualizam tabela de classificacao automaticamente
 - [x] Relatorios de jogo enviados para inbox do usuario
 
+- [x] Substituicoes durante partida (max 3)
+
 ## Pendente (Fase 1)
-- [ ] Substituicoes durante partida (3 + tempo extra)
 - [ ] Ratings de desempenho individual por jogador
 
 ---
@@ -186,11 +187,18 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] Navegacao por Tab/BackTab e atalhos numericos (1-8)
 - [x] Tela de Configuracoes (idioma, moeda)
 
+- [x] Simulacao ao vivo de partida com eventos minuto-a-minuto
+- [x] Selecao de titulares/reservas na aba Elenco (Enter para trocar)
+- [x] Negociacao interativa de transferencias (selecionar + oferta)
+- [x] Carregar jogo salvo no menu principal
+- [x] Substituicoes durante partida (max 3)
+- [x] Academia de jovens (aba dedicada com sub-21 e potencial)
+- [x] Salvar jogo (Ctrl+S)
+- [x] Estadios brasileiros reais e arbitros com perfis
+
 ## Pendente (Fase 8)
-- [ ] Simulacao ao vivo de partida com eventos minuto-a-minuto
-- [ ] Selecao de titulares/reservas na aba Elenco
-- [ ] Negociacao interativa de transferencias
-- [ ] Carregar jogo salvo
+- [ ] Melhorar UI de negociacao com contra-propostas
+- [ ] Drag & drop visual para taticas
 
 ---
 
@@ -215,9 +223,10 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 - [x] 5 competicoes (4 ligas + Copa do Brasil)
 - [x] Atributos proporcionais a reputacao do clube
 
+- [x] Estadios brasileiros com capacidades reais (80 estadios)
+- [x] 20 arbitros brasileiros com perfis de personalidade
+
 ## Pendente (Fase 10)
-- [ ] Estadios brasileiros com capacidades reais
-- [ ] Arbitros com perfis de personalidade
 - [ ] Staff tecnico completo
 - [ ] Dados configuraveis via JSON
 
@@ -275,8 +284,8 @@ Feito em Rust com interface TUI (terminal) e desktop via Tauri.
 
 ## Prioridades Atuais
 
-1. **Simulacao ao vivo** — match day interativo com eventos minuto-a-minuto
-2. **Selecao de titulares** — arrastar jogadores entre titular/reserva
-3. **Negociacao interativa** — propor transferencias e receber contra-propostas
-4. **Carregar jogo salvo** — UI de load game no menu principal
-5. **Dados expandidos** — estadios, arbitros, staff
+1. **Contra-propostas** — IA responde com valores alternativos nas negociacoes
+2. **Categorias de base** — geracao anual de jovens da academia
+3. **Staff tecnico** — treinadores especializados afetando treino
+4. **GUI Tauri** — completar interface desktop com animacoes
+5. **Multiplayer** — modo hot-seat local

@@ -1,16 +1,142 @@
 [
     {
-        "id": "REF001",
-        "name": "Mike Dean",
-        "nationality": "ENG",
-        "experience": 85,
+        "id": "REF01",
+        "name": "Raphael Claus",
+        "nationality": "BRA",
+        "reputation": 92,
+        "strictness": 60
+    },
+    {
+        "id": "REF02",
+        "name": "Anderson Daronco",
+        "nationality": "BRA",
+        "reputation": 90,
+        "strictness": 75
+    },
+    {
+        "id": "REF03",
+        "name": "Wilton Pereira Sampaio",
+        "nationality": "BRA",
+        "reputation": 91,
+        "strictness": 55
+    },
+    {
+        "id": "REF04",
+        "name": "Bráulio da Silva Machado",
+        "nationality": "BRA",
+        "reputation": 88,
+        "strictness": 62
+    },
+    {
+        "id": "REF05",
+        "name": "Ramon Abatti Abel",
+        "nationality": "BRA",
+        "reputation": 85,
+        "strictness": 58
+    },
+    {
+        "id": "REF06",
+        "name": "Flávio Rodrigues de Souza",
+        "nationality": "BRA",
+        "reputation": 84,
+        "strictness": 65
+    },
+    {
+        "id": "REF07",
+        "name": "Bruno Arleu de Araújo",
+        "nationality": "BRA",
+        "reputation": 83,
+        "strictness": 52
+    },
+    {
+        "id": "REF08",
+        "name": "Luiz Flávio de Oliveira",
+        "nationality": "BRA",
+        "reputation": 86,
+        "strictness": 48
+    },
+    {
+        "id": "REF09",
+        "name": "Leandro Pedro Vuaden",
+        "nationality": "BRA",
+        "reputation": 82,
         "strictness": 70
     },
     {
-        "id": "REF002",
-        "name": "Graham Poll",
-        "nationality": "ENG",
-        "experience": 90,
-        "strictness": 65
+        "id": "REF10",
+        "name": "Wagner do Nascimento Magalhães",
+        "nationality": "BRA",
+        "reputation": 80,
+        "strictness": 68
+    },
+    {
+        "id": "REF11",
+        "name": "Paulo Roberto Alves Júnior",
+        "nationality": "BRA",
+        "reputation": 78,
+        "strictness": 55
+    },
+    {
+        "id": "REF12",
+        "name": "Sávio Pereira Sampaio",
+        "nationality": "BRA",
+        "reputation": 76,
+        "strictness": 60
+    },
+    {
+        "id": "REF13",
+        "name": "Denis da Silva Ribeiro Serafim",
+        "nationality": "BRA",
+        "reputation": 75,
+        "strictness": 50
+    },
+    {
+        "id": "REF14",
+        "name": "Marcelo de Lima Henrique",
+        "nationality": "BRA",
+        "reputation": 82,
+        "strictness": 45
+    },
+    {
+        "id": "REF15",
+        "name": "Jefferson Ferreira de Moraes",
+        "nationality": "BRA",
+        "reputation": 74,
+        "strictness": 63
+    },
+    {
+        "id": "REF16",
+        "name": "Maguielson Lima Barbosa",
+        "nationality": "BRA",
+        "reputation": 72,
+        "strictness": 58
+    },
+    {
+        "id": "REF17",
+        "name": "Rafael Rodrigo Klein",
+        "nationality": "BRA",
+        "reputation": 79,
+        "strictness": 72
+    },
+    {
+        "id": "REF18",
+        "name": "Jonathan Benkenstein Pinheiro",
+        "nationality": "BRA",
+        "reputation": 73,
+        "strictness": 55
+    },
+    {
+        "id": "REF19",
+        "name": "Davi de Oliveira Lacerda",
+        "nationality": "BRA",
+        "reputation": 70,
+        "strictness": 50
+    },
+    {
+        "id": "REF20",
+        "name": "João Vitor Gobi",
+        "nationality": "BRA",
+        "reputation": 68,
+        "strictness": 47
     }
 ]
