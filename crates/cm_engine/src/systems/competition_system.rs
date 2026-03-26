@@ -41,7 +41,11 @@ impl CompetitionSystem {
             .collect()
     }
 
-    /// Generate league fixtures for a competition.
+    /// Generate league fixtures using proper round-robin (circle method).
+    ///
+    /// For N teams (even), generates (N-1) rounds in the first half,
+    /// each with exactly N/2 matches. Then mirrors for the second half
+    /// with home/away swapped. Each round is 7 days apart.
     pub fn generate_league_fixtures(
         &self,
         competition_id: &CompetitionId,
@@ -55,42 +59,70 @@ impl CompetitionSystem {
             return fixtures;
         }
 
-        // Generate round-robin schedule
+        // Ensure even number of teams (add dummy if needed, then filter)
+        let mut teams: Vec<ClubId> = clubs.to_vec();
+        let has_dummy = num_clubs % 2 != 0;
+        if has_dummy {
+            teams.push(ClubId::new("__BYE__"));
+        }
+        let n = teams.len();
+        let total_rounds = n - 1;
+        let matches_per_round = n / 2;
+
+        // Circle method: fix teams[0], rotate the rest
+        let mut rotating: Vec<ClubId> = teams[1..].to_vec();
+
         let mut round: u8 = 1;
         let mut current_date = start_date;
 
-        // First half of season (home matches)
-        for i in 0..num_clubs {
-            for j in (i + 1)..num_clubs {
+        // First half of season
+        for _ in 0..total_rounds {
+            for m in 0..matches_per_round {
+                let home = if m == 0 {
+                    teams[0].clone()
+                } else {
+                    rotating[m - 1].clone()
+                };
+                let away = rotating[rotating.len() - 1 - m].clone();
+
+                // Skip bye matches
+                if home.to_string() == "__BYE__" || away.to_string() == "__BYE__" {
+                    continue;
+                }
+
                 fixtures.push(Fixture::new(
                     competition_id.clone(),
                     round,
                     current_date,
-                    clubs[i].clone(),
-                    clubs[j].clone(),
+                    home,
+                    away,
                 ));
-
-                // Next weekend
-                if fixtures.len() % (num_clubs / 2) == 0 {
-                    round = round.saturating_add(1);
-                    current_date = current_date + chrono::Duration::days(7);
-                }
             }
+
+            // Rotate: last element goes to front
+            rotating.rotate_right(1);
+            round = round.saturating_add(1);
+            current_date = current_date + chrono::Duration::days(7);
         }
 
-        // Second half of season (reversed home/away)
-        let midpoint = fixtures.len();
-        for i in 0..midpoint {
-            let original = &fixtures[i];
+        // Second half of season (home/away swapped)
+        let first_half: Vec<(u8, NaiveDate, ClubId, ClubId)> = fixtures
+            .iter()
+            .map(|f| (f.round, f.date, f.home_id.clone(), f.away_id.clone()))
+            .collect();
+
+        for (_, _, home, away) in &first_half {
             fixtures.push(Fixture::new(
                 competition_id.clone(),
                 round,
                 current_date,
-                original.away_id.clone(),
-                original.home_id.clone(),
+                away.clone(),
+                home.clone(),
             ));
 
-            if (fixtures.len() - midpoint) % (num_clubs / 2) == 0 {
+            // Count fixtures added in this round
+            let added_this_round = fixtures.len() - first_half.len();
+            if added_this_round > 0 && added_this_round % matches_per_round == 0 {
                 round = round.saturating_add(1);
                 current_date = current_date + chrono::Duration::days(7);
             }

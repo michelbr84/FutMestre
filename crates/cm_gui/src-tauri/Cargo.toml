@@ -30,4 +30,5 @@ cm_save = { path = "../../cm_save" }
 cm_transfers = { path = "../../cm_transfers" }
 chrono = { version = "0.4", features = ["serde"] }
 serde_json = "1"
+rand = "0.8"
 

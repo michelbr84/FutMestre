@@ -61,6 +61,94 @@ fn find_user_competition(world: &World, club_id: &ClubId) -> Option<CompetitionI
         .map(|c| c.id.clone())
 }
 
+fn generate_random_events(game: &mut Game) {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    // ~30% chance of a daily event
+    if rng.gen::<f64>() > 0.30 {
+        return;
+    }
+
+    let user_club_id = game.state().club_id.clone();
+    let days = game.state().days_played;
+
+    // Collect data we need before mutating
+    let event_type = rng.gen_range(0u8..6);
+
+    match event_type {
+        0 => {
+            // Training report
+            let messages = [
+                "Relatorio de treino: o elenco treinou bem hoje. Niveis de forma estao melhorando.",
+                "Relatorio de treino: sessao intensa hoje. Alguns jogadores parecem cansados.",
+                "Relatorio de treino: treino tatico focado na proxima partida.",
+                "Relatorio de treino: sessao leve de recuperacao hoje.",
+            ];
+            game.state_mut().add_message(messages[rng.gen_range(0..messages.len())].to_string());
+        }
+        1 => {
+            // Scout report
+            let messages = [
+                "Olheiro: nossos observadores estao monitorando varios jogadores promissores na regiao.",
+                "Olheiro: um jovem talento foi identificado em uma equipe rival.",
+                "Olheiro: relatorio de scouting da proxima rodada esta pronto.",
+            ];
+            game.state_mut().add_message(messages[rng.gen_range(0..messages.len())].to_string());
+        }
+        2 => {
+            // Board message
+            let messages = [
+                "Diretoria: a diretoria esta satisfeita com os resultados recentes.",
+                "Diretoria: o conselho revisou o orcamento. Sem alteracoes no momento.",
+                "Diretoria: a diretoria espera melhorias nos proximos jogos.",
+            ];
+            game.state_mut().add_message(messages[rng.gen_range(0..messages.len())].to_string());
+        }
+        3 => {
+            // Transfer rumor (involving other clubs)
+            let messages = [
+                "Mercado: rumores indicam movimentacao intensa entre clubes da liga.",
+                "Mercado: um clube rival contratou um reforco de peso.",
+                "Mercado: a janela de transferencias esta gerando interesse de clubes europeus em jogadores da liga.",
+            ];
+            game.state_mut().add_message(messages[rng.gen_range(0..messages.len())].to_string());
+        }
+        4 => {
+            // Training injury (~10% when this fires)
+            if rng.gen::<f64>() < 0.10 {
+                let world = game.world();
+                let player_name = world.clubs.get(&user_club_id)
+                    .and_then(|c| c.player_ids.get(rng.gen_range(0..c.player_ids.len().max(1))))
+                    .and_then(|pid| world.players.get(pid))
+                    .map(|p| p.full_name());
+
+                if let Some(name) = player_name {
+                    game.state_mut().add_message(format!(
+                        "Lesao no treino: {} sofreu uma lesao leve durante o treino e pode desfalcar a equipe por alguns dias.",
+                        name
+                    ));
+                }
+            } else {
+                game.state_mut().add_message("Departamento medico: nenhuma nova lesao reportada no treino de hoje.".to_string());
+            }
+        }
+        5 => {
+            // Youth academy
+            if days > 30 && rng.gen::<f64>() < 0.05 {
+                game.state_mut().add_message(
+                    "Base: um jovem da academia foi promovido para o elenco profissional. Fique atento!".to_string()
+                );
+            } else {
+                game.state_mut().add_message(
+                    "Base: o centro de formacao esta desenvolvendo bons talentos para o futuro.".to_string()
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
 fn saves_dir() -> std::path::PathBuf {
     let candidates = ["saves", "../../saves", "../../../saves"];
     for c in &candidates {
@@ -347,6 +435,9 @@ fn advance_day(state: State<AppState>) -> Option<AdvanceDayResult> {
     // Process the day (AI matches simulated, user match skipped by match_system)
     game.process_day();
 
+    // Generate random daily events (~30% chance)
+    generate_random_events(game);
+
     let today = game.state().date.date();
     let user_club = game.state().club_id.clone();
 
@@ -621,7 +712,6 @@ fn get_inbox(state: State<AppState>) -> Vec<DisplayMessage> {
         None => return Vec::new(),
     };
 
-    let total = game.state().inbox.len();
     game.state()
         .inbox
         .iter()
@@ -629,7 +719,6 @@ fn get_inbox(state: State<AppState>) -> Vec<DisplayMessage> {
         .rev()
         .map(|(i, msg)| {
             let title = msg.lines().next().unwrap_or("Mensagem").to_string();
-            let is_recent = i >= total.saturating_sub(5);
             DisplayMessage {
                 id: format!("msg-{}", i),
                 msg_type: "system".into(),
@@ -637,7 +726,7 @@ fn get_inbox(state: State<AppState>) -> Vec<DisplayMessage> {
                 text: msg.clone(),
                 date: format!("{}", game.state().date),
                 time: "09:00".into(),
-                unread: is_recent,
+                unread: false,
                 tags: vec!["Info".into()],
             }
         })

@@ -190,13 +190,13 @@
             <table class="datagrid" id="squad-table">
               <thead>
                 <tr>
-                  <th width="5%">Pos</th>
-                  <th width="35%">Nome</th>
-                  <th width="10%">Idade</th>
-                  <th width="15%">Nac</th>
-                  <th width="10%">Ovr</th>
-                  <th width="15%">Valor</th>
-                  <th width="10%">Cond</th>
+                  <th width="5%" style="cursor:pointer" onclick="app.sortSquad('pos')" data-i18n="pos">Pos</th>
+                  <th width="35%" style="cursor:pointer" onclick="app.sortSquad('name')" data-i18n="name">Nome</th>
+                  <th width="10%" style="cursor:pointer" onclick="app.sortSquad('age')" data-i18n="age">Idade</th>
+                  <th width="15%" style="cursor:pointer" onclick="app.sortSquad('nat')" data-i18n="nat">Nac</th>
+                  <th width="10%" style="cursor:pointer" onclick="app.sortSquad('ovr')" data-i18n="ovr">Ovr</th>
+                  <th width="15%" style="cursor:pointer" onclick="app.sortSquad('value')" data-i18n="value">Valor</th>
+                  <th width="10%" style="cursor:pointer" onclick="app.sortSquad('cond')" data-i18n="cond">Cond</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -341,9 +341,11 @@
           <div class="commentary-box" id="commentary-feed"></div>
         </div>
 
-        <div class="match-footer" style="padding:2rem; text-align:center;">
+        <div class="match-footer" style="padding:1rem 2rem; display:flex; justify-content:center; gap:1rem; align-items:center;">
+          <button class="action-btn secondary" id="btn-match-subs" onclick="app.openMatchSubs()" style="font-size:0.85rem;">Substituicao</button>
+          <button class="action-btn secondary" id="btn-match-tactics" onclick="app.openMatchTactics()" style="font-size:0.85rem;">Tatica</button>
           <button class="action-btn primary" id="btn-finish-match" onclick="app.finishMatch()"
-            style="display:none; margin:0 auto;">Encerrar Partida</button>
+            style="display:none;">Encerrar Partida</button>
         </div>
       </div>
     </div>

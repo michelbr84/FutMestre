@@ -715,12 +715,14 @@ body {
 
 /* --- Pitch / Tactics --- */
 .pitch-container {
-  flex: 2;
   position: relative;
   background: #1a4d2e;
   border-radius: 8px;
   border: 2px solid rgba(255, 255, 255, 0.1);
   overflow: hidden;
+  width: 340px;
+  min-width: 340px;
+  aspect-ratio: 3 / 4;
 }
 
 .pitch {

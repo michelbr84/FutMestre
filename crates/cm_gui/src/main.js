@@ -527,10 +527,13 @@ const app = {
 
   // ─── Squad ──────────────────────────────────────────────────────────────
 
+  squadSort: { col: null, asc: true },
+
   loadSquad: async (teamId) => {
     try {
       const players = await invoke('get_team_squad', { teamId: teamId.toString() });
       app.state.currentSquad = players;
+      app.squadSort = { col: null, asc: true };
       app.filterSquad('ALL');
     } catch (e) {
       console.error("Erro ao carregar elenco:", e);
@@ -551,7 +554,34 @@ const app = {
       if (filter === 'ATT') return p.position.includes('F') || p.position.includes('S');
       return true;
     });
+    app.state.filteredSquad = filtered;
     app.renderSquadTable(filtered);
+  },
+
+  sortSquad: (col) => {
+    if (app.squadSort.col === col) {
+      app.squadSort.asc = !app.squadSort.asc;
+    } else {
+      app.squadSort.col = col;
+      app.squadSort.asc = true;
+    }
+    const posOrder = { 'GK': 0, 'DC': 1, 'DL': 2, 'DR': 3, 'WBL': 3, 'WBR': 3, 'DMC': 4, 'MC': 5, 'ML': 5, 'MR': 5, 'AMC': 6, 'AML': 6, 'AMR': 6, 'FC': 7, 'FL': 7, 'FR': 7, 'SC': 7 };
+    const players = [...(app.state.filteredSquad || app.state.currentSquad || [])];
+    const dir = app.squadSort.asc ? 1 : -1;
+
+    players.sort((a, b) => {
+      switch (col) {
+        case 'pos': return dir * ((posOrder[a.position] || 5) - (posOrder[b.position] || 5));
+        case 'name': return dir * a.name.localeCompare(b.name);
+        case 'age': return dir * (a.age - b.age);
+        case 'nat': return dir * a.nationality.localeCompare(b.nationality);
+        case 'ovr': return dir * (a.overall - b.overall);
+        case 'value': return dir * (a.overall - b.overall); // approximate by ovr
+        case 'cond': return dir * (a.condition - b.condition);
+        default: return 0;
+      }
+    });
+    app.renderSquadTable(players);
   },
 
   renderSquadTable: (players) => {
@@ -916,7 +946,42 @@ const app = {
     box.scrollTop = box.scrollHeight;
   },
 
+  matchSubsUsed: 0,
+
+  openMatchSubs: () => {
+    if (app.matchSubsUsed >= 3) {
+      alert('Limite de 3 substituicoes atingido.');
+      return;
+    }
+    const squad = app.state.currentSquad || [];
+    const subs = squad.slice(11); // Reserves
+    if (subs.length === 0) {
+      alert('Nenhum reserva disponivel.');
+      return;
+    }
+    let msg = 'Escolha o reserva para entrar:\n';
+    subs.forEach((p, i) => { msg += `${i + 1}. ${p.name} (${p.position}, OVR ${p.overall})\n`; });
+    const choice = prompt(msg + '\nDigite o numero:');
+    if (choice && parseInt(choice) > 0 && parseInt(choice) <= subs.length) {
+      app.matchSubsUsed++;
+      const entering = subs[parseInt(choice) - 1];
+      app.addCommentary(`Substituicao: ${entering.name} entra em campo. (${app.matchSubsUsed}/3)`, true);
+    }
+  },
+
+  openMatchTactics: () => {
+    const options = ['Defensivo', 'Cauteloso', 'Equilibrado', 'Ofensivo', 'Ataque Total'];
+    let msg = 'Alterar mentalidade:\n';
+    options.forEach((o, i) => { msg += `${i + 1}. ${o}\n`; });
+    const choice = prompt(msg + '\nDigite o numero:');
+    if (choice && parseInt(choice) > 0 && parseInt(choice) <= options.length) {
+      const selected = options[parseInt(choice) - 1];
+      app.addCommentary(`Mudanca tatica: mentalidade alterada para ${selected}.`, true);
+    }
+  },
+
   finishMatch: () => {
+    app.matchSubsUsed = 0;
     app.renderGameHub();
     app.showScreen('news');
   },
