@@ -66,34 +66,51 @@ impl Game {
 
     /// Bootstrap initial inbox messages.
     pub fn bootstrap_inbox(&mut self) {
-        self.state.add_message("Welcome! Your challenge begins today.");
-        self.state.add_message("Set your tactics and review the squad.");
+        let club_name = self
+            .world
+            .clubs
+            .get(&self.state.club_id)
+            .map(|c| c.name.clone())
+            .unwrap_or_else(|| "seu clube".to_string());
+        self.state.add_message(format!(
+            "Bem-vindo ao {}! Seu desafio comeca hoje. A diretoria espera grandes resultados.",
+            club_name
+        ));
+        self.state
+            .add_message("Revise o elenco e defina suas taticas antes da primeira partida.".to_string());
     }
 
     /// Process one day.
     pub fn process_day(&mut self) {
         // 1) Time management
-        self.time.tick_day(&self.cfg, &mut self.world, &mut self.state);
+        self.time
+            .tick_day(&self.cfg, &mut self.world, &mut self.state);
 
         // 2) AI (pre-match decisions)
-        self.ai.run_daily(&self.cfg, &mut self.world, &mut self.state);
+        self.ai
+            .run_daily(&self.cfg, &mut self.world, &mut self.state);
 
         // 3) Competitions (fixtures/tables)
-        self.competitions.run_daily(&self.cfg, &mut self.world, &mut self.state);
+        self.competitions
+            .run_daily(&self.cfg, &mut self.world, &mut self.state);
 
         // 4) Match day?
         if self.state.flags.match_day {
-            self.matches.run_match_day(&self.cfg, &mut self.world, &mut self.state);
+            self.matches
+                .run_match_day(&self.cfg, &mut self.world, &mut self.state);
         }
 
         // 5) Transfer market
-        self.transfers.run_daily(&self.cfg, &mut self.world, &mut self.state);
+        self.transfers
+            .run_daily(&self.cfg, &mut self.world, &mut self.state);
 
         // 6) Finances
-        self.finance.run_daily(&self.cfg, &mut self.world, &mut self.state);
+        self.finance
+            .run_daily(&self.cfg, &mut self.world, &mut self.state);
 
         // 7) Morale/training
-        self.morale.run_daily(&self.cfg, &mut self.world, &mut self.state);
+        self.morale
+            .run_daily(&self.cfg, &mut self.world, &mut self.state);
 
         // 8) Save flag
         self.save.mark_dirty(&mut self.state);

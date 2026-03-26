@@ -17,7 +17,7 @@ impl TimeManager {
 
         // First of month for finances
         if state.date.is_first_of_month() {
-            state.add_message("Monthly financial report available.");
+            state.add_message("Relatorio financeiro mensal disponivel.");
         }
     }
 }

@@ -2,9 +2,11 @@
 
 use crate::config::GameConfig;
 use crate::state::GameState;
-use cm_core::world::{World, Competition, CompetitionType, DivisionLevel, Fixture, Fixtures, Table, TableRow};
-use cm_core::ids::{ClubId, CompetitionId};
 use chrono::NaiveDate;
+use cm_core::ids::{ClubId, CompetitionId};
+use cm_core::world::{
+    Competition, CompetitionType, DivisionLevel, Fixture, Fixtures, Table, TableRow, World,
+};
 
 /// Number of teams promoted/relegated between divisions.
 const PROMOTION_RELEGATION_SLOTS: usize = 3;
@@ -16,14 +18,14 @@ impl CompetitionSystem {
     /// Run daily competition logic.
     pub fn run_daily(&self, _cfg: &GameConfig, world: &mut World, state: &mut GameState) {
         let today = state.date.date();
-        
+
         // Check for fixtures today
         let todays_fixtures = self.get_fixtures_for_date(world, today);
-        
+
         if !todays_fixtures.is_empty() {
             state.flags.match_day = true;
             state.add_message(format!(
-                "{} fixture(s) scheduled for today",
+                "{} jogo(s) agendado(s) para hoje",
                 todays_fixtures.len()
             ));
         }
@@ -31,7 +33,9 @@ impl CompetitionSystem {
 
     /// Get fixtures for a specific date.
     pub fn get_fixtures_for_date<'a>(&self, world: &'a World, date: NaiveDate) -> Vec<&'a Fixture> {
-        world.competitions.values()
+        world
+            .competitions
+            .values()
             .flat_map(|comp| &comp.fixtures.matches)
             .filter(|f| f.date == date && !f.is_played())
             .collect()
@@ -46,7 +50,7 @@ impl CompetitionSystem {
     ) -> Vec<Fixture> {
         let mut fixtures = Vec::new();
         let num_clubs = clubs.len();
-        
+
         if num_clubs < 2 {
             return fixtures;
         }
@@ -54,7 +58,7 @@ impl CompetitionSystem {
         // Generate round-robin schedule
         let mut round: u8 = 1;
         let mut current_date = start_date;
-        
+
         // First half of season (home matches)
         for i in 0..num_clubs {
             for j in (i + 1)..num_clubs {
@@ -65,7 +69,7 @@ impl CompetitionSystem {
                     clubs[i].clone(),
                     clubs[j].clone(),
                 ));
-                
+
                 // Next weekend
                 if fixtures.len() % (num_clubs / 2) == 0 {
                     round = round.saturating_add(1);
@@ -85,7 +89,7 @@ impl CompetitionSystem {
                 original.away_id.clone(),
                 original.home_id.clone(),
             ));
-            
+
             if (fixtures.len() - midpoint) % (num_clubs / 2) == 0 {
                 round = round.saturating_add(1);
                 current_date = current_date + chrono::Duration::days(7);
@@ -107,7 +111,7 @@ impl CompetitionSystem {
         // Ensure teams are in the table
         table.add_team(home_club.clone());
         table.add_team(away_club.clone());
-        
+
         // Record result (3 for win, 1 for draw)
         table.record_result(home_club, away_club, home_goals, away_goals, 3, 1);
     }
@@ -115,10 +119,11 @@ impl CompetitionSystem {
     /// Get sorted table standings.
     pub fn get_standings<'a>(&self, table: &'a Table) -> Vec<&'a TableRow> {
         let mut standings: Vec<_> = table.rows.iter().collect();
-        
+
         // Sort by: points, goal difference, goals for
         standings.sort_by(|a, b| {
-            b.points.cmp(&a.points)
+            b.points
+                .cmp(&a.points)
                 .then_with(|| b.goal_difference().cmp(&a.goal_difference()))
                 .then_with(|| b.goals_for.cmp(&a.goals_for))
         });
@@ -132,13 +137,20 @@ impl CompetitionSystem {
     }
 
     /// Check for user club's upcoming fixture.
-    pub fn get_next_fixture<'a>(&self, world: &'a World, club_id: &ClubId, after_date: NaiveDate) -> Option<&'a Fixture> {
-        world.competitions.values()
+    pub fn get_next_fixture<'a>(
+        &self,
+        world: &'a World,
+        club_id: &ClubId,
+        after_date: NaiveDate,
+    ) -> Option<&'a Fixture> {
+        world
+            .competitions
+            .values()
             .flat_map(|comp| &comp.fixtures.matches)
             .filter(|f| {
-                !f.is_played() &&
-                f.date > after_date &&
-                (f.home_id == *club_id || f.away_id == *club_id)
+                !f.is_played()
+                    && f.date > after_date
+                    && (f.home_id == *club_id || f.away_id == *club_id)
             })
             .min_by_key(|f| f.date)
     }
@@ -153,7 +165,9 @@ impl CompetitionSystem {
 
     /// Get competition IDs for all completed league seasons.
     pub fn get_completed_leagues(world: &World) -> Vec<CompetitionId> {
-        world.competitions.values()
+        world
+            .competitions
+            .values()
             .filter(|c| c.is_league() && Self::is_season_complete(c))
             .map(|c| c.id.clone())
             .collect()
@@ -165,7 +179,9 @@ impl CompetitionSystem {
 /// Detect and process end of season for all divisions.
 /// Returns the IDs of competitions whose seasons just ended.
 pub fn process_end_of_season(world: &mut World) -> Vec<CompetitionId> {
-    let completed: Vec<CompetitionId> = world.competitions.values()
+    let completed: Vec<CompetitionId> = world
+        .competitions
+        .values()
         .filter(|c| c.is_league() && c.division_level.is_some())
         .filter(|c| CompetitionSystem::is_season_complete(c))
         .map(|c| c.id.clone())
@@ -180,7 +196,9 @@ pub fn process_end_of_season(world: &mut World) -> Vec<CompetitionId> {
 /// Bottom 3 of each division relegate (except Serie D, the bottom division).
 ///
 /// Returns a list of (ClubId, from_division, to_division) moves applied.
-pub fn apply_promotion_relegation(world: &mut World) -> Vec<(ClubId, DivisionLevel, DivisionLevel)> {
+pub fn apply_promotion_relegation(
+    world: &mut World,
+) -> Vec<(ClubId, DivisionLevel, DivisionLevel)> {
     // First, collect the sorted standings for each division
     let system = CompetitionSystem;
     let mut division_standings: Vec<(DivisionLevel, CompetitionId, Vec<ClubId>)> = Vec::new();
@@ -189,9 +207,8 @@ pub fn apply_promotion_relegation(world: &mut World) -> Vec<(ClubId, DivisionLev
         if let Some(div_level) = comp.division_level {
             if comp.is_league() {
                 let standings = system.get_standings(&comp.table);
-                let ordered_clubs: Vec<ClubId> = standings.iter()
-                    .map(|row| row.club_id.clone())
-                    .collect();
+                let ordered_clubs: Vec<ClubId> =
+                    standings.iter().map(|row| row.club_id.clone()).collect();
                 division_standings.push((div_level, comp.id.clone(), ordered_clubs));
             }
         }
@@ -229,7 +246,9 @@ pub fn apply_promotion_relegation(world: &mut World) -> Vec<(ClubId, DivisionLev
 
     // Now apply the moves: remove clubs from old competitions, add to new ones
     // Build a map from division level to competition id
-    let div_to_comp: std::collections::HashMap<DivisionLevel, CompetitionId> = world.competitions.values()
+    let div_to_comp: std::collections::HashMap<DivisionLevel, CompetitionId> = world
+        .competitions
+        .values()
         .filter(|c| c.is_league() && c.division_level.is_some())
         .map(|c| (c.division_level.unwrap(), c.id.clone()))
         .collect();
@@ -259,7 +278,9 @@ pub fn generate_new_season(world: &mut World, start_date: NaiveDate) {
     let system = CompetitionSystem;
 
     // Collect competition IDs and their team lists
-    let league_info: Vec<(CompetitionId, Vec<ClubId>)> = world.competitions.values()
+    let league_info: Vec<(CompetitionId, Vec<ClubId>)> = world
+        .competitions
+        .values()
         .filter(|c| c.is_league() && c.division_level.is_some())
         .map(|c| (c.id.clone(), c.teams.clone()))
         .collect();
@@ -284,7 +305,10 @@ pub fn generate_new_season(world: &mut World, start_date: NaiveDate) {
             // Reset round counters
             comp.current_round = 0;
             if !comp.fixtures.matches.is_empty() {
-                comp.total_rounds = comp.fixtures.matches.iter()
+                comp.total_rounds = comp
+                    .fixtures
+                    .matches
+                    .iter()
                     .map(|f| f.round)
                     .max()
                     .unwrap_or(0);
@@ -295,7 +319,11 @@ pub fn generate_new_season(world: &mut World, start_date: NaiveDate) {
 
 /// Generate a knockout cup draw with all Serie A and Serie B teams.
 /// Returns the CompetitionId of the created cup.
-pub fn generate_cup_draw(world: &mut World, cup_name: &str, start_date: NaiveDate) -> CompetitionId {
+pub fn generate_cup_draw(
+    world: &mut World,
+    cup_name: &str,
+    start_date: NaiveDate,
+) -> CompetitionId {
     // Collect all Serie A and Serie B teams
     let mut cup_teams: Vec<ClubId> = Vec::new();
 
@@ -326,13 +354,7 @@ pub fn generate_cup_draw(world: &mut World, cup_name: &str, start_date: NaiveDat
     for i in 0..pairs {
         let home = cup_teams[i * 2].clone();
         let away = cup_teams[i * 2 + 1].clone();
-        fixtures.push(Fixture::new(
-            cup_id.clone(),
-            round,
-            start_date,
-            home,
-            away,
-        ));
+        fixtures.push(Fixture::new(cup_id.clone(), round, start_date, home, away));
     }
 
     cup.total_rounds = calculate_knockout_rounds(num_teams);
@@ -398,7 +420,9 @@ mod tests {
         let start = test_date();
 
         // Collect info first to avoid borrow issues
-        let comp_info: Vec<(CompetitionId, Vec<ClubId>)> = world.competitions.values()
+        let comp_info: Vec<(CompetitionId, Vec<ClubId>)> = world
+            .competitions
+            .values()
             .filter(|c| c.is_league() && c.division_level.is_some())
             .map(|c| (c.id.clone(), c.teams.clone()))
             .collect();
@@ -413,14 +437,8 @@ mod tests {
                     fixture.set_result(2, 1, 1000);
 
                     // Update table
-                    comp.table.record_result(
-                        &fixture.home_id,
-                        &fixture.away_id,
-                        2,
-                        1,
-                        3,
-                        1,
-                    );
+                    comp.table
+                        .record_result(&fixture.home_id, &fixture.away_id, 2, 1, 3, 1);
 
                     comp.fixtures.add(fixture);
                 }
@@ -544,9 +562,15 @@ mod tests {
         assert!(DivisionLevel::SerieD.is_bottom());
         assert!(!DivisionLevel::SerieD.is_top());
 
-        assert_eq!(DivisionLevel::SerieB.division_above(), Some(DivisionLevel::SerieA));
+        assert_eq!(
+            DivisionLevel::SerieB.division_above(),
+            Some(DivisionLevel::SerieA)
+        );
         assert_eq!(DivisionLevel::SerieA.division_above(), None);
-        assert_eq!(DivisionLevel::SerieA.division_below(), Some(DivisionLevel::SerieB));
+        assert_eq!(
+            DivisionLevel::SerieA.division_below(),
+            Some(DivisionLevel::SerieB)
+        );
         assert_eq!(DivisionLevel::SerieD.division_below(), None);
     }
 
@@ -555,7 +579,10 @@ mod tests {
         let mut world = create_world_with_divisions(4);
         // No fixtures generated yet -- season cannot be complete
         let completed = process_end_of_season(&mut world);
-        assert!(completed.is_empty(), "No fixtures means season is not complete");
+        assert!(
+            completed.is_empty(),
+            "No fixtures means season is not complete"
+        );
     }
 
     #[test]
@@ -606,16 +633,24 @@ mod tests {
         assert_eq!(moves.len(), 18);
 
         // Check no promotions from Serie A
-        let serie_a_promotions: Vec<_> = moves.iter()
+        let serie_a_promotions: Vec<_> = moves
+            .iter()
             .filter(|(_, from, to)| *from == DivisionLevel::SerieA && *to < *from)
             .collect();
-        assert!(serie_a_promotions.is_empty(), "No team should promote from Serie A");
+        assert!(
+            serie_a_promotions.is_empty(),
+            "No team should promote from Serie A"
+        );
 
         // Check no relegations from Serie D
-        let serie_d_relegations: Vec<_> = moves.iter()
+        let serie_d_relegations: Vec<_> = moves
+            .iter()
             .filter(|(_, from, to)| *from == DivisionLevel::SerieD && *to > *from)
             .collect();
-        assert!(serie_d_relegations.is_empty(), "No team should relegate from Serie D");
+        assert!(
+            serie_d_relegations.is_empty(),
+            "No team should relegate from Serie D"
+        );
 
         // Check that promotions go to the correct division
         for (_, from, to) in &moves {
@@ -635,7 +670,9 @@ mod tests {
         simulate_full_season(&mut world);
 
         // Record original team counts
-        let original_counts: std::collections::HashMap<CompetitionId, usize> = world.competitions.values()
+        let original_counts: std::collections::HashMap<CompetitionId, usize> = world
+            .competitions
+            .values()
             .filter(|c| c.is_league() && c.division_level.is_some())
             .map(|c| (c.id.clone(), c.teams.len()))
             .collect();
@@ -709,11 +746,12 @@ mod tests {
 
         // No Serie C or Serie D teams in the cup
         let serie_c_id = CompetitionId::new("SERIE-C");
-        let serie_c_teams: Vec<ClubId> = world.competitions.get(&serie_c_id)
-            .unwrap()
-            .teams.clone();
+        let serie_c_teams: Vec<ClubId> = world.competitions.get(&serie_c_id).unwrap().teams.clone();
         for team in &serie_c_teams {
-            assert!(!cup.teams.contains(team), "Serie C teams should not be in cup");
+            assert!(
+                !cup.teams.contains(team),
+                "Serie C teams should not be in cup"
+            );
         }
     }
 
